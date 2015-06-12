@@ -1,3 +1,6 @@
+from boosting_2D import config
+from boosting_2D import util
+log = util.log
 
 def parse_args():
     # Get arguments
@@ -56,20 +59,13 @@ def parse_args():
     # Parse arguments
     args = parser.parse_args()
     
-    global OUTPUT_PATH
-    OUTPUT_PATH = args.output_path
-
-    global OUTPUT_PREFIX
-    OUTPUT_PATH = args.output_prefix
-    
-    global tuning_params
-    tuning_params = TuningParams(
+    config.OUTPUT_PATH = args.output_path
+    config.OUTPUT_PREFIX = args.output_prefix
+    config.TUNING_PARAMS = TuningParams(
         args.num_iter, 
         args.stumps, args.stable, args.corrected_loss,
         args.eta1, args.eta2 )
-
-    global NCPU
-    NCPU = args.ncpu
+    config.NCPU = args.ncpu
 
     print_time('load y start ')
     y = TargetMatrix(os.path.join(args.data_path, args.target_file), 
@@ -94,13 +90,55 @@ def parse_args():
    
     # model_state = ModelState()
     print_time('load holdout start')
-    global holdout
-    holdout_file = args.holdout_file
-    holdout_format = args.holdout_format
-    holdout = Holdout(y, holdout_file, holdout_format)
+    holdout = Holdout(y, args.holdout_file, args.holdout_format)
     print_time('load holdout stop')
     
-    return (x1, x2, y)
+    return (x1, x2, y, holdout)
+
+def find_next_decision_node(tree, x1, x2):
+    # State number of parameters to search
+    if tuning_params.use_stumps:
+        tree.nsearch = 1
+    else:
+        tree.nsearch = tree.npred
+
+    ## Calculate loss at all search nodes
+    print_time('start rule_processes')
+    rule_processes = rule_processes_wrapper(tree)
+    print_time('end rule_processes')
+
+    # Find the best loss and split leaf
+    print_time('start find_best_split_from_losses')
+    best_split, reg, loss_best = find_best_split_from_losses(rule_processes)
+    print_time('end find_best_split_from_losses')
+
+    # Get rule weights for the best split
+    print_time('start find_rule_weights')
+    rule_weights = find_rule_weights(
+        tree.ind_pred_train[best_split], tree.weights, tree.ones_mat)
+    print_time('end find_rule_weights')
+
+    ### get_bundled_rules (returns the current rule if no bundling)  
+    # Get current rule, no stabilization
+    print_time('start get_current_rule')
+    m,r,reg,rule_train_index,rule_test_index = get_current_rule(
+        tree, best_split, reg, loss_best)
+    print_time('end get_current_rule')
+
+    ## Update score without stabilization,  if stabilization results 
+    ## in one rule or if stabilization criterion not met
+    rule_score = calc_score(tree, rule_weights, rule_train_index)
+    m_bundle = []
+    r_bundle = []
+
+    ### Store motifs/regulators above this node (for margin score)
+    above_motifs = tree.above_motifs[best_split]+tree.split_x1[best_split].tolist()
+    above_regs = tree.above_regs[best_split]+tree.split_x2[best_split].tolist()
+
+    return (m, r, best_split, 
+            m_bundle, r_bundle, 
+            rule_train_index, rule_test_index, rule_score, 
+            above_motifs, above_regs)
 
 def main():
     print 'starting main loop'
@@ -109,9 +147,6 @@ def main():
     print_time('parse args start')
     (x1, x2, y) = parse_args()
     print_time('parse args end')
-
-    ### Time implementation
-    t = time.time()
 
     ### Create tree object
     print_time('make tree start')
@@ -123,50 +158,19 @@ def main():
 
     ### Main Loop
     for i in range(1,tuning_params.num_iter):
-
-        print 'iteration {0}'.format(i)
-
-        # State number of parameters to search
-        if tuning_params.use_stumps:
-            tree.nsearch = 1
-        else:
-            tree.nsearch = tree.npred
-
-        ## Calculate loss at all search nodes
-        print_time('start rule_processes')
-        # rule_processes = pool.map(find_leaf_and_min_loss_wrapper, iterable=[ \
-        #     (tree, x) \
-        #     for x in range(tree.nsearch)]) # find rules with class call
-        rule_processes = rule_processes_wrapper(tree)
-        print_time('end rule_processes')
-
-        # Find the best loss and split leaf
-        print_time('start find_best_split_from_losses')
-        best_split, reg, loss_best = find_best_split_from_losses(rule_processes)
-        print_time('end find_best_split_from_losses')
-
-        # Get rule weights for the best split
-        print_time('start find_rule_weights')
-        rule_weights = find_rule_weights(tree.ind_pred_train[best_split], tree.weights, tree.ones_mat)
-        print_time('end find_rule_weights')
-
-        # Get current rule, no stabilization
-        print_time('start get_current_rule')
-        m,r,reg,rule_train_index,rule_test_index = get_current_rule(tree, best_split, reg, loss_best)
-        print_time('end get_current_rule')
-
-
-        ## Update score without stabilization,  if stabilization results in one rule or if stabilization criterion not met
-        rule_score = calc_score(tree, rule_weights, rule_train_index)
-        m_bundle = []
-        r_bundle = []
-
-        ### Store motifs/regulators above this node (for margin score)
-        above_motifs = tree.above_motifs[best_split]+tree.split_x1[best_split].tolist()
-        above_regs = tree.above_regs[best_split]+tree.split_x2[best_split].tolist()
-
+        log('iteration {0}'.format(i), level='VERBOSE')
+        
+        (m, r, best_split, 
+         m_bundle, r_bundle, 
+         rule_train_index, rule_test_index, 
+         rule_score, 
+         above_motifs, above_regs) = find_next_rule(tree)
+        
         ### Add the rule with best loss
-        tree.add_rule(m, r, best_split, m_bundle, r_bundle, rule_train_index, rule_test_index, rule_score, above_motifs, above_regs)
+        tree.add_rule(m, r, best_split, 
+                      m_bundle, r_bundle, 
+                      rule_train_index, rule_test_index, rule_score, 
+                      above_motifs, above_regs)
 
         ### Update training/testing errors
         print_time('start update tree')
@@ -182,13 +186,17 @@ def main():
         ### Print progress
         print_progress(tree, i)
 
+
+    ### Get rid of this, add a method to the tree:
+    ### write_rules
     ## Write out rules
-    if tuning_params.use_stable:
-        list_rules(split_x1, split_x2, 
-                   bundle_x1, bundle_x2, 
-                   scores, split_node, split_depth, ind_pred_train, ind_pred_test, out_file='{0}rule_score_matrix_{1}_{2}_{3}_iter_stabilized_eta1_{4}_eta2_{5}.txt'.format(out_path, analysis_name, method, niter, eta_1, eta_2))
-    else:
-        list_rules(split_x1, split_x2, bundle_x1, bundle_x2, scores, split_node, split_depth, ind_pred_train, ind_pred_test, out_file='{0}rule_score_matrix_{1}_{2}_{3}_iter.txt'.format(out_path, analysis_name, method, niter))
+    list_rules(split_x1, split_x2, 
+               bundle_x1, bundle_x2, 
+               scores, 
+               split_node, split_depth, 
+               ind_pred_train, ind_pred_test, 
+               out_file='{0}rule_score_matrix_{1}_{2}_{3}_iter.txt'.format(
+                   out_path, analysis_name, method, niter))
 
     ### Make plots
     plot_margin(train_margins, test_margins, method, niter)
