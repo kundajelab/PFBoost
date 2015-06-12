@@ -49,8 +49,10 @@ def load_tree_state(pickle_file):
 ##########################################
 
 def calc_score(tree, rule_weights, rule_train_index):
-    rule_score = 0.5*np.log((element_mult(rule_weights.w_pos, rule_train_index).sum()+tree.epsilon)/
-        (element_mult(rule_weights.w_neg, rule_train_index).sum()+tree.epsilon))
+    epsilon = 1.0/len(tree.ind_pred_train[0])
+    rule_score = 0.5*np.log((
+        element_mult(rule_weights.w_pos, rule_train_index).sum()+epsilon)/
+        (element_mult(rule_weights.w_neg, rule_train_index).sum()+epsilon))
     return rule_score
 
 def calc_loss(wpos, wneg, wzero):
@@ -77,4 +79,3 @@ def matrix_mult(matrix1, matrix2):
         return np.dot(matrix1, matrix2)
     else:
         assert False, "Inconsistent matrix formats '%s' '%s'" % (type(matrix1), type(matrix2))
-

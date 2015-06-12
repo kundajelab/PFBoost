@@ -24,55 +24,66 @@ ObjectStore = namedtuple("ObjectStore", [
     'w_pos', 'w_neg'])
 
 # Calc min loss with leaf training examples and current weights 
-def find_leaf_and_min_loss(tree, leaf_index, holdout, y, x1, x2):
+def find_min_loss(tree, leaf_training_examples, holdout, y, x1, x2):
     log('start find_leaf_and_min_loss')
     example_weights=tree.weights
     ones_mat=tree.ones_mat
-    leaf_training_examples = tree.ind_pred_train[leaf_index]
     log('start calc_min_leaf_loss')
-    (best_loss, regulator_sign) = calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2)
+    (best_loss, regulator_sign) = calc_min_leaf_loss(
+        leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2)
     log('end calc_min_leaf_loss')
-    return leaf_index, best_loss, regulator_sign
+    return best_loss, regulator_sign
 
-def find_rule_process_worker(tree, holdout, y, x1, x2, leaf_index_cntr, (
-        lock, best_loss, best_leaf, shared_best_loss_mat, best_loss_reg)):
+def find_rule_process_worker(
+        tree, holdout, y, x1, x2, leaf_index_cntr, (
+            lock, best_leaf_loss, best_leaf_index, 
+            shared_best_loss_mat, best_leaf_regulator_sign)):
     # until we have processed all of the leafs
     while True:
         # get the leaf node to work on
         with leaf_index_cntr.get_lock():
             leaf_index = leaf_index_cntr.value
             leaf_index_cntr.value += 1
-            
+        
         # if this isn't a valid leaf, then we are done
-        if leaf_index >= tree.nsearch: 
+        if leaf_index >= tree.nsplit+1: 
             return
         
-        # calculate the loss for this leaf  
-        leaf, loss_mat, loss_reg = find_leaf_and_min_loss(tree, leaf_index, holdout, y, x1, x2)
+        leaf_training_examples = tree.ind_pred_train[leaf_index]
 
+        # calculate the loss for this leaf  
+        leaf_loss_mat, regulator_sign = find_min_loss(
+            tree, leaf_training_examples, holdout, y, x1, x2)
+        
         # if the loss does not beat the current best loss, then
         # we are done
-        loss = loss_mat.min()
+        leaf_min_loss = leaf_loss_mat.min()
         with lock:
-            if loss > best_loss:
+            if leaf_min_loss > best_leaf_loss:
                 continue
 
             # otherwise we know this rule currently produces the smallest loss, 
             # so save it
-            best_leaf.value = leaf
-            best_loss.value = loss
+            best_leaf_index.value = leaf_index
+            best_leaf_loss.value = leaf_min_loss
             # we update the array being stored in shared memory 
             if tree.sparse:
-                shared_best_loss_mat[:] = loss_mat.toarray().ravel()
+                shared_best_loss_mat[:] = leaf_loss_mat.toarray().ravel()
             else:
-                shared_best_loss_mat[:] = loss_mat.ravel()
-            best_loss_reg.value = loss_reg
-            print "="*80
-            print leaf, loss_mat.shape, loss_reg
+                shared_best_loss_mat[:] = leaf_loss_mat.ravel()
+            best_leaf_regulator_sign.value = regulator_sign
     
     return
 
 def find_rule_processes(tree, holdout, y, x1, x2):
+    if config.TUNING_PARAMS.use_stumps:
+        # since we aren't building a tree, we use all of the
+        # training examples to choose a rule
+        leaf_training_examples = tree.ind_pred_train[0]
+        leaf_loss_mat, regulator_sign = find_min_loss(
+            tree, leaf_training_examples, holdout, y, x1, x2)
+        return 0, regulator_sign, leaf_loss_mat
+
     rule_processes = []
 
     # this shoudl be an attribute of tree. Also, during the tree init,
@@ -171,7 +182,10 @@ def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout
     # print_time('weights subtraction')
     w_zero_regdown = ones_mat - w_up_regdown - w_down_regdown
     # print_time('weights subtraction')
-    return ObjectStore(w_up_regup, w_up_regdown, w_down_regup, w_down_regdown, w_zero_regup, w_zero_regdown, w_pos, w_neg) 
+    return ObjectStore(w_up_regup, w_up_regdown, 
+                       w_down_regup, w_down_regdown, 
+                       w_zero_regup, w_zero_regdown, 
+                       w_pos, w_neg) 
 
 # Get best leaf, loss and regulator
 def find_best_split_from_losses(rule_processes):

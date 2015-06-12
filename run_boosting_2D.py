@@ -128,21 +128,18 @@ def parse_args():
     return (x1, x2, y, holdout)
 
 def find_next_decision_node(tree, holdout, y, x1, x2):
-    # State number of parameters to search
-    if config.TUNING_PARAMS.use_stumps:
-        tree.nsearch = 1
-    else:
-        tree.nsearch = tree.npred
-
     ## Calculate loss at all search nodes
     log('start rule_processes')
-    best_split, regulator_sign, loss_best = find_rule_processes(tree, holdout, y, x1, x2) # find rules with class call
+    # find rules with class call
+    best_split, regulator_sign, loss_best = find_rule_processes(
+        tree, holdout, y, x1, x2) 
     log('end rule_processes')
 
     # Get rule weights for the best split
     log('start find_rule_weights')
     rule_weights = find_rule_weights(
-        tree.ind_pred_train[best_split], tree.weights, tree.ones_mat, holdout, y, x1, x2)
+        tree.ind_pred_train[best_split], tree.weights, tree.ones_mat, 
+        holdout, y, x1, x2)
     log('end find_rule_weights')
 
     ### get_bundled_rules (returns the current rule if no bundling)  
@@ -184,13 +181,14 @@ def main():
     bundle_set=1
 
     ### Main Loop
-    for i in range(1,config.TUNING_PARAMS.num_iter):
+    for i in xrange(1,config.TUNING_PARAMS.num_iter):
         log('iteration {0}'.format(i), level='VERBOSE')
         
         (motif, regulator, best_split, 
          motif_bundle, regulator_bundle, 
          rule_train_index, rule_test_index, rule_score, 
-         above_motifs, above_regs) = find_next_decision_node(tree, holdout, y, x1, x2)
+         above_motifs, above_regs) = find_next_decision_node(
+             tree, holdout, y, x1, x2)
         
         ### Add the rule with best loss
         tree.add_rule(motif, regulator, best_split, 
@@ -217,7 +215,9 @@ def main():
         method='adt'
     method_label = '{0}_{1}'.format(method, stable_label)
 
-    out_file='{0}global_rules/{1}_tree_rules_{2}_{3}iter.txt'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX, method_label, config.TUNING_PARAMS.num_iter)
+    out_file='{0}global_rules/{1}_tree_rules_{2}_{3}iter.txt'.format(
+        config.OUTPUT_PATH, config.OUTPUT_PREFIX, 
+        method_label, config.TUNING_PARAMS.num_iter)
     tree.write_out_rules(config.TUNING_PARAMS, method_label, out_file=out_file)
 
     ### Make plots

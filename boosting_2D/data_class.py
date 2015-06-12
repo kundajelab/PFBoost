@@ -131,13 +131,15 @@ class Holdout(object):
 
 class DecisionTree(object):
     def __init__(self, holdout, y, x1, x2):
-        # Base model parameters
+        ## Base model parameters
+        # the number of nodes in the tree
         self.nsplit = 0
-        self.nsearch = 1
-        self.npred = 1
-        self.epsilon = 1./holdout.n_train
+
+        # store the features used at each decision node
         self.split_x1 = [] # store motif split features
         self.split_x2 = [] # store regulator split features
+
+        # node that it was added onto
         self.split_node = [] # For tree, specify node to split off of
         self.split_depth = [] # Store the depth of the new node (0 is root, 1 is the first layer)
 
@@ -162,6 +164,7 @@ class DecisionTree(object):
         ### Prediction Parameters
         self.ind_pred_train = []
         self.ind_pred_test = []
+
         self.ind_pred_train.append(holdout.ind_train_all)
         self.ind_pred_test.append(holdout.ind_test_all)
         self.scores = []
@@ -199,7 +202,8 @@ class DecisionTree(object):
     def init_root_node(self, holdout, y):
         ## initialize the root node
         score_root = 0.5*np.log(
-            element_mult(self.weights, holdout.ind_train_up).sum()/element_mult(self.weights, holdout.ind_train_down).sum())
+            element_mult(self.weights, holdout.ind_train_up).sum()/element_mult(
+                self.weights, holdout.ind_train_down).sum())
         self.scores.append(score_root)
         # Add root node to first split
         self.split_x1.append(np.array(['root']))
@@ -212,7 +216,8 @@ class DecisionTree(object):
         self.bundle_x2.append([])
         self.split_node.append('root')
         self.split_depth.append(0)
-        self._update_prediction(score_root, holdout.ind_train_all, holdout.ind_test_all)
+        self._update_prediction(
+            score_root, holdout.ind_train_all, holdout.ind_test_all)
         self._update_weights(holdout, y)
         # Initialize training error
         self._update_error(holdout, y)
@@ -237,7 +242,6 @@ class DecisionTree(object):
             self.split_depth.append(self.split_depth[best_split]+1)
         self.above_motifs.append(above_motifs)
         self.above_regs.append(above_regs)
-        self.npred += 1
 
         self._update_prediction(rule_score, rule_train_index, rule_test_index)
         self._update_weights(holdout,y)
