@@ -1,6 +1,9 @@
 import sys
 import config
 
+### Log 
+##########################################
+
 class Logger():
     def __init__(self, ofp=sys.stderr):
         self.ofp = ofp
@@ -26,3 +29,32 @@ def log_progress(tree, i):
     log(msg, log_time=False, level='VERBOSE')
 
 log = Logger()
+
+### Save Tree State 
+##########################################
+
+def save_tree_state(tree, pickle_file):
+    with open(pickle_file,'wb') as f:
+        pickle.dump(obj=tree, file=f)
+
+def load_tree_state(pickle_file):
+    with open(pickle_file,'rb') as f:
+        pickle.load(f)
+
+### Calculation Functions
+##########################################
+
+def calc_score(tree, rule_weights, rule_train_index):
+    rule_score = 0.5*np.log((element_mult(rule_weights.w_pos, rule_train_index).sum()+tree.epsilon)/
+        (element_mult(rule_weights.w_neg, rule_train_index).sum()+tree.epsilon))
+    return rule_score
+
+def calc_loss(wpos, wneg, wzero):
+    loss = 2*np.sqrt(element_mult(wpos, wneg))+wzero
+    return loss
+
+def calc_margin(y, pred_test):
+    # (Y * predicted value (h(x_i))
+    margin = element_mult(y, pred_test)
+    return margin.sum()
+

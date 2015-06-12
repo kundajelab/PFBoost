@@ -3,6 +3,8 @@ from boosting_2D import util
 from boosting_2D import plot
 from boosting_2D import margin_score
 from boosting_2D import stabilize
+from boosting_2D import data_class
+from boosting_2D import find_rule
 
 log = util.log
 
@@ -166,11 +168,11 @@ def main():
         (motif, regulator, best_split, 
          motif_bundle, regulator_bundle, 
          rule_train_index, rule_test_index, rule_score, 
-         above_motifs, above_regs) = find_next_rule(tree)
+         above_motifs, above_regs) = find_next_decision_node(tree)
         
         ### Add the rule with best loss
-        tree.add_rule(m, r, best_split, 
-                      m_bundle, r_bundle, 
+        tree.add_rule(motif, regulator, best_split, 
+                      motif_bundle, regulator_bundle, 
                       rule_train_index, rule_test_index, rule_score, 
                       above_motifs, above_regs)
 
@@ -187,7 +189,6 @@ def main():
 
         ### Print progress
         util.log_progress(tree, i)
-
 
     ### Get rid of this, add a method to the tree:
     ## Write out rules
