@@ -1,5 +1,9 @@
 from boosting_2D import config
 from boosting_2D import util
+from boosting_2D import plot
+from boosting_2D import margin_score
+from boosting_2D import stabilize
+
 log = util.log
 
 def parse_args():
@@ -143,14 +147,14 @@ def main():
     print 'starting main loop'
 
     ### Parse arguments
-    print_time('parse args start')
+    log('parse args start')
     (x1, x2, y) = parse_args()
-    print_time('parse args end')
+    log('parse args end')
 
     ### Create tree object
-    print_time('make tree start')
+    log('make tree start')
     tree = DecisionTree()
-    print_time('make tree stop')
+    log('make tree stop')
 
     ### Keeps track of if there are any terms to bundle
     bundle_set=1
@@ -171,18 +175,18 @@ def main():
                       above_motifs, above_regs)
 
         ### Update training/testing errors
-        print_time('start update tree')
+        log('start update tree')
         tree.update_prediction(rule_score, rule_train_index, rule_test_index)
         tree.update_weights()
         tree.update_error()
         tree.update_margin()
-        print_time('end update tree')
+        log('end update tree')
 
         ### Return default to bundle
         bundle_set = 1
 
         ### Print progress
-        print_progress(tree, i)
+        util.log_progress(tree, i)
 
 
     ### Get rid of this, add a method to the tree:
