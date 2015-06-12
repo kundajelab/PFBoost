@@ -210,3 +210,7 @@ def main():
     plot_margin(train_margins, test_margins, method, niter)
     plot_balanced_error(loss_train, loss_test, method, niter)
     plot_imbalanced_error(imbal_train, imbal_test, method, niter)
+
+
+if __name__ == "__main__":
+    main()
