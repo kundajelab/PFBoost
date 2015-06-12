@@ -1,5 +1,18 @@
 from grit.lib.multiprocessing_utils import fork_and_wait
 from collections import namedtuple
+import multiprocessing
+import ctypes
+import random
+
+import numpy as np 
+from scipy.sparse import *
+
+from boosting_2D import config
+from boosting_2D import util
+
+
+log = util.log
+
 
 ### Find best rule - NON-STABILIZED
 ##################################################################
@@ -11,17 +24,17 @@ ObjectStore = namedtuple("ObjectStore", [
     'w_pos', 'w_neg'])
 
 # Calc min loss with leaf training examples and current weights 
-def find_leaf_and_min_loss(tree, leaf_index):
-    print_time('start find_leaf_and_min_loss')
+def find_leaf_and_min_loss(tree, leaf_index, holdout, y, x1, x2):
+    log('start find_leaf_and_min_loss')
     example_weights=tree.weights
     ones_mat=tree.ones_mat
     leaf_training_examples = tree.ind_pred_train[leaf_index]
-    print_time('start calc_min_leaf_loss')
-    (best_loss, reg) = calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat)
-    print_time('end calc_min_leaf_loss')
-    return leaf_index, best_loss, reg
+    log('start calc_min_leaf_loss')
+    (best_loss, regulator_sign) = calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2)
+    log('end calc_min_leaf_loss')
+    return leaf_index, best_loss, regulator_sign
 
-def find_rule_process_worker(tree, leaf_index_cntr, (
+def find_rule_process_worker(tree, holdout, y, x1, x2, leaf_index_cntr, (
         lock, best_loss, best_leaf, shared_best_loss_mat, best_loss_reg)):
     # until we have processed all of the leafs
     while True:
@@ -35,7 +48,7 @@ def find_rule_process_worker(tree, leaf_index_cntr, (
             return
         
         # calculate the loss for this leaf  
-        leaf, loss_mat, loss_reg = find_leaf_and_min_loss(tree, leaf_index)
+        leaf, loss_mat, loss_reg = find_leaf_and_min_loss(tree, leaf_index, holdout, y, x1, x2)
 
         # if the loss does not beat the current best loss, then
         # we are done
@@ -49,7 +62,7 @@ def find_rule_process_worker(tree, leaf_index_cntr, (
             best_leaf.value = leaf
             best_loss.value = loss
             # we update the array being stored in shared memory 
-            if y.sparse:
+            if tree.sparse:
                 shared_best_loss_mat[:] = loss_mat.toarray().ravel()
             else:
                 shared_best_loss_mat[:] = loss_mat.ravel()
@@ -59,7 +72,7 @@ def find_rule_process_worker(tree, leaf_index_cntr, (
     
     return
 
-def find_rule_processes(tree):
+def find_rule_processes(tree, holdout, y, x1, x2):
     rule_processes = []
 
     # this shoudl be an attribute of tree. Also, during the tree init,
@@ -85,11 +98,11 @@ def find_rule_processes(tree):
     leaf_index_cntr = multiprocessing.Value('i', 0)
 
     # pack arguments for the worker processes
-    args = [tree, leaf_index_cntr, (
+    args = [tree, holdout, y, x1, x2, leaf_index_cntr, (
             lock, best_loss, best_leaf, shared_best_loss_mat, best_loss_reg)]
     
     # fork worker processes, and wait for them to return
-    fork_and_wait(NCPU, find_rule_process_worker, args)
+    fork_and_wait(config.NCPU, find_rule_process_worker, args)
     
     # covert all of the shared types into standard python values
     best_leaf = int(best_leaf.value)
@@ -101,18 +114,18 @@ def find_rule_processes(tree):
     return (best_leaf, best_loss_reg, best_loss_mat)
 
 # Function - calc min loss with leaf training examples and current weights  
-def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat):
-    print_time('start find_rule_weights')
-    rule_weights = find_rule_weights(leaf_training_examples, example_weights, ones_mat)
-    print_time('end find_rule_weights')
+def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2):
+    log('start find_rule_weights')
+    rule_weights = find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2)
+    log('end find_rule_weights')
     
     ## Calculate Loss
-    if tuning_params.use_corrected_loss==True:
-        loss_regup = corrected_loss(rule_weights.w_up_regup, rule_weights.w_down_regup, rule_weights.w_zero_regup)
-        loss_regdown = corrected_loss(rule_weights.w_up_regdown, rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
+    if config.TUNING_PARAMS.use_corrected_loss==True:
+        loss_regup = util.corrected_loss(rule_weights.w_up_regup, rule_weights.w_down_regup, rule_weights.w_zero_regup)
+        loss_regdown = util.corrected_loss(rule_weights.w_up_regdown, rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
     else:
-        loss_regup = calc_loss(rule_weights.w_up_regup, rule_weights.w_down_regup, rule_weights.w_zero_regup)
-        loss_regdown = calc_loss(rule_weights.w_up_regdown, rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
+        loss_regup = util.calc_loss(rule_weights.w_up_regup, rule_weights.w_down_regup, rule_weights.w_zero_regup)
+        loss_regdown = util.calc_loss(rule_weights.w_up_regdown, rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
 
     ## Get loss matrix and regulator status
     loss_best_s = np.min([loss_regup.min(), loss_regdown.min()])
@@ -126,17 +139,17 @@ def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat):
     return (loss, reg_s)
 
 # Get rule weights of positive and negative examples
-def find_rule_weights(leaf_training_examples, example_weights, ones_mat):
+def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2):
     """
     Find rule weights, and return an object store containing them. 
 
     """
     # print_time('find_rule_weights start')
-    w_temp = element_mult(example_weights, leaf_training_examples)
+    w_temp = util.element_mult(example_weights, leaf_training_examples)
     # print_time('weights element-wise')
-    w_pos = element_mult(w_temp, holdout.ind_train_up)
+    w_pos = util.element_mult(w_temp, holdout.ind_train_up)
     # print_time('weights element-wise')
-    w_neg = element_mult(w_temp, holdout.ind_train_down) 
+    w_neg = util.element_mult(w_temp, holdout.ind_train_down) 
     # print_time('weights element-wise')
     x2_pos = x2.element_mult(x2.data>0)
     # print_time('x2 element-wise')
@@ -146,13 +159,13 @@ def find_rule_weights(leaf_training_examples, example_weights, ones_mat):
     # print_time('x1 weights dot')
     x1wneg = x1.matrix_mult(w_neg)
     # print_time('x1 weights dot')
-    w_up_regup = matrix_mult(x1wpos, x2_pos)
+    w_up_regup = util.matrix_mult(x1wpos, x2_pos)
     # print_time('x1w x2 dot')
-    w_up_regdown = matrix_mult(x1wpos, x2_neg)
+    w_up_regdown = util.matrix_mult(x1wpos, x2_neg)
     # print_time('x1w x2 dot')
-    w_down_regup = matrix_mult(x1wneg, x2_pos)
+    w_down_regup = util.matrix_mult(x1wneg, x2_pos)
     # print_time('x1w x2 dot')
-    w_down_regdown = matrix_mult(x1wneg, x2_neg)
+    w_down_regdown = util.matrix_mult(x1wneg, x2_neg)
     # print_time('x1w x2 dot')
     w_zero_regup = ones_mat - w_up_regup - w_down_regup
     # print_time('weights subtraction')
@@ -168,23 +181,23 @@ def find_best_split_from_losses(rule_processes):
     best_split = ind_of_leaf[np.argmin([el.min() for el in best_loss_by_leaf])]
     return best_split, reg_by_leaf[best_split], best_loss_by_leaf[best_split]
 
-def get_current_rule(tree, best_split, reg, loss_best):
+def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2):
     # if y.sparse:
     #     m,r=np.where(loss_best.toarray() == loss_best.min())
     # else:
-    m,r=np.where(loss_best == loss_best.min())
+    motif,regulator = np.where(loss_best == loss_best.min())
     # If multiple rules have the same loss, randomly select one
-    if len(m)>1:
-        choice = random.sample(range(len(m)), 1)
-        m = np.array(m[choice])
-        r = np.array(r[choice])
+    if len(motif)>1:
+        choice = random.sample(range(len(motif)), 1)
+        motif = np.array(motif[choice])
+        regulator = np.array(regulator[choice])
        
     ## Get examples where rule applies
-    valid_m = np.nonzero(x1.data[m,:])[1]
+    valid_m = np.nonzero(x1.data[motif,:])[1]
     if x2.sparse:
-        valid_r = np.where(x2.data.toarray()[:,r]==reg)[0]
+        valid_r = np.where(x2.data.toarray()[:,regulator]==regulator_sign)[0]
     else:
-        valid_r = np.where(x2.data[:,r]==reg)[0]
+        valid_r = np.where(x2.data[:,regulator]==regulator_sign)[0]
     
     ### Get rule index - training and testing
     if y.sparse:
@@ -192,8 +205,8 @@ def get_current_rule(tree, best_split, reg, loss_best):
     else:
         valid_mat = np.zeros((y.num_row,y.num_col), dtype=np.bool)
     valid_mat[np.ix_(valid_m, valid_r)]=1 # XX not efficient
-    rule_train_index = element_mult(valid_mat, tree.ind_pred_train[best_split])
-    rule_test_index = element_mult(valid_mat, tree.ind_pred_test[best_split])
+    rule_train_index = util.element_mult(valid_mat, tree.ind_pred_train[best_split])
+    rule_test_index = util.element_mult(valid_mat, tree.ind_pred_test[best_split])
 
-    return m,r,reg,rule_train_index,rule_test_index
+    return motif, regulator, regulator_sign, rule_train_index, rule_test_index
 

@@ -1,5 +1,9 @@
 import sys
 import config
+import time
+from datetime import datetime
+import numpy as np 
+from scipy.sparse import *
 
 ### Log 
 ##########################################
@@ -14,9 +18,9 @@ class Logger():
         if level == 'VERBOSE' and not config.VERBOSE: return
 
         if config.LOG_TIME:
-            time = datetime.fromtimestamp(time.time()).strftime(
+            time_stamp = datetime.fromtimestamp(time.time()).strftime(
                 '%Y-%m-%d %H:%M:%S: ')
-            msg = time + msg
+            msg = time_stamp + msg
         self.ofp.write(msg.strip() + "\n")
 
 def log_progress(tree, i):
@@ -57,4 +61,20 @@ def calc_margin(y, pred_test):
     # (Y * predicted value (h(x_i))
     margin = element_mult(y, pred_test)
     return margin.sum()
+
+def element_mult(matrix1, matrix2):
+    if isinstance(matrix1, csr.csr_matrix) and isinstance(matrix2, csr.csr_matrix):
+        return matrix1.multiply(matrix2)
+    elif isinstance(matrix1, np.ndarray) and isinstance(matrix2, np.ndarray):
+        return np.multiply(matrix1, matrix2)
+    else:
+        assert False, "Inconsistent matrix formats '%s' '%s'" % (type(matrix1), type(matrix2))
+
+def matrix_mult(matrix1, matrix2):
+    if isinstance(matrix1, csr.csr_matrix) and isinstance(matrix2, csr.csr_matrix):
+        return matrix1.dot(matrix2)
+    elif isinstance(matrix1, np.ndarray) and isinstance(matrix2, np.ndarray):
+        return np.dot(matrix1, matrix2)
+    else:
+        assert False, "Inconsistent matrix formats '%s' '%s'" % (type(matrix1), type(matrix2))
 

@@ -1,4 +1,11 @@
 ### Define classes
+import sys
+import os
+import random
+
+import numpy as np 
+from scipy.sparse import *
+from boosting_2D.util import *
 
 class Data(object):
     def _load_sparse_data(self):
@@ -123,7 +130,7 @@ class Holdout(object):
         log('end holdout')
 
 class DecisionTree(object):
-    def __init__(self):
+    def __init__(self, holdout, y, x1, x2):
         # Base model parameters
         self.nsplit = 0
         self.nsearch = 1
@@ -182,10 +189,14 @@ class DecisionTree(object):
             self.w_down_regdown = np.zeros((x1.num_row, x2.num_col),dtype='float64') 
             self.ones_mat = np.ones((x1.num_row, x2.num_col),dtype='float64')
 
+        if y.mult_format=='sparse':
+            self.sparse=True
+        else:
+            self.sparse=False
         # put in the root node
-        self.init_root_node()
+        self.init_root_node(holdout, y)
     
-    def init_root_node(self):
+    def init_root_node(self, holdout, y):
         ## initialize the root node
         score_root = 0.5*np.log(
             element_mult(self.weights, holdout.ind_train_up).sum()/element_mult(self.weights, holdout.ind_train_down).sum())
@@ -201,23 +212,23 @@ class DecisionTree(object):
         self.bundle_x2.append([])
         self.split_node.append('root')
         self.split_depth.append(0)
-        self.update_prediction(score_root, holdout.ind_train_all, holdout.ind_test_all)
-        self.update_weights()
+        self._update_prediction(score_root, holdout.ind_train_all, holdout.ind_test_all)
+        self._update_weights(holdout, y)
         # Initialize training error
-        self.update_error()
-        self.update_margin()
+        self._update_error(holdout, y)
+        self._update_margin(y)
 
     # Store new rule
-    def add_rule(self, m, r, best_split, m_bundle, r_bundle, rule_train_index, rule_test_index, rule_score, above_motifs, above_regs):
-        self.split_x1.append(m)
-        self.split_x2.append(r)
+    def add_rule(self, motif, regulator, best_split, motif_bundle, regulator_bundle, rule_train_index, rule_test_index, rule_score, above_motifs, above_regs, holdout, y):
+        self.split_x1.append(motif)
+        self.split_x2.append(regulator)
         self.split_node.append(best_split)
 
         self.nsplit += 1
         self.ind_pred_train.append(rule_train_index)
         self.ind_pred_test.append(rule_test_index)
-        self.bundle_x1.append(m_bundle)
-        self.bundle_x2.append(r_bundle)
+        self.bundle_x1.append(motif_bundle)
+        self.bundle_x2.append(regulator_bundle)
         self.scores.append(rule_score)
 
         if best_split==0:
@@ -228,19 +239,19 @@ class DecisionTree(object):
         self.above_regs.append(above_regs)
         self.npred += 1
 
-        self.update_prediction(rule_score, rule_train_index, rule_test_index)
-        self.update_weights()
-        self.update_error()
-        self.update_margin()
+        self._update_prediction(rule_score, rule_train_index, rule_test_index)
+        self._update_weights(holdout,y)
+        self._update_error(holdout, y)
+        self._update_margin(y)
 
     def _update_prediction(self, score, train_index, test_index):        
         # Update predictions
         self.pred_train = self.pred_train + score*train_index
         self.pred_test = self.pred_test + score*test_index
 
-    def _update_weights(self):
+    def _update_weights(self, holdout, y):
         # Update weights
-        if y.sparse:
+        if self.sparse:
             exp_term = np.negative(y.element_mult(self.pred_train))
             exp_term.data = np.exp(exp_term.data)
         else:
@@ -250,7 +261,7 @@ class DecisionTree(object):
         # print (new_weights/new_weights.sum())[new_weights.nonzero()]
         self.weights = new_weights/new_weights.sum()
 
-    def _update_error(self):
+    def _update_error(self, holdout, y):
         # Identify incorrect processesedictions
         incorr_train = (y.element_mult(self.pred_train)<0)
         incorr_test = (y.element_mult(self.pred_test)<0)
@@ -272,24 +283,13 @@ class DecisionTree(object):
         self.imbal_train_err.append(imbal_train_err_i)
         self.imbal_test_err.append(imbal_test_err_i)
 
-    def _update_margin(self):
+    def _update_margin(self, y):
         train_margin=calc_margin(y.data, self.pred_train)
         test_margin=calc_margin(y.data, self.pred_test)
         self.train_margins.append(train_margin)
         self.test_margins.append(test_margin)
 
     def write_out_rules(self, tuning_params, out_file=None):
-        # Get label
-        if tuning_params.use_stable:
-            stable_label='stable'
-        else:
-            stable_label='non_stable'
-        if tuning_params.use_stumps:
-            method='stumps'
-        else:
-            method='adt'
-        method_label = '{0}_{1}'.format(method, stable_label)
-
         # Allocate matrix of rules
         rule_score_mat = pd.DataFrame(index=range(len(tree.split_x1)-1), columns=['x1_feat', 'x2_feat', 'score', 'above_rule', 'tree_depth'])
         for i in range(1,len(tree.split_x1)):

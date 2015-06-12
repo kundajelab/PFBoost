@@ -12,20 +12,24 @@ import ctypes
 
 from functools import partial
 import time
-from datetime import datetime
 from collections import namedtuple
 import pdb
 import pickle
 
 from boosting_2D import config
 from boosting_2D import util
-from boosting_2D import plot
-from boosting_2D import margin_score
-from boosting_2D import stabilize
-from boosting_2D import data_class
-from boosting_2D import find_rule
+from boosting_2D.plot import *
+from boosting_2D.margin_score import *
+from boosting_2D.data_class import *
+from boosting_2D.find_rule import *
 
 log = util.log
+
+TuningParams = namedtuple('TuningParams', [
+    'num_iter',
+    'use_stumps', 'use_stable', 'use_corrected_loss',
+    'eta_1', 'eta_2', 'bundle_max'
+])
 
 def parse_args():
     # Get arguments
@@ -37,7 +41,8 @@ def parse_args():
                         help='path to write the results to', 
                         default='/users/pgreens/projects/boosting/results/')
 
-    parser.add_argument('-f', '--format', help='options are: matrix, triplet')
+    parser.add_argument('--input_format', help='options are: matrix, triplet')
+    parser.add_argument('--mult_format', help='options are: matrix, dense')
 
     parser.add_argument('-y', '--target-file', 
                         help='target matrix - dimensionality GxE')
@@ -88,65 +93,63 @@ def parse_args():
     config.TUNING_PARAMS = TuningParams(
         args.num_iter, 
         args.stumps, args.stable, args.corrected_loss,
-        args.eta1, args.eta2 )
+        args.eta1, args.eta2, 20)
     config.NCPU = args.ncpu
 
     log('load y start ')
     y = TargetMatrix(args.target_file, 
                      args.target_row_labels, 
                      args.target_col_labels,
-                     args.format)
+                     args.input_format,
+                     args.mult_format)
     log('load y stop')
 
     log('load x1 start')
     x1 = Motifs(args.motifs_file, 
                 args.target_row_labels, 
                 args.m_col_labels,
-                args.format)
+                args.input_format,
+                args.mult_format)
     log('load x1 stop')
     
     log('load x2 start')
     x2 = Regulators(args.regulators_file, 
                     args.r_row_labels, 
                     args.target_col_labels,
-                    args.format)
+                    args.input_format,
+                    args.mult_format)
     log('load x2 stop')
    
     # model_state = ModelState()
     log('load holdout start')
-    holdout = Holdout(y, args.holdout_file, args.holdout_format)
+    holdout = Holdout(y, args.mult_format, args.holdout_file, args.holdout_format)
     log('load holdout stop')
     
     return (x1, x2, y, holdout)
 
-def find_next_decision_node(tree, x1, x2):
+def find_next_decision_node(tree, holdout, y, x1, x2):
     # State number of parameters to search
-    if tuning_params.use_stumps:
+    if config.TUNING_PARAMS.use_stumps:
         tree.nsearch = 1
     else:
         tree.nsearch = tree.npred
 
     ## Calculate loss at all search nodes
     log('start rule_processes')
-    rule_processes = rule_processes_wrapper(tree)
+    best_split, regulator_sign, loss_best = find_rule_processes(tree, holdout, y, x1, x2) # find rules with class call
     log('end rule_processes')
-
-    # Find the best loss and split leaf
-    log('start find_best_split_from_losses')
-    best_split, reg, loss_best = find_best_split_from_losses(rule_processes)
-    log('end find_best_split_from_losses')
 
     # Get rule weights for the best split
     log('start find_rule_weights')
     rule_weights = find_rule_weights(
-        tree.ind_pred_train[best_split], tree.weights, tree.ones_mat)
+        tree.ind_pred_train[best_split], tree.weights, tree.ones_mat, holdout, y, x1, x2)
     log('end find_rule_weights')
 
     ### get_bundled_rules (returns the current rule if no bundling)  
     # Get current rule, no stabilization
     log('start get_current_rule')
     motif,regulator,reg_sign,rule_train_index,rule_test_index = get_current_rule(
-        tree, best_split, reg, loss_best)
+        tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
     log('end get_current_rule')
 
     ## Update score without stabilization,  if stabilization results 
@@ -169,42 +172,53 @@ def main():
 
     ### Parse arguments
     log('parse args start')
-    (x1, x2, y) = parse_args()
+    (x1, x2, y, holdout) = parse_args()
     log('parse args end')
 
     ### Create tree object
     log('make tree start')
-    tree = DecisionTree()
+    tree = DecisionTree(holdout, y, x1, x2)
     log('make tree stop')
 
     ### Keeps track of if there are any terms to bundle
     bundle_set=1
 
     ### Main Loop
-    for i in range(1,tuning_params.num_iter):
+    for i in range(1,config.TUNING_PARAMS.num_iter):
         log('iteration {0}'.format(i), level='VERBOSE')
         
         (motif, regulator, best_split, 
          motif_bundle, regulator_bundle, 
          rule_train_index, rule_test_index, rule_score, 
-         above_motifs, above_regs) = find_next_decision_node(tree)
+         above_motifs, above_regs) = find_next_decision_node(tree, holdout, y, x1, x2)
         
         ### Add the rule with best loss
         tree.add_rule(motif, regulator, best_split, 
                       motif_bundle, regulator_bundle, 
                       rule_train_index, rule_test_index, rule_score, 
-                      above_motifs, above_regs)
+                      above_motifs, above_regs, holdout, y)
 
         ### Return default to bundle
         bundle_set = 1
 
         ### Print progress
-        util.log_progress(tree, i)
+        log_progress(tree, i)
 
     ### Get rid of this, add a method to the tree:
     ## Write out rules
-    out_file='{0}global_rules/{1}_tree_rules_{2}_{3}iter.txt'.format(OUTPUT_PATH, OUTPUT_PREFIX, method_label, tuning_params.num_iter)
-    tree.write_out_rules(tuning_params, method_label, out_file=out_file)
+    # Get label (MOVE)
+    if config.TUNING_PARAMS.use_stable:
+        stable_label='stable'
+    else:
+        stable_label='non_stable'
+    if config.TUNING_PARAMS.use_stumps:
+        method='stumps'
+    else:
+        method='adt'
+    method_label = '{0}_{1}'.format(method, stable_label)
+
+    out_file='{0}global_rules/{1}_tree_rules_{2}_{3}iter.txt'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX, method_label, config.TUNING_PARAMS.num_iter)
+    tree.write_out_rules(config.TUNING_PARAMS, method_label, out_file=out_file)
 
     ### Make plots
     plot_margin(train_margins, test_margins, method, niter)
