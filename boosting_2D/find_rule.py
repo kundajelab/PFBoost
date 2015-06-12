@@ -1,4 +1,5 @@
 from grit.lib.multiprocessing_utils import fork_and_wait
+from collections import namedtuple
 
 ### Find best rule - NON-STABILIZED
 ##################################################################

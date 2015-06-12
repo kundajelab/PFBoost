@@ -25,7 +25,6 @@ from boosting_2D import stabilize
 from boosting_2D import data_class
 from boosting_2D import find_rule
 
-
 log = util.log
 
 def parse_args():
