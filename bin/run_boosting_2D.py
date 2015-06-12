@@ -12,7 +12,6 @@ def parse_args():
                         help='path to write the results to', 
                         default='/users/pgreens/projects/boosting/results/')
 
-    parser.add_argument('-p', '--data-path', help='Path for all data files')
     parser.add_argument('-f', '--format', help='options are: matrix, triplet')
 
     parser.add_argument('-y', '--target-file', 
@@ -67,31 +66,31 @@ def parse_args():
         args.eta1, args.eta2 )
     config.NCPU = args.ncpu
 
-    print_time('load y start ')
-    y = TargetMatrix(os.path.join(args.data_path, args.target_file), 
-                     os.path.join(args.data_path, args.target_row_labels), 
-                     os.path.join(args.data_path, args.target_col_labels),
+    log('load y start ')
+    y = TargetMatrix(args.target_file, 
+                     args.target_row_labels, 
+                     args.target_col_labels,
                      args.format)
-    print_time('load y stop')
+    log('load y stop')
 
-    print_time('load x1 start')
-    x1 = Motifs(os.path.join(args.data_path, args.motifs_file), 
-                os.path.join(args.data_path, args.target_row_labels), 
-                os.path.join(args.data_path, args.m_col_labels),
+    log('load x1 start')
+    x1 = Motifs(args.motifs_file, 
+                args.target_row_labels, 
+                args.m_col_labels,
                 args.format)
-    print_time('load x1 stop')
+    log('load x1 stop')
     
-    print_time('load x2 start')
-    x2 = Regulators(os.path.join(args.data_path, args.regulators_file), 
-                    os.path.join(args.data_path, args.r_row_labels), 
-                    os.path.join(args.data_path, args.target_col_labels),
+    log('load x2 start')
+    x2 = Regulators(args.regulators_file, 
+                    args.r_row_labels, 
+                    args.target_col_labels,
                     args.format)
-    print_time('load x2 stop')
+    log('load x2 stop')
    
     # model_state = ModelState()
-    print_time('load holdout start')
+    log('load holdout start')
     holdout = Holdout(y, args.holdout_file, args.holdout_format)
-    print_time('load holdout stop')
+    log('load holdout stop')
     
     return (x1, x2, y, holdout)
 
@@ -103,40 +102,40 @@ def find_next_decision_node(tree, x1, x2):
         tree.nsearch = tree.npred
 
     ## Calculate loss at all search nodes
-    print_time('start rule_processes')
+    log('start rule_processes')
     rule_processes = rule_processes_wrapper(tree)
-    print_time('end rule_processes')
+    log('end rule_processes')
 
     # Find the best loss and split leaf
-    print_time('start find_best_split_from_losses')
+    log('start find_best_split_from_losses')
     best_split, reg, loss_best = find_best_split_from_losses(rule_processes)
-    print_time('end find_best_split_from_losses')
+    log('end find_best_split_from_losses')
 
     # Get rule weights for the best split
-    print_time('start find_rule_weights')
+    log('start find_rule_weights')
     rule_weights = find_rule_weights(
         tree.ind_pred_train[best_split], tree.weights, tree.ones_mat)
-    print_time('end find_rule_weights')
+    log('end find_rule_weights')
 
     ### get_bundled_rules (returns the current rule if no bundling)  
     # Get current rule, no stabilization
-    print_time('start get_current_rule')
-    m,r,reg,rule_train_index,rule_test_index = get_current_rule(
+    log('start get_current_rule')
+    motif,regulator,reg_sign,rule_train_index,rule_test_index = get_current_rule(
         tree, best_split, reg, loss_best)
-    print_time('end get_current_rule')
+    log('end get_current_rule')
 
     ## Update score without stabilization,  if stabilization results 
     ## in one rule or if stabilization criterion not met
     rule_score = calc_score(tree, rule_weights, rule_train_index)
-    m_bundle = []
-    r_bundle = []
+    motif_bundle = []
+    regulator_bundle = []
 
     ### Store motifs/regulators above this node (for margin score)
     above_motifs = tree.above_motifs[best_split]+tree.split_x1[best_split].tolist()
     above_regs = tree.above_regs[best_split]+tree.split_x2[best_split].tolist()
 
-    return (m, r, best_split, 
-            m_bundle, r_bundle, 
+    return (motif, regulator, best_split, 
+            motif_bundle, regulator_bundle, 
             rule_train_index, rule_test_index, rule_score, 
             above_motifs, above_regs)
 
@@ -160,10 +159,9 @@ def main():
     for i in range(1,tuning_params.num_iter):
         log('iteration {0}'.format(i), level='VERBOSE')
         
-        (m, r, best_split, 
-         m_bundle, r_bundle, 
-         rule_train_index, rule_test_index, 
-         rule_score, 
+        (motif, regulator, best_split, 
+         motif_bundle, regulator_bundle, 
+         rule_train_index, rule_test_index, rule_score, 
          above_motifs, above_regs) = find_next_rule(tree)
         
         ### Add the rule with best loss
@@ -188,7 +186,6 @@ def main():
 
 
     ### Get rid of this, add a method to the tree:
-    ### write_rules
     ## Write out rules
     list_rules(split_x1, split_x2, 
                bundle_x1, bundle_x2, 

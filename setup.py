@@ -8,7 +8,7 @@ def main():
         version = idr.__version__,
 
         author = "Peyton Greenside",
-        author_email = "pgreenside@gmail.com",
+        author_email = "pgreens@stanford.edu",
 
         install_requires = [ 'scipy', 'numpy'  ],
 
@@ -23,8 +23,8 @@ def main():
         url = "https://github.com/kundajelab/boosting_2D",
 
         long_description="""
-    Peyton will fill in later
-    """,
+        Peyton will fill in later
+        """,
         classifiers=[
             "Programming Language :: Python :: 2",
             "Development Status :: 3 - Alpha",
