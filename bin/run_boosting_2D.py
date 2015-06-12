@@ -1,3 +1,22 @@
+import sys
+import os
+import random
+
+import numpy as np 
+from scipy.sparse import *
+
+import argparse
+import pandas as pd
+import multiprocessing
+import ctypes
+
+from functools import partial
+import time
+from datetime import datetime
+from collections import namedtuple
+import pdb
+import pickle
+
 from boosting_2D import config
 from boosting_2D import util
 from boosting_2D import plot
@@ -5,6 +24,7 @@ from boosting_2D import margin_score
 from boosting_2D import stabilize
 from boosting_2D import data_class
 from boosting_2D import find_rule
+
 
 log = util.log
 
@@ -176,14 +196,6 @@ def main():
                       rule_train_index, rule_test_index, rule_score, 
                       above_motifs, above_regs)
 
-        ### Update training/testing errors
-        log('start update tree')
-        tree.update_prediction(rule_score, rule_train_index, rule_test_index)
-        tree.update_weights()
-        tree.update_error()
-        tree.update_margin()
-        log('end update tree')
-
         ### Return default to bundle
         bundle_set = 1
 
@@ -192,13 +204,8 @@ def main():
 
     ### Get rid of this, add a method to the tree:
     ## Write out rules
-    list_rules(split_x1, split_x2, 
-               bundle_x1, bundle_x2, 
-               scores, 
-               split_node, split_depth, 
-               ind_pred_train, ind_pred_test, 
-               out_file='{0}rule_score_matrix_{1}_{2}_{3}_iter.txt'.format(
-                   out_path, analysis_name, method, niter))
+    out_file='{0}global_rules/{1}_tree_rules_{2}_{3}iter.txt'.format(OUTPUT_PATH, OUTPUT_PREFIX, method_label, tuning_params.num_iter)
+    tree.write_out_rules(tuning_params, method_label, out_file=out_file)
 
     ### Make plots
     plot_margin(train_margins, test_margins, method, niter)

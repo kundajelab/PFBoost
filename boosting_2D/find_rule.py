@@ -1,6 +1,15 @@
-### Find best rule - NON-STABILIZED
+from grit.lib.multiprocessing_utils import fork_and_wait
 
-# Wrapper - calc min loss with leaf training examples and current weights 
+### Find best rule - NON-STABILIZED
+##################################################################
+
+ObjectStore = namedtuple("ObjectStore", [
+    'w_up_regup', 'w_up_regdown', 
+    'w_down_regup', 'w_down_regdown',
+    'w_zero_regup', 'w_zero_regdown',
+    'w_pos', 'w_neg'])
+
+# Calc min loss with leaf training examples and current weights 
 def find_leaf_and_min_loss(tree, leaf_index):
     print_time('start find_leaf_and_min_loss')
     example_weights=tree.weights
@@ -79,7 +88,6 @@ def find_rule_processes(tree):
             lock, best_loss, best_leaf, shared_best_loss_mat, best_loss_reg)]
     
     # fork worker processes, and wait for them to return
-    from grit.lib.multiprocessing_utils import fork_and_wait
     fork_and_wait(NCPU, find_rule_process_worker, args)
     
     # covert all of the shared types into standard python values

@@ -278,4 +278,42 @@ class DecisionTree(object):
         self.train_margins.append(train_margin)
         self.test_margins.append(test_margin)
 
+    def write_out_rules(self, tuning_params, out_file=None):
+        # Get label
+        if tuning_params.use_stable:
+            stable_label='stable'
+        else:
+            stable_label='non_stable'
+        if tuning_params.use_stumps:
+            method='stumps'
+        else:
+            method='adt'
+        method_label = '{0}_{1}'.format(method, stable_label)
+
+        # Allocate matrix of rules
+        rule_score_mat = pd.DataFrame(index=range(len(tree.split_x1)-1), columns=['x1_feat', 'x2_feat', 'score', 'above_rule', 'tree_depth'])
+        for i in range(1,len(tree.split_x1)):
+            x1_ind = tree.split_x1[i].tolist()+tree.bundle_x1[i]
+            x2_ind = tree.split_x2[i].tolist()+tree.bundle_x2[i]
+            above_node = tree.split_node[i]
+            rule_score_mat.ix[i-1,'x1_feat'] = '|'.join(np.unique(x1.col_labels[x1_ind]).tolist())
+            rule_score_mat.ix[i-1,'x2_feat'] = '|'.join(np.unique(x2.row_labels[x2_ind]).tolist())
+            rule_score_mat.ix[i-1,'score'] = tree.scores[i]
+            if tree.split_x1[above_node][0]=='root':
+                rule_score_mat.ix[i-1,'above_rule'] = 'root'
+            else:
+                rule_score_mat.ix[i-1,'above_rule'] = '{0};{1}'.format(
+                     '|'.join(np.unique(x1.col_labels[tree.split_x1[above_node].tolist()+
+                     tree.bundle_x1[above_node]]).tolist()),
+                     '|'.join(np.unique(x2.row_labels[tree.split_x2[above_node].tolist()+
+                     tree.bundle_x2[above_node]]).tolist()))       
+            rule_score_mat.ix[i-1,'tree_depth'] = tree.split_depth[i]
+        if out_file!=None:
+            print 'wrote rules to {0}'.format(out_file)
+            rule_score_mat.to_csv(out_file, sep="\t", header=True, index=False)
+            return 1
+        else:
+            return rule_score_mat
+
+
 
