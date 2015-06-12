@@ -1,0 +1,9 @@
+OUTPUT_PATH = None
+OUTPUT_PREFIX = None
+
+TUNING_PARAMS = None
+NCPU = None
+
+VERBOSE=True
+DEBUG=True
+LOG_TIME = True
