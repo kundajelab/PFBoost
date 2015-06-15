@@ -24,13 +24,13 @@ ObjectStore = namedtuple("ObjectStore", [
 
 # Calc min loss with leaf training examples and current weights 
 def find_min_loss(tree, leaf_training_examples, holdout, y, x1, x2):
-    log('start find_leaf_and_min_loss')
+    # log('start find_leaf_and_min_loss')
     example_weights=tree.weights
     ones_mat=tree.ones_mat
-    log('start calc_min_leaf_loss')
+    # log('start calc_min_leaf_loss')
     (best_loss, regulator_sign) = calc_min_leaf_loss(
         leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2)
-    log('end calc_min_leaf_loss')
+    # log('end calc_min_leaf_loss')
     return best_loss, regulator_sign
 
 # For every leaf, get training examples and calculate loss
@@ -126,9 +126,9 @@ def find_rule_processes(tree, holdout, y, x1, x2):
 
 # Function - calc min loss with leaf training examples and current weights  
 def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2):
-    log('start find_rule_weights')
+    # log('start find_rule_weights')
     rule_weights = find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2)
-    log('end find_rule_weights')
+    # log('end find_rule_weights')
     
     ## Calculate Loss
     if config.TUNING_PARAMS.use_corrected_loss==True:

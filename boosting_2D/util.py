@@ -13,10 +13,10 @@ class Logger():
         self.ofp = ofp
     
     def __call__(self, msg, log_time=False, level=None):
-        assert level in ('DEBUG', 'VERBOSE', None)
+        assert level in ('DEBUG', 'VERBOSE', 'QUIET', None)
         if level == 'DEBUG' and not config.DEBUG: return
         if level == 'VERBOSE' and not config.VERBOSE: return
-
+        if level == 'QUIET': return
         if config.LOG_TIME:
             time_stamp = datetime.fromtimestamp(time.time()).strftime(
                 '%Y-%m-%d %H:%M:%S: ')
@@ -49,10 +49,9 @@ def load_tree_state(pickle_file):
 ##########################################
 
 def calc_score(tree, rule_weights, rule_train_index):
-    epsilon = 1.0/(tree.ind_pred_train[0].shape[0]*tree.ind_pred_train[0].shape[1])
     rule_score = 0.5*np.log((
-        element_mult(rule_weights.w_pos, rule_train_index).sum()+epsilon)/
-        (element_mult(rule_weights.w_neg, rule_train_index).sum()+epsilon))
+        element_mult(rule_weights.w_pos, rule_train_index).sum()+config.TUNING_PARAMS.epsilon)/
+        (element_mult(rule_weights.w_neg, rule_train_index).sum()+config.TUNING_PARAMS.epsilon))
     return rule_score
 
 def calc_loss(wpos, wneg, wzero):
