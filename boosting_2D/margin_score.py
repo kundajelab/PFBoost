@@ -7,18 +7,18 @@ def calc_margin_score_x1_wrapper(args):
 # calc_margin_score_x1(tree, y, x1, x2, csr_matrix(np.ones((y.num_row, y.num_col))), 'YML081W_YPD')
 def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
     x1_feat_name = x1.col_labels[x1_feat_index]
-    allowed_x1_rules = [el for el in range(tree.npred)
+    allowed_x1_rules = [el for el in xrange(tree.npred)
          if x1_feat_index not in tree.above_motifs[el]
          +tree.split_x1[el].tolist()
          +tree.bundle_x1[el]]
-    x1_feat_nodes = [el for el in range(tree.npred) 
+    x1_feat_nodes = [el for el in xrange(tree.npred) 
          if x1_feat_index in tree.split_x1[el].tolist()
          +tree.bundle_x1[el]]
     x1_bundles = ['|'.join(x1.col_labels[[el for el in tree.split_x1[node].tolist()
          +tree.bundle_x1[node] if el != x1_feat_index]]) for node in x1_feat_nodes]
     x1_bundle_string = '--'.join([el if len(el)>0 else "none" for el in x1_bundles])
     # All rules where the motif is not above it, used in the split, or bundled in the split
-    allowed_rules = [el for el in range(tree.npred)
+    allowed_rules = [el for el in xrange(tree.npred)
          if x1_feat_index not in tree.above_motifs[el]
          +tree.split_x1[el].tolist()
          +tree.bundle_x1[el]]
@@ -31,7 +31,7 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
         pred_adj = pred_adj + tree.scores[rule]*tree.ind_pred_train[rule]
     margin_score = element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
     # Get all rules where x1 feat is above or in rule or bundle
-    rules_w_x1_feat = [el for el in range(tree.npred)
+    rules_w_x1_feat = [el for el in xrange(tree.npred)
          if x1_feat_index in tree.above_motifs[el]+
          tree.split_x1[el].tolist()
          +tree.bundle_x1[el]]
@@ -53,11 +53,11 @@ def calc_margin_score_x2_wrapper(args):
 # calc_margin_score_x2(tree, y, x1, x2, csr_matrix(np.ones((y.num_row, y.num_col))), 'YDR085C')
 def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index):
     x2_feat_name = x2.row_labels[x2_feat_index]
-    allowed_x2_rules = [el for el in range(tree.npred)
+    allowed_x2_rules = [el for el in xrange(tree.npred)
          if x2_feat_index not in tree.above_regs[el]
          +tree.split_x2[el].tolist()
          +tree.bundle_x2[el]]
-    x2_feat_nodes = [el for el in range(tree.npred)
+    x2_feat_nodes = [el for el in xrange(tree.npred)
          if x2_feat_index in tree.split_x2[el].tolist()
          +tree.bundle_x2[el]]
     x2_bundles = ['|'.join(x2.row_labels[[el for el in tree.split_x2[node].tolist()
@@ -72,7 +72,7 @@ def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index):
         pred_adj = pred_adj + tree.scores[rule]*tree.ind_pred_train[rule]
     margin_score = element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
     # Get all rules where x2 feat is above or in rule or bundle
-    rules_w_x2_feat = [el for el in range(tree.npred)
+    rules_w_x2_feat = [el for el in xrange(tree.npred)
          if x2_feat_index in tree.above_regs[el]+
          tree.split_x2[el].tolist()
          +tree.bundle_x2[el]]
@@ -98,16 +98,16 @@ def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_in
     x2_feat_name = x2.row_labels[x2_feat_index]
 
     # All rules where the x1/x2 feat is not above it, used in the split, or bundled in the split
-    allowed_x1_rules = [el for el in range(tree.npred)
+    allowed_x1_rules = [el for el in xrange(tree.npred)
          if x1_feat_index not in tree.above_motifs[el]
          +tree.split_x1[el].tolist()
          +tree.bundle_x1[el]]
-    allowed_x2_rules = [el for el in range(tree.npred)
+    allowed_x2_rules = [el for el in xrange(tree.npred)
          if x2_feat_index not in tree.above_regs[el]
          +tree.split_x2[el].tolist()
          +tree.bundle_x2[el]]
     # All the nodes that contain x1 and x2 in bundle
-    pair_nodes = [el for el in range(tree.npred) 
+    pair_nodes = [el for el in xrange(tree.npred) 
          if x1_feat_index in tree.split_x1[el].tolist()
          +tree.bundle_x1[el] and x2_feat_index in 
          tree.split_x2[el].tolist()+tree.bundle_x2[el]]
@@ -131,22 +131,22 @@ def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_in
     margin_score = element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
     ### ! If considering specific rule only (rule with both motif and reg)
     rules_w_x1_feat_and_x2_feat = list(
-        set([el for el in range(tree.npred)
+        set([el for el in xrange(tree.npred)
          if x2_feat_index in tree.above_regs[el]+
          tree.split_x2[el].tolist()
          +tree.bundle_x2[el]])
         &
-        set([el for el in range(tree.npred)
+        set([el for el in xrange(tree.npred)
          if x1_feat_index in tree.above_motifs[el]+
          tree.split_x1[el].tolist()
          +tree.bundle_x1[el]]))
     ### ! If considering joint power of motif + reg (any rule with either)
     # rules_w_x1_feat_or_x2_feat = np.unique(
-    #     [el for el in range(npred)
+    #     [el for el in xrange(npred)
     #      if reg_index in above_regs[el]
     #      +tree.split_x2[el].tolist()
     #      +tree.bundle_x2[el]]+gut oy
-    #      [el for el in range(npred)
+    #      [el for el in xrange(npred)
     #      if motif_index in above_motifs[el]+
     #      tree.split_x1[el].tolist()+ 
     #      tree.bundle_x1[el]]).tolist()
@@ -203,7 +203,7 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, by_x1=False, by_x2=False, b
         # Get margin score for each rule
         rule_processes = pool.map(calc_margin_score_rule_wrapper, iterable=[ \
             (tree, y, x1, x2, index_mat, used_x1_feats[i], used_x2_feats[i])  \
-            for i in range(len(used_x2_feats))])
+            for i in xrange(len(used_x2_feats))])
 
         # Report data frame with feature 
         ranked_score_df = pd.DataFrame({'x1_feat':[el[0] for el in rule_processes], \
@@ -227,7 +227,7 @@ def get_index(y, x1, x2, tree, x1_feat_file=None, x2_feat_file=None):
             x1_index = x1_file.ix[:,0].tolist()
         # if providing labels
         else:
-            x1_index = [el for el in range(y.data.shape[0]) if y.row_labels[el] in x1_file.ix[:,0].tolist()]
+            x1_index = [el for el in xrange(y.data.shape[0]) if y.row_labels[el] in x1_file.ix[:,0].tolist()]
     # else allow all
     else:
         x1_index = range(x1.num_col)
@@ -238,7 +238,7 @@ def get_index(y, x1, x2, tree, x1_feat_file=None, x2_feat_file=None):
             x2_index = x2_file.ix[:,0].tolist()
         # if providing labels
         else:
-            x2_index = [el for el in range(y.data.shape[1]) if y.col_labels[el] in x2_file.ix[:,0].tolist()]
+            x2_index = [el for el in xrange(y.data.shape[1]) if y.col_labels[el] in x2_file.ix[:,0].tolist()]
     else:
         x2_index = range(x2.num_row)
     index_mat = np.zeros((y.num_row, y.num_col), dtype=bool)

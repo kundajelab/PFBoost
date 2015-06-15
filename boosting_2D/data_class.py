@@ -5,6 +5,8 @@ import random
 
 import numpy as np 
 from scipy.sparse import *
+import pandas as pd
+
 from boosting_2D.util import *
 
 class Data(object):
@@ -293,10 +295,10 @@ class DecisionTree(object):
         self.train_margins.append(train_margin)
         self.test_margins.append(test_margin)
 
-    def write_out_rules(self, tuning_params, out_file=None):
+    def write_out_rules(self, tree, x1, x2, tuning_params, method_label, out_file=None):
         # Allocate matrix of rules
         rule_score_mat = pd.DataFrame(index=range(len(tree.split_x1)-1), columns=['x1_feat', 'x2_feat', 'score', 'above_rule', 'tree_depth'])
-        for i in range(1,len(tree.split_x1)):
+        for i in xrange(1,len(tree.split_x1)):
             x1_ind = tree.split_x1[i].tolist()+tree.bundle_x1[i]
             x2_ind = tree.split_x2[i].tolist()+tree.bundle_x2[i]
             above_node = tree.split_node[i]
@@ -320,4 +322,7 @@ class DecisionTree(object):
             return rule_score_mat
 
 
+### TEMP
+# read in original regulator expression
+# d = pd.read_table('/srv/gsfs0/projects/kundaje/users/pgreens/projects/boosting/data/hematopoeisis_data/regulatorExpression_pairwise_full.txt')
 

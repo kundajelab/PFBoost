@@ -41,14 +41,14 @@ def parse_args():
                         help='path to write the results to', 
                         default='/users/pgreens/projects/boosting/results/')
 
-    parser.add_argument('--input_format', help='options are: matrix, triplet')
-    parser.add_argument('--mult_format', help='options are: matrix, dense')
+    parser.add_argument('--input-format', help='options are: matrix, triplet')
+    parser.add_argument('--mult-format', help='options are: matrix, dense')
 
     parser.add_argument('-y', '--target-file', 
                         help='target matrix - dimensionality GxE')
-    parser.add_argument('-g', '--target_row_labels', 
+    parser.add_argument('-g', '--target-row-labels', 
                         help='row labels for y matrix (dimension G)')
-    parser.add_argument('-e', '--target_col_labels', 
+    parser.add_argument('-e', '--target-col-labels', 
                         help='column labels for y matrix (dimension E)')
 
     parser.add_argument('-x', '--motifs-file', 
@@ -61,22 +61,22 @@ def parse_args():
     parser.add_argument('-r', '--r-row-labels', 
                         help='row labels for x2 matrix (dimension R)')
 
-    parser.add_argument('-n', '--num_iter', 
+    parser.add_argument('-n', '--num-iter', 
                         help='Number of iterations', default=500, type=int)
 
     parser.add_argument('--eta1', help='stabilization threshold 1', type=float)
     parser.add_argument('--eta2', help='stabilization threshold 2', type=float)
 
-    parser.add_argument('-s', '--stumps', 
+    parser.add_argument('--stumps', 
                         help='specify to do stumps instead of adt', 
                         action='store_true')
-    parser.add_argument('-d', '--stable', 
+    parser.add_argument('--stable', 
                         help='bundle rules/implement stabilized boosting', 
                         action='store_true')
-    parser.add_argument('-c', '--corrected-loss', 
+    parser.add_argument('--corrected-loss', 
                         action='store_true', help='For corrected Loss')
 
-    parser.add_argument('-u', '--ncpu', 
+    parser.add_argument('--ncpu', 
                         help='number of cores to run on', type=int)
 
     parser.add_argument('--holdout-file', 
@@ -142,7 +142,6 @@ def find_next_decision_node(tree, holdout, y, x1, x2):
         holdout, y, x1, x2)
     log('end find_rule_weights')
 
-    ### get_bundled_rules (returns the current rule if no bundling)  
     # Get current rule, no stabilization
     log('start get_current_rule')
     motif,regulator,reg_sign,rule_train_index,rule_test_index = get_current_rule(
@@ -202,29 +201,21 @@ def main():
         ### Print progress
         log_progress(tree, i)
 
-    ### Get rid of this, add a method to the tree:
-    ## Write out rules
-    # Get label (MOVE)
-    if config.TUNING_PARAMS.use_stable:
-        stable_label='stable'
-    else:
-        stable_label='non_stable'
-    if config.TUNING_PARAMS.use_stumps:
-        method='stumps'
-    else:
-        method='adt'
-    method_label = '{0}_{1}'.format(method, stable_label)
+    ### Get plot label so plot label uses parameters used
+    method_label=get_plot_label()
 
-    out_file='{0}global_rules/{1}_tree_rules_{2}_{3}iter.txt'.format(
+    ### Write out rules
+    out_file_name='{0}global_rules/{1}_tree_rules_{2}_{3}iter.txt'.format(
         config.OUTPUT_PATH, config.OUTPUT_PREFIX, 
         method_label, config.TUNING_PARAMS.num_iter)
-    tree.write_out_rules(config.TUNING_PARAMS, method_label, out_file=out_file)
+    tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, method_label, out_file=out_file_name)
 
     ### Make plots
-    plot_margin(train_margins, test_margins, method, niter)
-    plot_balanced_error(loss_train, loss_test, method, niter)
-    plot_imbalanced_error(imbal_train, imbal_test, method, niter)
+    plot_margin(tree, method_label, config.TUNING_PARAMS.num_iter)
+    plot_balanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
+    plot_imbalanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
 
 
+### Main
 if __name__ == "__main__":
     main()
