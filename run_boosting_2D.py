@@ -180,14 +180,16 @@ def find_next_decision_node_stable(tree, holdout, y, x1, x2, pool):
 
     # Get current rule, no stabilization
     # log('start get_current_rule')
-    motif, regulator, regulator_sign, rule_train_index, rule_test_index = get_current_rule(
-        tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
+    (motif, regulator, regulator_sign, rule_train_index, rule_test_index 
+     ) = get_current_rule(
+         tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
     # log('end get_current_rule')
 
-    # Store current weights
+    # Store current training weights
     weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
 
     # Test if stabilization criterion is met
+    
     stable_test = stabilize.stable_boost_test(tree, rule_train_index, holdout)
     stable_thresh = stabilize.stable_boost_thresh(tree, y, weights_i)
 
@@ -214,6 +216,8 @@ def find_next_decision_node_stable(tree, holdout, y, x1, x2, pool):
 
     # Stabilization criterion not met, continue with best rule
     if bundle_size==1:
+        # rule score is the direction and magnitude of the prediciton update
+        # for the rule given by rule_weights and rule_train_index
         rule_score = calc_score(tree, rule_weights, rule_train_index)
         motif_bundle = []
         regulator_bundle = []
@@ -244,8 +248,10 @@ def find_next_decision_node_stable(tree, holdout, y, x1, x2, pool):
         
 
 
-    above_motifs = tree.above_motifs[best_split]+np.unique(tree.bundle_x1[best_split]+tree.split_x1[best_split].tolist()).tolist()
-    above_regs = tree.above_regs[best_split]+np.unique(tree.bundle_x2[best_split]+tree.split_x2[best_split].tolist()).tolist()
+    above_motifs = tree.above_motifs[best_split]+np.unique(
+        tree.bundle_x1[best_split]+tree.split_x1[best_split].tolist()).tolist()
+    above_regs = tree.above_regs[best_split]+np.unique(
+        tree.bundle_x2[best_split]+tree.split_x2[best_split].tolist()).tolist()
 
     return (motif, regulator, best_split, 
             motif_bundle, regulator_bundle, 
@@ -286,9 +292,6 @@ def main():
                       motif_bundle, regulator_bundle, 
                       rule_train_index, rule_test_index, rule_score, 
                       above_motifs, above_regs, holdout, y)
-
-        ### Return default to bundle
-        bundle_set = 1
 
         ### Print progress
         log_progress(tree, i)

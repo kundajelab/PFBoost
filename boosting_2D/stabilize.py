@@ -181,7 +181,11 @@ def return_rule_index_wrapper(args):
 
 # Calculate theta or score for the bundle 
 # !! give just 
-def calc_theta(rule_bundle, ind_pred_train, ind_pred_test, best_split, w_pos, w_neg, y, x1, x2, pool):
+def calc_theta(rule_bundle, 
+               ind_pred_train, ind_pred_test, 
+               best_split, 
+               w_pos, w_neg, 
+               y, x1, x2, pool):
     # Allocate rule matrix to save memory
     if y.sparse:
         valid_mat_h = csr_matrix((y.num_row,y.num_col), dtype=bool)
@@ -193,8 +197,13 @@ def calc_theta(rule_bundle, ind_pred_train, ind_pred_test, best_split, w_pos, w_
     motifs_down = rule_bundle.rule_bundle_regdown_motifs
     regs_down = rule_bundle.rule_bundle_regdown_regs
     bundle_rule_info = pool.map(return_rule_index_wrapper,
-         iterable=[(motifs_up[ind],regs_up[ind], 1, valid_mat_h, ind_pred_train, ind_pred_test, best_split, w_pos, w_neg, y, x1, x2)
-          for ind in range(len(motifs_up))]+
+         iterable=[(motifs_up[ind], regs_up[ind], 1, 
+                    valid_mat_h, 
+                    ind_pred_train, ind_pred_test, 
+                    best_split, 
+                    w_pos, w_neg, 
+                    y, x1, x2)
+          for ind in xrange(len(motifs_up))]+
           [(motifs_down[ind],regs_down[ind], -1, valid_mat_h, ind_pred_train, ind_pred_test, best_split, w_pos, w_neg, y, x1, x2) 
           for ind in range(len(motifs_down))]) 
     # Get scores, indices
@@ -202,7 +211,9 @@ def calc_theta(rule_bundle, ind_pred_train, ind_pred_test, best_split, w_pos, w_
     bundle_train_rule_indices = [el[1] for el in bundle_rule_info]
     bundle_test_rule_indices = [el[2] for el in bundle_rule_info]
     # Calculate theta
-    theta = sum([abs(alph) for alph in theta_alphas]-min([abs(a) for a in theta_alphas]))/2
+    min_val = min(abs(a) for a in theta_alphas)
+    theta = sum(abs(alph)-min_val for alph in theta_alphas)/2.0
+        
     return [theta, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices]
 
 
@@ -313,17 +324,26 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
     return BundleStore(rule_bundle_regup_motifs,rule_bundle_regup_regs, rule_bundle_regdown_motifs,rule_bundle_regdown_regs)
 
 # Get rule score
-def get_bundle_rule(tree, rule_bundle, theta, best_split, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices, holdout, w_pos, w_neg):
+def get_bundle_rule(tree, rule_bundle, theta, best_split, theta_alphas, 
+                    bundle_train_rule_indices, 
+                    bundle_test_rule_indices, 
+                    holdout, w_pos, w_neg):
     # Training - add score to all places where rule applies
+    # initialize a prediction matrix with the correct diumenions to 0
+    # XXX bundle_train_pred = numpy.zeros(
+    #      bundle_train_rule_indices[0].shape, dtype=float)
     bundle_train_pred = bundle_train_rule_indices[0]*0
-    for ind in range(len(theta_alphas)):
+    for ind in xrange(len(theta_alphas)):
         bundle_train_pred = bundle_train_pred+theta_alphas[ind]*bundle_train_rule_indices[ind]  
+    
     # new index is where absolute value greater than theta
     new_train_rule_ind = (abs(bundle_train_pred)>theta)
+
     # Testing - add score to all places where rule applies
     bundle_test_pred = bundle_test_rule_indices[0]*0
     for ind in range(len(theta_alphas)):
         bundle_test_pred = bundle_test_pred+theta_alphas[ind]*bundle_test_rule_indices[ind]
+
     # new index is where absolute value greater than theta
     new_test_rule_ind = (abs(bundle_test_pred)>theta)
     # calculate W+ and W- for new rule
