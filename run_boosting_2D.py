@@ -180,66 +180,78 @@ def find_next_decision_node_stable(tree, holdout, y, x1, x2, pool):
 
     # Get current rule, no stabilization
     # log('start get_current_rule')
-    motif, regulator, regulator_sign, rule_train_index, rule_test_index = get_current_rule(
-        tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
+    (motif, regulator, regulator_sign, rule_train_index, rule_test_index 
+     ) = get_current_rule(
+         tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
     # log('end get_current_rule')
 
-    # Store current weights
+    # Store current training weights
     weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
 
     # Test if stabilization criterion is met
+    
     stable_test = stabilize.stable_boost_test(tree, rule_train_index, holdout)
     stable_thresh = stabilize.stable_boost_thresh(tree, y, weights_i)
 
-    # If stabilization criterion met
+    # If stabilization criterion met, then we want to find a bundle of 
+    # correlated rules to use as a single node  
     if stable_test >= config.TUNING_PARAMS.eta_2*stable_thresh:
         print 'stabilization criterion applies'
         # Get rules that are bundled together
         # log('start bundle_rules')
-        bundle = stabilize.bundle_rules(tree, y, x1, x2, motif, regulator, regulator_sign, best_split, rule_weights)
+        bundle = stabilize.bundle_rules(
+            tree, y, x1, x2, 
+            motif, 
+            regulator, regulator_sign, 
+            best_split, rule_weights)
         # log('end bundle_rules')
 
         # Store bundle size
-        bundle_size=len(bundle.rule_bundle_regup_motifs)+len(bundle.rule_bundle_regdown_motifs)
-
-        # If bundle size > 1
-        if bundle_size>1:
-
-            # Get theta and indices/score for each individual rule in bundle
-            # log('start calc_theta')
-            ( theta, theta_alphas, 
-              bundle_train_rule_indices, 
-              bundle_test_rule_indices
-              ) = stabilize.calc_theta(bundle, tree.ind_pred_train, 
-              tree.ind_pred_test, best_split, 
-              rule_weights.w_pos, rule_weights.w_neg, y, x1, x2, pool)
-            # log('end calc_theta')
-            
-            # Get new index for joint bundled rule
-            # log('start get_bundle_rule')
-            ( rule_score, rule_train_index, rule_test_index 
-              ) = stabilize.get_bundle_rule(
-                  tree, bundle, theta, best_split, theta_alphas, 
-                  bundle_train_rule_indices, 
-                  bundle_test_rule_indices, holdout, rule_weights.w_pos, rule_weights.w_neg)
-            # log('end get_bundle_rule')
-
-            # Add bundled rules to bundle
-            motif_bundle = bundle.rule_bundle_regup_motifs+bundle.rule_bundle_regdown_motifs
-            regulator_bundle = bundle.rule_bundle_regup_regs+bundle.rule_bundle_regdown_regs
-
-    # If stabilization criterion not met, default bundle size 1
+        bundle_size = (len(bundle.rule_bundle_regup_motifs)
+                       + len(bundle.rule_bundle_regdown_motifs))
+    # if the stabilization criteria are not met, then we also use 1 rule 
+    # per bundle 
     else:
         bundle_size=1
 
     # Stabilization criterion not met, continue with best rule
     if bundle_size==1:
+        # rule score is the direction and magnitude of the prediciton update
+        # for the rule given by rule_weights and rule_train_index
         rule_score = calc_score(tree, rule_weights, rule_train_index)
         motif_bundle = []
         regulator_bundle = []
+    else:
+        assert bundle_size > 1
+        # Get theta and indices/score for each individual rule in bundle
+        # log('start calc_theta')
+        ( theta, theta_alphas, 
+          bundle_train_rule_indices, 
+          bundle_test_rule_indices
+          ) = stabilize.calc_theta(bundle, tree.ind_pred_train, 
+          tree.ind_pred_test, best_split, 
+          rule_weights.w_pos, rule_weights.w_neg, y, x1, x2, pool)
+        # log('end calc_theta')
 
-    above_motifs = tree.above_motifs[best_split]+np.unique(tree.bundle_x1[best_split]+tree.split_x1[best_split].tolist()).tolist()
-    above_regs = tree.above_regs[best_split]+np.unique(tree.bundle_x2[best_split]+tree.split_x2[best_split].tolist()).tolist()
+        # Get new index for joint bundled rule
+        # log('start get_bundle_rule')
+        ( rule_score, rule_train_index, rule_test_index 
+          ) = stabilize.get_bundle_rule(
+              tree, bundle, theta, best_split, theta_alphas, 
+              bundle_train_rule_indices, 
+              bundle_test_rule_indices, holdout, rule_weights.w_pos, rule_weights.w_neg)
+        # log('end get_bundle_rule')
+
+        # Add bundled rules to bundle
+        motif_bundle = bundle.rule_bundle_regup_motifs+bundle.rule_bundle_regdown_motifs
+        regulator_bundle = bundle.rule_bundle_regup_regs+bundle.rule_bundle_regdown_regs
+        
+
+
+    above_motifs = tree.above_motifs[best_split]+np.unique(
+        tree.bundle_x1[best_split]+tree.split_x1[best_split].tolist()).tolist()
+    above_regs = tree.above_regs[best_split]+np.unique(
+        tree.bundle_x2[best_split]+tree.split_x2[best_split].tolist()).tolist()
 
     return (motif, regulator, best_split, 
             motif_bundle, regulator_bundle, 
@@ -280,9 +292,6 @@ def main():
                       motif_bundle, regulator_bundle, 
                       rule_train_index, rule_test_index, rule_score, 
                       above_motifs, above_regs, holdout, y)
-
-        ### Return default to bundle
-        bundle_set = 1
 
         ### Print progress
         log_progress(tree, i)
