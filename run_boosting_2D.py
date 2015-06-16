@@ -18,7 +18,7 @@ import pickle
 
 from boosting_2D import config
 from boosting_2D import util
-from boosting_2D.plot import *
+from boosting_2D import plot
 from boosting_2D import margin_score
 from boosting_2D.data_class import *
 from boosting_2D.find_rule import *
@@ -266,7 +266,8 @@ def main():
 
     ### Main Loop
     for i in xrange(1,config.TUNING_PARAMS.num_iter):
-        log('iteration {0}'.format(i), level=level)
+
+        log('iteration {0}'.format(i))
         
         (motif, regulator, best_split, 
          motif_bundle, regulator_bundle, 
@@ -286,8 +287,13 @@ def main():
         ### Print progress
         log_progress(tree, i)
 
+    pdb.set_trace()
+
+    # Save tree state
+    save_tree_state(tree, pickle_file='{0}saved_trees/{1}_saved_tree_state_{2}_{3}iter'.format(OUTPUT_PATH, OUTPUT_PREFIX, method_label, tuning_params.num_iter))
+
     ### Get plot label so plot label uses parameters used
-    method_label=get_plot_label()
+    method_label=plot.get_plot_label()
 
     ### Write out rules
     out_file_name='{0}global_rules/{1}_tree_rules_{2}_{3}iter.txt'.format(
@@ -295,10 +301,20 @@ def main():
         method_label, config.TUNING_PARAMS.num_iter)
     tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, method_label, out_file=out_file_name)
 
+    # Rank x1, x2, rule and node 
+    # margin_score.call_rank_by_margin_score(prefix='hema_CMP_Mono', 
+    #     methods=['by_x1', 'by_x2', 'by_x1_and_x2', 'by_node'], 
+    #     y=y, x1=x1, x2=x2, tree=tree, pool=pool,
+    #     x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_Mono_peaks.txt', 
+    #     x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_Mono_cells.txt')
+
+    margin_score.call_rank_by_margin_score(prefix='hema_CMP_Mono',  methods=['by_x1', 'by_x2', 'by_x1_and_x2', 'by_node'], y=y, x1=x1, x2=x2, tree=tree, pool=pool, x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_Mono_peaks.txt',  x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_Mono_cells.txt')
+
+
     ### Make plots
-    plot_margin(tree, method_label, config.TUNING_PARAMS.num_iter)
-    plot_balanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
-    plot_imbalanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
+    plot.plot_margin(tree, method_label, config.TUNING_PARAMS.num_iter)
+    plot.plot_balanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
+    plot.plot_imbalanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
 
     # Close pool
     pool.close() # stop adding processes

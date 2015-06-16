@@ -16,103 +16,105 @@ from boosting_2D import config
 from boosting_2D import find_rule
 
 
-## !! TEMP IN TERMS OF FORK NOT POOL
+## @NBOLEY THIS IS THE PART
+## USING FORK_AND_WAIT NOT POOL 
+## CHECK THE SAME FUNCTIONS BELOW FOR CORRECT IMPLEMENTATION/FUNCTIONALITY
+### 
 ##########
 ####################
 ##############################
 
 # Calculate theta or score for the bundle 
-# !! give just 
-# def calc_theta(rule_bundle, ind_pred_train, ind_pred_test, best_split, w_pos, w_neg, y, x1, x2):
+def calc_theta(rule_bundle, ind_pred_train, ind_pred_test, best_split, w_pos, w_neg, y, x1, x2):
 
-#     # calculate alpha for each rule
-#     motifs_up = rule_bundle.rule_bundle_regup_motifs
-#     regs_up = rule_bundle.rule_bundle_regup_regs
-#     motifs_down = rule_bundle.rule_bundle_regdown_motifs
-#     regs_down = rule_bundle.rule_bundle_regdown_regs
-#     bundle_size=len(motifs_up)+len(motifs_down)
+    # calculate alpha for each rule
+    motifs_up = rule_bundle.rule_bundle_regup_motifs
+    regs_up = rule_bundle.rule_bundle_regup_regs
+    motifs_down = rule_bundle.rule_bundle_regdown_motifs
+    regs_down = rule_bundle.rule_bundle_regdown_regs
+    bundle_size=len(motifs_up)+len(motifs_down)
 
-#     # Get a lock
-#     lock_stable = multiprocessing.Lock()
+    # Get a lock
+    lock_stable = multiprocessing.Lock()
 
-#     # Initialize shared data objects
-#     theta_alphas = multiprocessing.RawArray(ctypes.c_double,bundle_size)
-#     bundle_train_rule_indices = multiprocessing.RawArray(ctypes.c_double,bundle_size)
-#     bundle_test_rule_indices = multiprocessing.RawArray(ctypes.c_double,bundle_size)
-#     # bundle_train_rule_indices = (multiprocessing.RawArray(ctypes.c_double,bundle_size) for el in range(bundle_size))
-#     # bundle_test_rule_indices = (multiprocessing.RawArray(ctypes.c_double,bundle_size) for el in range(bundle_size))
+    # Initialize shared data objects
+    theta_alphas = multiprocessing.RawArray(ctypes.c_double,bundle_size)
+    bundle_train_rule_indices = multiprocessing.RawArray(ctypes.c_double,bundle_size)
+    bundle_test_rule_indices = multiprocessing.RawArray(ctypes.c_double,bundle_size)
+    # bundle_train_rule_indices = (multiprocessing.RawArray(ctypes.c_double,bundle_size) for el in range(bundle_size))
+    # bundle_test_rule_indices = (multiprocessing.RawArray(ctypes.c_double,bundle_size) for el in range(bundle_size))
 
 
-#     # Store the value of the next rule that needs to be worked on
-#     rule_index_cntr = multiprocessing.Value('i', 0)
+    # Store the value of the next rule that needs to be worked on
+    rule_index_cntr = multiprocessing.Value('i', 0)
 
-#     # Pack arguments
-#     stable_args = [y, x1, x2, rule_index_cntr, rule_bundle, ind_pred_train[best_split], w_pos, w_neg, (
-#         lock_stable, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices)]
+    # Pack arguments
+    stable_args = [y, x1, x2, rule_index_cntr, rule_bundle, ind_pred_train[best_split], w_pos, w_neg, (
+        lock_stable, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices)]
 
-#     pdb.set_trace()
+    pdb.set_trace()
 
-#     # Fork worker processes, and wait for them to return
-#     fork_and_wait(config.NCPU, return_rule_index, stable_args)
+    # Fork worker processes, and wait for them to return
+    fork_and_wait(config.NCPU, return_rule_index, stable_args)
 
-#     ### Get results back into the right format
-#     # theta_alphas = [el[0] for el in bundle_rule_info]
-#     # bundle_train_rule_indices = [el[1] for el in bundle_rule_info]
-#     # bundle_test_rule_indices = [el[2] for el in bundle_rule_info]
+    ### Get results back into the right format
+    # theta_alphas = [el[0] for el in bundle_rule_info]
+    # bundle_train_rule_indices = [el[1] for el in bundle_rule_info]
+    # bundle_test_rule_indices = [el[2] for el in bundle_rule_info]
 
-#     # Calculate theta
-#     theta = sum([abs(alph) for alph in theta_alphas]-min([abs(a) for a in theta_alphas]))/2
+    # Calculate theta
+    theta = sum([abs(alph) for alph in theta_alphas]-min([abs(a) for a in theta_alphas]))/2
 
-#     return [theta, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices]
+    return [theta, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices]
 
-# def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle, best_split_train_index, w_pos, w_neg, (
-#             lock_stable, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices)):
-#     while True:
-#         # get the leaf node to work on
-#         with rule_index_cntr.get_lock():
-#             rule_index = rule_index_cntr.value
-#             rule_index_cntr.value += 1
+def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle, best_split_train_index, w_pos, w_neg, (
+            lock_stable, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices)):
+    while True:
+        # get the leaf node to work on
+        with rule_index_cntr.get_lock():
+            rule_index = rule_index_cntr.value
+            rule_index_cntr.value += 1
         
-#         # if this isn't a valid leaf, then we are done
-#         if rule_index >= len(rule_bundle.rule_bundle_regup_motifs)+len(rule_bundle.rule_bundle_regdown_motifs): 
-#             return
+        # if this isn't a valid leaf, then we are done
+        if rule_index >= len(rule_bundle.rule_bundle_regup_motifs)+len(rule_bundle.rule_bundle_regdown_motifs): 
+            return
         
-#         # Allocate rule matrix to save memory (how to do that)
-#         if y.sparse:
-#             valid_mat_h = csr_matrix((y.num_row,y.num_col), dtype=bool)
-#         else:
-#             valid_mat_h = np.zeros((y.num_row,y.num_col))
+        # Allocate rule matrix to save memory (how to do that)
+        if y.sparse:
+            valid_mat_h = csr_matrix((y.num_row,y.num_col), dtype=bool)
+        else:
+            valid_mat_h = np.zeros((y.num_row,y.num_col))
 
-#         m_h = (rule_bundle.rule_bundle_regup_motifs+rule_bundle.rule_bundle_regdown_motifs)[rule_index]
-#         r_h = (rule_bundle.rule_bundle_regup_regs+rule_bundle.rule_bundle_regdown_regs)[rule_index]
-#         reg_h = ([+1]*len(rule_bundle.rule_bundle_regup_motifs)+[-1]*len(rule_bundle.rule_bundle_regdown_motifs))[rule_index]
+        m_h = (rule_bundle.rule_bundle_regup_motifs+rule_bundle.rule_bundle_regdown_motifs)[rule_index]
+        r_h = (rule_bundle.rule_bundle_regup_regs+rule_bundle.rule_bundle_regdown_regs)[rule_index]
+        reg_h = ([+1]*len(rule_bundle.rule_bundle_regup_motifs)+[-1]*len(rule_bundle.rule_bundle_regdown_motifs))[rule_index]
 
-#         if x1.sparse:
-#             valid_m_h = np.nonzero(x1.data[m_h,:])[1]
-#             valid_r_h = np.where(x2.data.toarray()[:,r_h]==reg_h)[0]
-#         else:
-#             valid_m_h = np.nonzero(x1.data[m_h,:])[0]
-#             valid_r_h = np.where(x2.data[:,r_h]==reg_h)[0]
-#         valid_mat_h[np.ix_(valid_m_h, valid_r_h)]=1
+        if x1.sparse:
+            valid_m_h = np.nonzero(x1.data[m_h,:])[1]
+            valid_r_h = np.where(x2.data.toarray()[:,r_h]==reg_h)[0]
+        else:
+            valid_m_h = np.nonzero(x1.data[m_h,:])[0]
+            valid_r_h = np.where(x2.data[:,r_h]==reg_h)[0]
+        valid_mat_h[np.ix_(valid_m_h, valid_r_h)]=1
 
-#         # calculate the loss for this leaf  
-#         valid_mat_h[np.ix_(valid_m_h, valid_r_h)]=1
-#         rule_train_index_h = util.element_mult(valid_mat_h, best_split_train_index)
-#         # pdb.set_trace()
-#         rule_test_index_h = util.element_mult(valid_mat_h, best_split_train_index)
-#         # rule_test_index_h = element_mult(valid_mat_h, holdout.ind_test_all)
-#         rule_score_h = 0.5*np.log((util.element_mult(w_pos, rule_train_index_h).sum()+
-#             config.TUNING_PARAMS.epsilon)/(util.element_mult(w_neg, rule_train_index_h).sum()+config.TUNING_PARAMS.epsilon))
+        # calculate the loss for this leaf  
+        valid_mat_h[np.ix_(valid_m_h, valid_r_h)]=1
+        rule_train_index_h = util.element_mult(valid_mat_h, best_split_train_index)
+        # pdb.set_trace()
+        rule_test_index_h = util.element_mult(valid_mat_h, best_split_train_index)
+        # rule_test_index_h = element_mult(valid_mat_h, holdout.ind_test_all)
+        rule_score_h = 0.5*np.log((util.element_mult(w_pos, rule_train_index_h).sum()+
+            config.TUNING_PARAMS.epsilon)/(util.element_mult(w_neg, rule_train_index_h).sum()+config.TUNING_PARAMS.epsilon))
         
-#         print rule_index_cntr.value
-#         print rule_index
+        print rule_index_cntr.value
+        print rule_index
 
-#         # return the score and indices of this rule
-#         with lock_stable:
-#             ### !!! BUG HERE because cannot store array in array
-#             theta_alphas[rule_index]=rule_score_h
-#             bundle_train_rule_indices[rule_index]=rule_train_index_h
-#             bundle_test_rule_indices[rule_index]=rule_test_index_h
+        # return the score and indices of this rule
+        with lock_stable:
+            ### !!! BUG HERE because cannot store array in array (maybe just return matrices)
+            theta_alphas[rule_index]=rule_score_h
+            bundle_train_rule_indices[rule_index]=rule_train_index_h
+            bundle_test_rule_indices[rule_index]=rule_test_index_h
     
 
 ##########
@@ -135,6 +137,10 @@ def stable_boost_thresh(tree, y, weights_i):
        stable_thresh = np.sqrt(
         sum((np.square(weights_i[weights_i.nonzero()])/np.square(sum(weights_i[weights_i.nonzero()])))))
     return stable_thresh
+
+##### @NBNOLEY THIS IS WHAT IT SHOULD DO
+##########
+###############
 
 # function to parallelize the getting  ( can also add this function to the main loop)
 def return_rule_index(m_h, r_h, reg_h, valid_mat_h, ind_pred_train, ind_pred_test, best_split, w_pos, w_neg, y, x1, x2):
@@ -181,6 +187,10 @@ def calc_theta(rule_bundle, ind_pred_train, ind_pred_test, best_split, w_pos, w_
     theta = sum([abs(alph) for alph in theta_alphas]-min([abs(a) for a in theta_alphas]))/2
     return [theta, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices]
 
+
+##### 
+##########
+###############
 
 # Get rules to average (give motif, regulator and index)
 def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):

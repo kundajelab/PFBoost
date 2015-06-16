@@ -153,6 +153,7 @@ class DecisionTree(object):
         ### Margin Score Parameters
         self.above_motifs = [] # motifs each split depends on
         self.above_regs = [] # regulators each split depends on
+        self.above_nodes = []
         # self.above_pred = []
         self.train_margins = []
         self.test_margins = []
@@ -210,9 +211,11 @@ class DecisionTree(object):
         # Add root node to first split
         self.split_x1.append(np.array(['root']))
         self.split_x2.append(np.array(['root']))
+        self.nsplit += 1
         # Add empty lists for store
         self.above_motifs.append([])
         self.above_regs.append([])
+        self.above_nodes.append([])
         # If stabilized add bundle
         self.bundle_x1.append([])
         self.bundle_x2.append([])
@@ -244,6 +247,7 @@ class DecisionTree(object):
             self.split_depth.append(self.split_depth[best_split]+1)
         self.above_motifs.append(above_motifs)
         self.above_regs.append(above_regs)
+        self.above_nodes.append([best_split]+self.above_nodes[best_split])
 
         self._update_prediction(rule_score, rule_train_index, rule_test_index)
         self._update_weights(holdout,y)

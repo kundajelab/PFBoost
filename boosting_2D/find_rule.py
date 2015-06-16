@@ -47,7 +47,7 @@ def find_rule_process_worker(
             leaf_index_cntr.value += 1
         
         # if this isn't a valid leaf, then we are done
-        if leaf_index >= tree.nsplit+1: 
+        if leaf_index >= tree.nsplit: 
             return
         
         leaf_training_examples = tree.ind_pred_train[leaf_index]
