@@ -37,13 +37,10 @@ def calc_theta(rule_bundle, ind_pred_train, ind_pred_test, best_split, w_pos, w_
     # Get a lock
     lock_stable = multiprocessing.Lock()
 
-    # Initialize shared data objects
+    # Initialize shared data objects (!!! WHAT TO INITIALIZE)
     theta_alphas = multiprocessing.RawArray(ctypes.c_double,bundle_size)
     bundle_train_rule_indices = multiprocessing.RawArray(ctypes.c_double,bundle_size)
     bundle_test_rule_indices = multiprocessing.RawArray(ctypes.c_double,bundle_size)
-    # bundle_train_rule_indices = (multiprocessing.RawArray(ctypes.c_double,bundle_size) for el in range(bundle_size))
-    # bundle_test_rule_indices = (multiprocessing.RawArray(ctypes.c_double,bundle_size) for el in range(bundle_size))
-
 
     # Store the value of the next rule that needs to be worked on
     rule_index_cntr = multiprocessing.Value('i', 0)
@@ -57,12 +54,13 @@ def calc_theta(rule_bundle, ind_pred_train, ind_pred_test, best_split, w_pos, w_
     # Fork worker processes, and wait for them to return
     fork_and_wait(config.NCPU, return_rule_index, stable_args)
 
-    ### Get results back into the right format
+    ### Get results back into the right format ()
     # theta_alphas = [el[0] for el in bundle_rule_info]
     # bundle_train_rule_indices = [el[1] for el in bundle_rule_info]
     # bundle_test_rule_indices = [el[2] for el in bundle_rule_info]
 
     # Calculate theta
+    ### FIX
     theta = sum([abs(alph) for alph in theta_alphas]-min([abs(a) for a in theta_alphas]))/2
 
     return [theta, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices]
