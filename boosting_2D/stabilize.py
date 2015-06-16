@@ -27,12 +27,19 @@ from boosting_2D import find_rule
 # Calculate theta or score for the bundle 
 def calc_theta(rule_bundle, ind_pred_train, ind_pred_test, best_split, w_pos, w_neg, y, x1, x2):
 
-    # calculate alpha for each rule
+    # calculate alpha for each rule (REMOVE)
     motifs_up = rule_bundle.rule_bundle_regup_motifs
     regs_up = rule_bundle.rule_bundle_regup_regs
     motifs_down = rule_bundle.rule_bundle_regdown_motifs
     regs_down = rule_bundle.rule_bundle_regdown_regs
     bundle_size=len(motifs_up)+len(motifs_down)
+
+    if rule_bundle.bundle_size==1:
+        rule_score = util.calc_score(tree, rule_weights, rule_train_index)
+        theta = 
+        theta_alphas = [rule_score]
+        bundle_train_rule_indices = 
+        bundle_train_rul_indices = 
 
     # Get a lock
     lock_stable = multiprocessing.Lock()
@@ -48,8 +55,6 @@ def calc_theta(rule_bundle, ind_pred_train, ind_pred_test, best_split, w_pos, w_
     # Pack arguments
     stable_args = [y, x1, x2, rule_index_cntr, rule_bundle, ind_pred_train[best_split], w_pos, w_neg, (
         lock_stable, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices)]
-
-    pdb.set_trace()
 
     # Fork worker processes, and wait for them to return
     fork_and_wait(config.NCPU, return_rule_index, stable_args)
