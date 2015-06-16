@@ -15,6 +15,30 @@ from boosting_2D import util
 from boosting_2D import config
 from boosting_2D import find_rule
 
+### Return bundle
+#BundleStore = namedtuple("BundleStore", [
+#    'rule_bundle_regup_motifs', 'rule_bundle_regup_regs', 
+#    'rule_bundle_regdown_motifs', 'rule_bundle_regdown_regs'])
+
+class BundleStore(object):
+    def __init__(self, 
+                 rule_bundle_regup_motifs,
+                 rule_bundle_regup_regs,
+                 rule_bundle_regdown_motifs,
+                 rule_bundle_regdown_regs):
+        self.rule_bundle_regup_motifs = rule_bundle_regup_motifs
+        self.rule_bundle_regup_regs = rule_bundle_regup_regs
+        assert len(self.rule_bundle_regup_regs) == len(
+            self.rule_bundle_regup_motifs)
+
+        self.rule_bundle_regdown_motifs = rule_bundle_regdown_motifs
+        self.rule_bundle_regdown_regs = rule_bundle_regdown_regs
+        assert len(self.rule_bundle_regdown_regs) == len(
+            self.rule_bundle_regdown_motifs)
+        
+    def __len__(self):
+        return len(self.rule_bundle_regdown_motifs) + len(
+            rule_bundle_regup_motifs)
 
 ## @NBOLEY THIS IS THE PART
 ## USING FORK_AND_WAIT NOT POOL 
@@ -26,13 +50,12 @@ from boosting_2D import find_rule
 
 # Calculate theta or score for the bundle 
 def calc_theta(rule_bundle, ind_pred_train, ind_pred_test, best_split, w_pos, w_neg, y, x1, x2):
-
     # calculate alpha for each rule
     motifs_up = rule_bundle.rule_bundle_regup_motifs
     regs_up = rule_bundle.rule_bundle_regup_regs
     motifs_down = rule_bundle.rule_bundle_regdown_motifs
     regs_down = rule_bundle.rule_bundle_regdown_regs
-    bundle_size=len(motifs_up)+len(motifs_down)
+    bundle_size=len(rule_bundle)
 
     # Get a lock
     lock_stable = multiprocessing.Lock()
@@ -122,11 +145,6 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle, best_split_train_
 ##############################
 
 ### Stabilization Functions
-
-### Return bundle
-BundleStore = namedtuple("BundleStore", [
-    'rule_bundle_regup_motifs', 'rule_bundle_regup_regs', 
-    'rule_bundle_regdown_motifs', 'rule_bundle_regdown_regs'])
 
 # Get the stabilizationt threshold based on the current weights
 def stable_boost_thresh(tree, y, weights_i): 
