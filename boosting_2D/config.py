@@ -6,9 +6,9 @@ OUTPUT_PREFIX = None
 TUNING_PARAMS = None
 NCPU = None
 
-VERBOSE=False
-DEBUG=False
-LOG_TIME = False
+VERBOSE=True
+DEBUG=True
+LOG_TIME = True
 
 TuningParams = namedtuple('TuningParams', [
     'num_iter',

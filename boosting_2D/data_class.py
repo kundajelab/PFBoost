@@ -98,26 +98,23 @@ class Holdout(object):
                     self.holdout = csr_matrix(
                         (data[:,2], (data[:,0]-1, data[:,1]-1)),
                         shape=(y.num_row,y.num_col)).toarray()
-               # holdout = csr_matrix((data[:,2], (data[:,0]-1, data[:,1]-1)),shape=(y.num_row,y.num_col))
             elif holdout_format=='matrix':
                 if self.sparse:
                     self.holdout = csr_matrix(np.genfromtxt(holdout_file))
                 else:
                     self.holdout = csr_matrix(np.genfromtxt(holdout_file)).toarray()
-            # if self.holdout.shape[0]!=y.data.shape[0] or self.holdout.shape[1]!=y.data.shape[1]:
-            #     assert False, "Holdout dimensions do not match target matrix '%s'" % holdout_file
         if holdout_file==None:
             np.random.seed(1)
             if self.sparse:
                 self.holdout = coo_matrix(
                 np.reshape(
-                    np.random.choice(a=[0,1], size=y.num_row*y.num_col, replace=True, p=[0.8,0.2]),
-                    (y.num_row, y.num_col)
-                )).tocsr()
+                    np.random.choice(a=[0,1], size=y.num_row*y.num_col,
+                     replace=True, p=[0.8,0.2]),
+                    (y.num_row, y.num_col))).tocsr()
             else:
                 self.holdout = np.reshape(
-                    np.random.choice(a=[0,1], size=y.num_row*y.num_col, replace=True, p=[0.8,0.2]),
-                    (y.num_row, y.num_col))
+                    np.random.choice(a=[0,1], size=y.num_row*y.num_col,
+                     replace=True, p=[0.8,0.2]), (y.num_row, y.num_col))
         log('allocate holdout')
         self.ind_test_up =  element_mult(self.holdout, y.data==1)
         self.ind_test_down = element_mult(self.holdout, y.data==-1)
@@ -229,7 +226,9 @@ class DecisionTree(object):
         self._update_margin(y)
 
     # Store new rule
-    def add_rule(self, motif, regulator, best_split, motif_bundle, regulator_bundle, rule_train_index, rule_test_index, rule_score, above_motifs, above_regs, holdout, y):
+    def add_rule(self, motif, regulator, best_split, motif_bundle,
+     regulator_bundle, rule_train_index, rule_test_index, 
+     rule_score, above_motifs, above_regs, holdout, y):
         self.split_x1.append(motif)
         self.split_x2.append(regulator)
         self.split_node.append(best_split)
@@ -277,15 +276,22 @@ class DecisionTree(object):
         incorr_test = (y.element_mult(self.pred_test)<0)
 
         # Balanced error
-        bal_train_err_i = (float(element_mult(incorr_train, holdout.ind_train_up).sum())/holdout.ind_train_up.sum()
-            +float(element_mult(incorr_train, holdout.ind_train_down).sum())/holdout.ind_train_down.sum())/2
-        bal_test_err_i = (float(element_mult(incorr_test, holdout.ind_test_up).sum())/holdout.ind_test_up.sum()
-            +float(element_mult(incorr_test, holdout.ind_test_down).sum())/holdout.ind_test_down.sum())/2
+        bal_train_err_i = (float(element_mult(incorr_train,
+             holdout.ind_train_up).sum())/holdout.ind_train_up.sum()
+            +float(element_mult(incorr_train, holdout.ind_train_down
+                ).sum())/holdout.ind_train_down.sum())/2
+        bal_test_err_i = (float(element_mult(incorr_test, 
+            holdout.ind_test_up).sum())/holdout.ind_test_up.sum()
+            +float(element_mult(incorr_test, holdout.ind_test_down
+                ).sum())/holdout.ind_test_down.sum())/2
 
         ## Imbalanced error
-        imbal_train_err_i=(float(element_mult(incorr_train, np.add(holdout.ind_train_up, holdout.ind_train_down)).sum())/holdout.ind_train_all.sum())
-        imbal_test_err_i=(float(element_mult(incorr_test, np.add(holdout.ind_test_up, holdout.ind_test_down)).sum())/
-            holdout.ind_test_all.sum())
+        imbal_train_err_i=(float(element_mult(incorr_train,
+             np.add(holdout.ind_train_up, holdout.ind_train_down)
+             ).sum())/holdout.ind_train_all.sum())
+        imbal_test_err_i=(float(element_mult(incorr_test, 
+             np.add(holdout.ind_test_up, holdout.ind_test_down)
+             ).sum())/holdout.ind_test_all.sum())
 
         # Store error 
         self.bal_train_err.append(bal_train_err_i)
@@ -299,23 +305,29 @@ class DecisionTree(object):
         self.train_margins.append(train_margin)
         self.test_margins.append(test_margin)
 
-    def write_out_rules(self, tree, x1, x2, tuning_params, method_label, out_file=None):
+    def write_out_rules(self, tree, x1, x2, tuning_params,
+         method_label, out_file=None):
         # Allocate matrix of rules
-        rule_score_mat = pd.DataFrame(index=range(len(tree.split_x1)-1), columns=['x1_feat', 'x2_feat', 'score', 'above_rule', 'tree_depth'])
+        rule_score_mat = pd.DataFrame(index=range(len(tree.split_x1)-1),
+         columns=['x1_feat', 'x2_feat', 'score', 'above_rule', 'tree_depth'])
         for i in xrange(1,len(tree.split_x1)):
             x1_ind = tree.split_x1[i].tolist()+tree.bundle_x1[i]
             x2_ind = tree.split_x2[i].tolist()+tree.bundle_x2[i]
             above_node = tree.split_node[i]
-            rule_score_mat.ix[i-1,'x1_feat'] = '|'.join(np.unique(x1.col_labels[x1_ind]).tolist())
-            rule_score_mat.ix[i-1,'x2_feat'] = '|'.join(np.unique(x2.row_labels[x2_ind]).tolist())
+            rule_score_mat.ix[i-1,'x1_feat'] = '|'.join(
+                np.unique(x1.col_labels[x1_ind]).tolist())
+            rule_score_mat.ix[i-1,'x2_feat'] = '|'.join(
+                np.unique(x2.row_labels[x2_ind]).tolist())
             rule_score_mat.ix[i-1,'score'] = tree.scores[i]
             if tree.split_x1[above_node][0]=='root':
                 rule_score_mat.ix[i-1,'above_rule'] = 'root'
             else:
                 rule_score_mat.ix[i-1,'above_rule'] = '{0};{1}'.format(
-                     '|'.join(np.unique(x1.col_labels[tree.split_x1[above_node].tolist()+
+                     '|'.join(np.unique(x1.col_labels[
+                        tree.split_x1[above_node].tolist()+
                      tree.bundle_x1[above_node]]).tolist()),
-                     '|'.join(np.unique(x2.row_labels[tree.split_x2[above_node].tolist()+
+                     '|'.join(np.unique(x2.row_labels[
+                        tree.split_x2[above_node].tolist()+
                      tree.bundle_x2[above_node]]).tolist()))       
             rule_score_mat.ix[i-1,'tree_depth'] = tree.split_depth[i]
         if out_file!=None:
@@ -324,9 +336,3 @@ class DecisionTree(object):
             return 1
         else:
             return rule_score_mat
-
-
-### TEMP
-# read in original regulator expression
-# d = pd.read_table('/srv/gsfs0/projects/kundaje/users/pgreens/projects/boosting/data/hematopoeisis_data/regulatorExpression_pairwise_full.txt')
-

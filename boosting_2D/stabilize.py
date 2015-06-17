@@ -15,11 +15,7 @@ from boosting_2D import util
 from boosting_2D import config
 from boosting_2D import find_rule
 
-### Return bundle
-#BundleStore = namedtuple("BundleStore", [
-#    'rule_bundle_regup_motifs', 'rule_bundle_regup_regs', 
-#    'rule_bundle_regdown_motifs', 'rule_bundle_regdown_regs'])
-
+### Define bundle class - store  bundled motifs+regulators with min loss rule
 class BundleStore(object):
     def __init__(self, 
                  rule_bundle_regup_motifs,
@@ -35,71 +31,92 @@ class BundleStore(object):
         self.rule_bundle_regdown_regs = rule_bundle_regdown_regs
         assert len(self.rule_bundle_regdown_regs) == len(
             self.rule_bundle_regdown_motifs)
+        self.size = self.__get_bundle_size__()
         
-    def __len__(self):
+    def __get_bundle_size__(self):
         return len(self.rule_bundle_regdown_motifs) + len(
-            rule_bundle_regup_motifs)
+            self.rule_bundle_regup_motifs)
 
-## @NBOLEY THIS IS THE PART
-## USING FORK_AND_WAIT NOT POOL 
-## CHECK THE SAME FUNCTIONS BELOW FOR CORRECT IMPLEMENTATION/FUNCTIONALITY
-### 
-##########
-####################
-##############################
+### Stabilization Functions
+# Get the stabilizationt threshold based on the current weights
+def stable_boost_thresh(tree, y, weights_i): 
+    if y.sparse:
+       stable_thresh = np.sqrt(
+        np.matrix.sum((np.square(weights_i[weights_i.nonzero()])/np.square(
+            np.matrix.sum(weights_i[weights_i.nonzero()])))))
+    else:
+       stable_thresh = np.sqrt(
+        sum((np.square(weights_i[weights_i.nonzero()])/np.square(
+            sum(weights_i[weights_i.nonzero()])))))
+    return stable_thresh
 
 # Calculate theta or score for the bundle 
-def calc_theta(rule_bundle, ind_pred_train, ind_pred_test, best_split, w_pos, w_neg, y, x1, x2):
-<<<<<<< HEAD
+def get_rule_score_and_indices(rule_bundle, ind_pred_train, 
+          ind_pred_test, best_split, weights_i,
+          rule_weights, tree, y, x1, x2, holdout,
+          rule_train_index, rule_test_index):
 
-    # calculate alpha for each rule (REMOVE)
-=======
-    # calculate alpha for each rule
->>>>>>> b4a61c403c635c29460d12e294ed1560c7703488
-    motifs_up = rule_bundle.rule_bundle_regup_motifs
-    regs_up = rule_bundle.rule_bundle_regup_regs
-    motifs_down = rule_bundle.rule_bundle_regdown_motifs
-    regs_down = rule_bundle.rule_bundle_regdown_regs
-    bundle_size=len(rule_bundle)
-
-    if rule_bundle.bundle_size==1:
+    ### ADD IN 
+    if rule_bundle.size==1:
         rule_score = util.calc_score(tree, rule_weights, rule_train_index)
-        theta = 
-        theta_alphas = [rule_score]
-        bundle_train_rule_indices = 
-        bundle_train_rul_indices = 
+        motif_bundle = []
+        regulator_bundle = []
+        return rule_score, rule_train_index, rule_test_index
 
     # Get a lock
     lock_stable = multiprocessing.Lock()
 
-    # Initialize shared data objects (!!! WHAT TO INITIALIZE)
-    theta_alphas = multiprocessing.RawArray(ctypes.c_double,bundle_size)
-    bundle_train_rule_indices = multiprocessing.RawArray(ctypes.c_double,bundle_size)
-    bundle_test_rule_indices = multiprocessing.RawArray(ctypes.c_double,bundle_size)
+    # Initialize shared data objects
+    theta_alphas = multiprocessing.RawArray(ctypes.c_double,rule_bundle.size)
+    bundle_train_pred = multiprocessing.RawArray(ctypes.c_double,y.num_row*y.num_col)
+    bundle_test_pred = multiprocessing.RawArray(ctypes.c_double,y.num_row*y.num_col)
 
     # Store the value of the next rule that needs to be worked on
     rule_index_cntr = multiprocessing.Value('i', 0)
 
     # Pack arguments
-    stable_args = [y, x1, x2, rule_index_cntr, rule_bundle, ind_pred_train[best_split], w_pos, w_neg, (
-        lock_stable, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices)]
+    stable_args = [y, x1, x2, rule_index_cntr, rule_bundle, \
+         ind_pred_train[best_split], rule_weights.w_pos, rule_weights.w_neg, (
+        lock_stable, theta_alphas, bundle_train_pred, bundle_test_pred)]
 
     # Fork worker processes, and wait for them to return
     fork_and_wait(config.NCPU, return_rule_index, stable_args)
 
     ### Get results back into the right format ()
-    # theta_alphas = [el[0] for el in bundle_rule_info]
-    # bundle_train_rule_indices = [el[1] for el in bundle_rule_info]
-    # bundle_test_rule_indices = [el[2] for el in bundle_rule_info]
+    theta_alphas =  np.array(theta_alphas)
+    if y.sparse:
+        bundle_train_pred = csr_matrix(np.reshape(
+            np.array(bundle_train_pred), (y.data.shape)))
+        bundle_test_pred = csr_matrix(np.reshape(
+            np.array(bundle_test_pred), (y.data.shape)))
+    else:
+        bundle_train_pred = np.reshape(np.array(bundle_train_pred), (y.data.shape))
+        bundle_test_pred = np.reshape(np.array(bundle_test_pred), (y.data.shape))
 
     # Calculate theta
-    ### FIX
-    theta = sum([abs(alph) for alph in theta_alphas]-min([abs(a) for a in theta_alphas]))/2
+    min_val = min([abs(a) for a in theta_alphas])
+    theta = sum([abs(alph)-min_val for alph in theta_alphas])/2
 
-    return [theta, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices]
+    # new index is where absolute value greater than theta
+    new_train_rule_ind = (abs(bundle_train_pred)>theta)
+    new_test_rule_ind = (abs(bundle_test_pred)>theta)
 
-def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle, best_split_train_index, w_pos, w_neg, (
-            lock_stable, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices)):
+    # calculate W+ and W- for new rule
+    w_pos = util.element_mult(weights_i, holdout.ind_train_up)
+    w_neg = util.element_mult(weights_i, holdout.ind_train_down)
+    w_bundle_pos = util.element_mult(w_pos, new_train_rule_ind)
+    w_bundle_neg = util.element_mult(w_neg, new_train_rule_ind) 
+
+    # get score of new rule
+    rule_bundle_score = 0.5*np.log(
+        (w_bundle_pos.sum()+config.TUNING_PARAMS.epsilon)/
+        (w_bundle_neg.sum()+config.TUNING_PARAMS.epsilon))
+
+    return rule_bundle_score, new_train_rule_ind, new_test_rule_ind
+
+def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle, 
+        best_split_train_index, w_pos, w_neg, (
+        lock_stable, theta_alphas, bundle_train_pred, bundle_test_pred)):
     while True:
         # get the leaf node to work on
         with rule_index_cntr.get_lock():
@@ -107,7 +124,8 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle, best_split_train_
             rule_index_cntr.value += 1
         
         # if this isn't a valid leaf, then we are done
-        if rule_index >= len(rule_bundle.rule_bundle_regup_motifs)+len(rule_bundle.rule_bundle_regdown_motifs): 
+        if rule_index >= len(rule_bundle.rule_bundle_regup_motifs)+ \
+          len(rule_bundle.rule_bundle_regdown_motifs): 
             return
         
         # Allocate rule matrix to save memory (how to do that)
@@ -116,9 +134,12 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle, best_split_train_
         else:
             valid_mat_h = np.zeros((y.num_row,y.num_col))
 
-        m_h = (rule_bundle.rule_bundle_regup_motifs+rule_bundle.rule_bundle_regdown_motifs)[rule_index]
-        r_h = (rule_bundle.rule_bundle_regup_regs+rule_bundle.rule_bundle_regdown_regs)[rule_index]
-        reg_h = ([+1]*len(rule_bundle.rule_bundle_regup_motifs)+[-1]*len(rule_bundle.rule_bundle_regdown_motifs))[rule_index]
+        m_h = (rule_bundle.rule_bundle_regup_motifs+
+            rule_bundle.rule_bundle_regdown_motifs)[rule_index]
+        r_h = (rule_bundle.rule_bundle_regup_regs+
+            rule_bundle.rule_bundle_regdown_regs)[rule_index]
+        reg_h = ([+1]*len(rule_bundle.rule_bundle_regup_motifs)+
+            [-1]*len(rule_bundle.rule_bundle_regdown_motifs))[rule_index]
 
         if x1.sparse:
             valid_m_h = np.nonzero(x1.data[m_h,:])[1]
@@ -131,205 +152,153 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle, best_split_train_
         # calculate the loss for this leaf  
         valid_mat_h[np.ix_(valid_m_h, valid_r_h)]=1
         rule_train_index_h = util.element_mult(valid_mat_h, best_split_train_index)
-        # pdb.set_trace()
         rule_test_index_h = util.element_mult(valid_mat_h, best_split_train_index)
         # rule_test_index_h = element_mult(valid_mat_h, holdout.ind_test_all)
-        rule_score_h = 0.5*np.log((util.element_mult(w_pos, rule_train_index_h).sum()+
-            config.TUNING_PARAMS.epsilon)/(util.element_mult(w_neg, rule_train_index_h).sum()+config.TUNING_PARAMS.epsilon))
-        
-        print rule_index_cntr.value
+        rule_score_h = 0.5*np.log((util.element_mult(
+             w_pos, rule_train_index_h).sum()+
+             config.TUNING_PARAMS.epsilon)/(
+             util.element_mult(w_neg,
+             rule_train_index_h).sum()
+             +config.TUNING_PARAMS.epsilon))
+
         print rule_index
 
-        # return the score and indices of this rule
+        # Update current predictions
         with lock_stable:
-            ### !!! BUG HERE because cannot store array in array (maybe just return matrices)
+
+            # Add current rule to training and testing sets
+            current_bundle_train_pred = np.reshape(
+                np.array(bundle_train_pred), y.data.shape)
+            updated_bundle_train_pred = current_bundle_train_pred+ \
+                rule_score_h*rule_train_index_h
+
+            current_bundle_test_pred = np.reshape(
+                np.array(bundle_test_pred), y.data.shape)
+            updated_bundle_test_pred = current_bundle_test_pred+ \
+                rule_score_h*rule_test_index_h
+
+            # Update shared object
             theta_alphas[rule_index]=rule_score_h
-            bundle_train_rule_indices[rule_index]=rule_train_index_h
-            bundle_test_rule_indices[rule_index]=rule_test_index_h
+            if y.sparse:
+                bundle_train_pred[:]=np.array(
+                    updated_bundle_train_pred.ravel(), copy=False)[0]
+                bundle_test_pred[:]=np.array(
+                    updated_bundle_test_pred.ravel(), copy=False)[0]
+            else:
+                bundle_train_pred[:]=updated_bundle_train_pred.ravel()
+                bundle_test_pred[:]=updated_bundle_test_pred.ravel()
+
     
-
-##########
-####################
-##############################
-
-### Stabilization Functions
-
-# Get the stabilizationt threshold based on the current weights
-def stable_boost_thresh(tree, y, weights_i): 
-    if y.sparse:
-       stable_thresh = np.sqrt(
-        np.matrix.sum((np.square(weights_i[weights_i.nonzero()])/np.square(np.matrix.sum(weights_i[weights_i.nonzero()])))))
-    else:
-       stable_thresh = np.sqrt(
-        sum((np.square(weights_i[weights_i.nonzero()])/np.square(sum(weights_i[weights_i.nonzero()])))))
-    return stable_thresh
-
-##### @NBNOLEY THIS IS WHAT IT SHOULD DO
-##########
-###############
-
-# function to parallelize the getting  ( can also add this function to the main loop)
-def return_rule_index(m_h, r_h, reg_h, valid_mat_h, ind_pred_train, ind_pred_test, best_split, w_pos, w_neg, y, x1, x2):
-    if y.sparse:
-        valid_m_h = np.nonzero(x1.data[m_h,:])[1]
-        valid_r_h = np.where(x2.data.toarray()[:,r_h]==reg_h)[0]
-    else:
-        valid_m_h = np.nonzero(x1.data[m_h,:])[0]
-        valid_r_h = np.where(x2.data[:,r_h]==reg_h)[0]
-    valid_mat_h[np.ix_(valid_m_h, valid_r_h)]=1
-    rule_train_index_h = util.element_mult(valid_mat_h, ind_pred_train[best_split])
-    # pdb.set_trace()
-    rule_test_index_h = util.element_mult(valid_mat_h, ind_pred_test[best_split])
-    # rule_test_index_h = element_mult(valid_mat_h, holdout.ind_test_all)
-    rule_score_h = 0.5*np.log((util.element_mult(w_pos, rule_train_index_h).sum()+ config.TUNING_PARAMS.epsilon)/(util.element_mult(w_neg, rule_train_index_h).sum()+config.TUNING_PARAMS.epsilon))
-    return [rule_score_h, rule_train_index_h, rule_test_index_h]
-
-def return_rule_index_wrapper(args):
-    return return_rule_index(*args)
-
-# Calculate theta or score for the bundle 
-# !! give just 
-def calc_theta(rule_bundle, 
-               ind_pred_train, ind_pred_test, 
-               best_split, 
-               w_pos, w_neg, 
-               y, x1, x2, pool):
-    # Allocate rule matrix to save memory
-    if y.sparse:
-        valid_mat_h = csr_matrix((y.num_row,y.num_col), dtype=bool)
-    else:
-        valid_mat_h = np.zeros((y.num_row,y.num_col))
-    # calculate alpha for each rule
-    motifs_up = rule_bundle.rule_bundle_regup_motifs
-    regs_up = rule_bundle.rule_bundle_regup_regs
-    motifs_down = rule_bundle.rule_bundle_regdown_motifs
-    regs_down = rule_bundle.rule_bundle_regdown_regs
-    bundle_rule_info = pool.map(return_rule_index_wrapper,
-         iterable=[(motifs_up[ind], regs_up[ind], 1, 
-                    valid_mat_h, 
-                    ind_pred_train, ind_pred_test, 
-                    best_split, 
-                    w_pos, w_neg, 
-                    y, x1, x2)
-          for ind in xrange(len(motifs_up))]+
-          [(motifs_down[ind],regs_down[ind], -1, valid_mat_h, ind_pred_train, ind_pred_test, best_split, w_pos, w_neg, y, x1, x2) 
-          for ind in range(len(motifs_down))]) 
-    # Get scores, indices
-    theta_alphas = [el[0] for el in bundle_rule_info]
-    bundle_train_rule_indices = [el[1] for el in bundle_rule_info]
-    bundle_test_rule_indices = [el[2] for el in bundle_rule_info]
-    # Calculate theta
-    min_val = min(abs(a) for a in theta_alphas)
-    theta = sum(abs(alph)-min_val for alph in theta_alphas)/2.0
-        
-    return [theta, theta_alphas, bundle_train_rule_indices, bundle_test_rule_indices]
-
-
-##### 
-##########
-###############
 
 # Get rules to average (give motif, regulator and index)
 def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
     print 'starting bundle rules'
     print 'best split is {0}'.format(best_split)
+
     weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
+
     # SYMM DIFF - calculate weights and weights squared of best loss_rule (A)
     if reg==1:
-        if y.sparse:
-            a_val = rule_weights.w_up_regup[m,r].tolist()[0][0]+ \
-            rule_weights.w_down_regup[m,r].tolist()[0][0]
-        else:
-            a_val = rule_weights.w_up_regup[m,r].tolist()[0]+ \
-            rule_weights.w_down_regup[m,r].tolist()[0]
+        a_val = rule_weights.w_up_regup[m,r]+ \
+        rule_weights.w_down_regup[m,r]
     elif reg==-1:
-        if y.sparse:
-            a_val = rule_weights.w_up_regdown[m,r].tolist()[0][0]+ \
-            rule_weights.w_down_regdown[m,r].tolist()[0][0]
-        else:
-            a_val = rule_weights.w_up_regdown[m,r].tolist()[0]+ \
-            rule_weights.w_down_regdown[m,r].tolist()[0]
+        a_val = rule_weights.w_up_regdown[m,r]+ \
+        rule_weights.w_down_regdown[m,r]
+
+    # Allocate matrix of weight value
     if y.sparse:
-        a_weights = csr_matrix(a_val*np.ones(shape=rule_weights.w_down_regup.shape))
+        a_weights = csr_matrix(a_val*
+            np.ones(shape=rule_weights.w_down_regup.shape))
     else:
         a_weights = a_val*np.ones(shape=rule_weights.w_down_regup.shape)
-    ## calculate weights and weights square of all the other rules (B)
+
+    ## Calculate weights and weights square of all the other rules (B)
     # W+ + W- from find_rule()
     b_weights_regup = rule_weights.w_up_regup+ \
         rule_weights.w_down_regup 
     b_weights_regdown = rule_weights.w_up_regdown+ \
             rule_weights.w_down_regdown
+
     ## Calculate intersection of A and B (A union B)
-    # allocate matrix with best rule in repeated m matrix, and best rule in repeated r matrix
+    # Allocate matrix with best rule in repeated m matrix, and best rule in repeated r matrix
     if y.sparse:
         x1_best = vstack([x1.data[m,:] for el in range(x1.num_row)])
         reg_vec = (x2.data[:,r]==reg)
         x2_best = hstack([reg_vec for el in range(x2.num_col)], format='csr') 
     else:
         x1_best = np.vstack([x1.data[m,:] for el in range(x1.num_row)])
-        reg_vec = (x2.data[:,r]==reg)
+        reg_vec = np.reshape((x2.data[:,r]==reg), (x2.num_row,1))
         x2_best = np.hstack([reg_vec for el in range(x2.num_col)]) 
+
     # Multiply best rule times all other rules
     x1_intersect = util.element_mult(x1_best, x1.data)
     x2_up = x2.element_mult(x2.data>0)
     x2_down = abs(x2.element_mult(x2.data<0))
     x2_intersect_regup = util.element_mult(x2_best, x2_up)
     x2_intersect_regdown = util.element_mult(x2_best, x2_down)
+
     # Get weights for intersection
-    ab_weights_regup = util.matrix_mult(util.matrix_mult(x1_intersect, weights_i), x2_intersect_regup) # PRE-FILTER weights
-    ab_weights_regdown = util.matrix_mult(util.matrix_mult(x1_intersect, weights_i), x2_intersect_regdown) # PRE-FILTER weights
-    # Get symmetric difference weights
+    ab_weights_regup = util.matrix_mult(
+        util.matrix_mult(x1_intersect, weights_i),
+         x2_intersect_regup) # PRE-FILTER weights
+    ab_weights_regdown = util.matrix_mult(
+        util.matrix_mult(x1_intersect, weights_i),
+         x2_intersect_regdown) # PRE-FILTER weights
+
+    # Get symmetric difference in weights
     symm_diff_w_regup = a_weights + b_weights_regup - 2*ab_weights_regup
     symm_diff_w_regdown = a_weights + b_weights_regdown - 2*ab_weights_regdown
+
     ## Calculate threshold for stabilization
-    if y.sparse:
-        bundle_thresh = np.sqrt(sum([np.square(w)
-             for w in weights_i[weights_i.nonzero()].tolist()[0]])/
-             np.square(sum(weights_i[weights_i.nonzero()].tolist()[0])))
-    else:
-        bundle_thresh = np.sqrt(sum([np.square(w)
-             for w in weights_i[weights_i.nonzero()].tolist()])/
-             np.square(sum(weights_i[weights_i.nonzero()].tolist())))
-    ### check indices of where stabilization threshold reached
-    ## If large bundle, but hard cap:
-    if y.sparse:
-        if sum(sum(symm_diff_w_regup.toarray() < config.TUNING_PARAMS.eta_1*bundle_thresh)) > config.TUNING_PARAMS.bundle_max \
-            or sum(sum(symm_diff_w_regdown.toarray() < config.TUNING_PARAMS.eta_1*bundle_thresh)) > config.TUNING_PARAMS.bundle_max:
-            print "="*80
-            print 'large bundle - capping at {0}'.format(config.TUNING_PARAMS.bundle_max)
-            # Rank all of the entries and get the top number
+    bundle_thresh = np.sqrt(sum([np.square(w)
+         for w in np.frombuffer(weights_i[weights_i.nonzero()])])/
+         np.square(sum(np.frombuffer(weights_i[weights_i.nonzero()]))))
+
+    ## If large bundle, but hard cap on number of rules in bundle:
+    test_big_regup = ((symm_diff_w_regup < \
+         config.TUNING_PARAMS.eta_1*bundle_thresh).sum() \
+        < config.TUNING_PARAMS.eta_1*bundle_thresh).sum() \
+         > config.TUNING_PARAMS.bundle_max
+    test_big_regdown = ((symm_diff_w_regdown < \
+         config.TUNING_PARAMS.eta_1*bundle_thresh).sum() \
+        < config.TUNING_PARAMS.eta_1*bundle_thresh).sum() \
+         > config.TUNING_PARAMS.bundle_max
+
+    # If large bundle cap at max bundle size
+    if test_big_regup or test_big_regdown:
+        pdb.set_trace()
+        print "="*80
+        print 'large bundle - cap at {0}'.format(config.TUNING_PARAMS.bundle_max)
+        # Rank all of the entries and get the top number of allowed rules 
+        ### XXX BETTER WAY TO DO THIS??
+        if y.sparse: 
             rule_bundle_regup = np.where(symm_diff_w_regup.todense().ravel().argsort().argsort().reshape(symm_diff_w_regup.toarray().shape) < config.TUNING_PARAMS.bundle_max)
             rule_bundle_regdown = np.where(symm_diff_w_regdown.todense().ravel().argsort().argsort().reshape(symm_diff_w_regup.toarray().shape) < config.TUNING_PARAMS.bundle_max) 
         else:
-            rule_bundle_regup = np.where(symm_diff_w_regup.todense() < config.TUNING_PARAMS.eta_1*bundle_thresh) 
-            rule_bundle_regdown = np.where(symm_diff_w_regdown.todense() < config.TUNING_PARAMS.eta_1*bundle_thresh)
-        rule_bundle_regup_motifs = rule_bundle_regup[0].tolist()[0] # Keeping min loss rule
-        rule_bundle_regup_regs = rule_bundle_regup[1].tolist()[0]
-        rule_bundle_regdown_motifs = rule_bundle_regdown[0].tolist()[0]
-        rule_bundle_regdown_regs = rule_bundle_regdown[1].tolist()[0]
-
-    else:
-        if sum(sum(symm_diff_w_regup < config.TUNING_PARAMS.eta_1*bundle_thresh)) > config.TUNING_PARAMS.bundle_max \
-            or sum(sum(symm_diff_w_regdown < config.TUNING_PARAMS.eta_1*bundle_thresh)) > config.TUNING_PARAMS.bundle_max:
-            print "="*80
-            print 'large bundle - capping at {0}'.format(config.TUNING_PARAMS.bundle_max)
-            # Rank all of the entries and get the top number
             rule_bundle_regup = np.where(symm_diff_w_regup.ravel().argsort().argsort().reshape(symm_diff_w_regup.shape) < config.TUNING_PARAMS.bundle_max)
             rule_bundle_regdown = np.where(symm_diff_w_regdown.ravel().argsort().argsort().reshape(symm_diff_w_regup.shape) < config.TUNING_PARAMS.bundle_max) 
-        else:
-            rule_bundle_regup = np.where(symm_diff_w_regup < config.TUNING_PARAMS.eta_1*bundle_thresh) 
-            rule_bundle_regdown = np.where(symm_diff_w_regdown < config.TUNING_PARAMS.eta_1*bundle_thresh)
-        rule_bundle_regup_motifs = rule_bundle_regup[0].tolist() # Keeping min loss rule
-        rule_bundle_regup_regs = rule_bundle_regup[1].tolist()
-        rule_bundle_regdown_motifs = rule_bundle_regdown[0].tolist()
-        rule_bundle_regdown_regs = rule_bundle_regdown[1].tolist()
+
+    # Otherwise take all bundled rules
+    else:
+        rule_bundle_regup = (symm_diff_w_regup < \
+            config.TUNING_PARAMS.eta_1*bundle_thresh).nonzero()
+        rule_bundle_regdown = (symm_diff_w_regdown < \
+            config.TUNING_PARAMS.eta_1*bundle_thresh).nonzero()
+    rule_bundle_regup_motifs = rule_bundle_regup[0].tolist() # Keeping min loss rule
+    rule_bundle_regup_regs = rule_bundle_regup[1].tolist()
+    rule_bundle_regdown_motifs = rule_bundle_regdown[0].tolist()
+    rule_bundle_regdown_regs = rule_bundle_regdown[1].tolist()
+
     # Print names of x1/x2 features that are bundled
-    rule_bundle_motifs = x1.col_labels[rule_bundle_regup_motifs+rule_bundle_regdown_motifs]
-    rule_bundle_regs = x2.row_labels[rule_bundle_regup_regs+rule_bundle_regdown_regs]
+    rule_bundle_motifs = x1.col_labels[ \
+        rule_bundle_regup_motifs+rule_bundle_regdown_motifs]
+    rule_bundle_regs = x2.row_labels[ \
+        rule_bundle_regup_regs+rule_bundle_regdown_regs]
     print rule_bundle_motifs
     print rule_bundle_regs
     # Return list where first element is bundle where reg_up and second is where reg_down
-    return BundleStore(rule_bundle_regup_motifs,rule_bundle_regup_regs, rule_bundle_regdown_motifs,rule_bundle_regdown_regs)
+    return BundleStore(rule_bundle_regup_motifs, rule_bundle_regup_regs,
+                         rule_bundle_regdown_motifs, rule_bundle_regdown_regs)
 
 # Get rule score
 def get_bundle_rule(tree, rule_bundle, theta, best_split, theta_alphas, 
@@ -337,12 +306,12 @@ def get_bundle_rule(tree, rule_bundle, theta, best_split, theta_alphas,
                     bundle_test_rule_indices, 
                     holdout, w_pos, w_neg):
     # Training - add score to all places where rule applies
-    # initialize a prediction matrix with the correct diumenions to 0
-    # XXX bundle_train_pred = numpy.zeros(
-    #      bundle_train_rule_indices[0].shape, dtype=float)
-    bundle_train_pred = bundle_train_rule_indices[0]*0
+    # initialize a prediction matrix with the correct dimensions to 0
+    bundle_train_pred = numpy.zeros(
+         bundle_train_rule_indices[0].shape, dtype=float)
     for ind in xrange(len(theta_alphas)):
-        bundle_train_pred = bundle_train_pred+theta_alphas[ind]*bundle_train_rule_indices[ind]  
+        bundle_train_pred = bundle_train_pred + \
+            theta_alphas[ind]*bundle_train_rule_indices[ind]  
     
     # new index is where absolute value greater than theta
     new_train_rule_ind = (abs(bundle_train_pred)>theta)
@@ -350,18 +319,21 @@ def get_bundle_rule(tree, rule_bundle, theta, best_split, theta_alphas,
     # Testing - add score to all places where rule applies
     bundle_test_pred = bundle_test_rule_indices[0]*0
     for ind in range(len(theta_alphas)):
-        bundle_test_pred = bundle_test_pred+theta_alphas[ind]*bundle_test_rule_indices[ind]
+        bundle_test_pred = bundle_test_pred + \
+            theta_alphas[ind]*bundle_test_rule_indices[ind]
 
     # new index is where absolute value greater than theta
     new_test_rule_ind = (abs(bundle_test_pred)>theta)
+
     # calculate W+ and W- for new rule
     weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
     w_pos = util.element_mult(weights_i, holdout.ind_train_up)
     w_neg = util.element_mult(weights_i, holdout.ind_train_down)
     w_bundle_pos = util.element_mult(w_pos, new_train_rule_ind)
     w_bundle_neg = util.element_mult(w_neg, new_train_rule_ind) 
-    # get score of new rule
-    rule_bundle_score = 0.5*np.log((w_bundle_pos.sum()+config.TUNING_PARAMS.epsilon)/
+     # get score of new rule
+    rule_bundle_score = 0.5*np.log((w_bundle_pos.sum() + 
+        config.TUNING_PARAMS.epsilon) /
         (w_bundle_neg.sum()+config.TUNING_PARAMS.epsilon))
     return rule_bundle_score, new_train_rule_ind, new_test_rule_ind
 
@@ -369,5 +341,6 @@ def get_bundle_rule(tree, rule_bundle, theta, best_split, theta_alphas,
 def stable_boost_test(tree, rule_train_index, holdout):
     w_pos = util.element_mult(tree.weights, holdout.ind_train_up)
     w_neg = util.element_mult(tree.weights, holdout.ind_train_down) 
-    test = 0.5*abs(util.element_mult(w_pos, rule_train_index).sum()-util.element_mult(w_neg, rule_train_index).sum())
+    test = 0.5*abs(util.element_mult(w_pos, rule_train_index).sum() - \
+        util.element_mult(w_neg, rule_train_index).sum())
     return test

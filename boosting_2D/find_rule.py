@@ -7,6 +7,7 @@ from collections import namedtuple
 
 import numpy as np 
 from scipy.sparse import *
+import pdb
 
 from boosting_2D import config
 from boosting_2D import util
@@ -197,11 +198,18 @@ def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout, y, x1
         motif = np.array(motif[choice])
         regulator = np.array(regulator[choice])
        
+    # Convert to int
+    if isinstance(motif,int)==False:
+        motif=int(motif)
+    if isinstance(regulator,int)==False:
+        regulator=int(regulator)
+
     ## Find indices of where motif and regulator appear
-    valid_m = np.nonzero(x1.data[motif,:])[1]
     if x2.sparse:
+        valid_m = np.nonzero(x1.data[motif,:])[1]
         valid_r = np.where(x2.data.toarray()[:,regulator]==regulator_sign)[0]
     else:
+        valid_m = np.nonzero(x1.data[motif,:])[0]
         valid_r = np.where(x2.data[:,regulator]==regulator_sign)[0]
     
     ### Get joint motif-regulator index - training and testing

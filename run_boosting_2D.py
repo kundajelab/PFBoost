@@ -164,7 +164,7 @@ def find_next_decision_node(tree, holdout, y, x1, x2):
             above_motifs, above_regs)
 
 
-def find_next_decision_node_stable(tree, holdout, y, x1, x2, pool):
+def find_next_decision_node_stable(tree, holdout, y, x1, x2):
     ## Calculate loss at all search nodes
     # log('start rule_processes')
     best_split, regulator_sign, loss_best = find_rule_processes(
@@ -189,7 +189,6 @@ def find_next_decision_node_stable(tree, holdout, y, x1, x2, pool):
     weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
 
     # Test if stabilization criterion is met
-    
     stable_test = stabilize.stable_boost_test(tree, rule_train_index, holdout)
     stable_thresh = stabilize.stable_boost_thresh(tree, y, weights_i)
 
@@ -204,54 +203,33 @@ def find_next_decision_node_stable(tree, holdout, y, x1, x2, pool):
             motif, 
             regulator, regulator_sign, 
             best_split, rule_weights)
+
         # log('end bundle_rules')
 
-        # Store bundle size
-        bundle_size = (len(bundle.rule_bundle_regup_motifs)
-                       + len(bundle.rule_bundle_regdown_motifs))
-    # if the stabilization criteria are not met, then we also use 1 rule 
-    # per bundle 
-    else:
-        bundle_size=1
+        # rule score is the direction and magnitude of the prediciton update
+        # for the rule given by rule_weights and rule_train_index
+        ( rule_score, rule_train_index, rule_test_index 
+          ) = stabilize.get_rule_score_and_indices(bundle, 
+          tree.ind_pred_train, tree.ind_pred_test, 
+          best_split, weights_i, rule_weights,
+          tree, y, x1, x2, holdout,
+          rule_train_index, rule_test_index)
 
-    # Stabilization criterion not met, continue with best rule
-    if bundle_size==1:
+        # Add bundled rules to bundle
+        motif_bundle = bundle.rule_bundle_regup_motifs+bundle.rule_bundle_regdown_motifs
+        regulator_bundle = bundle.rule_bundle_regup_regs+bundle.rule_bundle_regdown_regs
+
+    else:
         # rule score is the direction and magnitude of the prediciton update
         # for the rule given by rule_weights and rule_train_index
         rule_score = calc_score(tree, rule_weights, rule_train_index)
         motif_bundle = []
         regulator_bundle = []
-    else:
-        assert bundle_size > 1
-        # Get theta and indices/score for each individual rule in bundle
-        # log('start calc_theta')
-        ( theta, theta_alphas, 
-          bundle_train_rule_indices, 
-          bundle_test_rule_indices
-          ) = stabilize.calc_theta(bundle, tree.ind_pred_train, 
-          tree.ind_pred_test, best_split, 
-          rule_weights.w_pos, rule_weights.w_neg, y, x1, x2, pool)
-        # log('end calc_theta')
-
-        # Get new index for joint bundled rule
-        # log('start get_bundle_rule')
-        ( rule_score, rule_train_index, rule_test_index 
-          ) = stabilize.get_bundle_rule(
-              tree, bundle, theta, best_split, theta_alphas, 
-              bundle_train_rule_indices, 
-              bundle_test_rule_indices, holdout, rule_weights.w_pos, rule_weights.w_neg)
-        # log('end get_bundle_rule')
-
-        # Add bundled rules to bundle
-        motif_bundle = bundle.rule_bundle_regup_motifs+bundle.rule_bundle_regdown_motifs
-        regulator_bundle = bundle.rule_bundle_regup_regs+bundle.rule_bundle_regdown_regs
         
-
-
     above_motifs = tree.above_motifs[best_split]+np.unique(
-        tree.bundle_x1[best_split]+tree.split_x1[best_split].tolist()).tolist()
+        tree.bundle_x1[best_split]+[tree.split_x1[best_split]]).tolist()
     above_regs = tree.above_regs[best_split]+np.unique(
-        tree.bundle_x2[best_split]+tree.split_x2[best_split].tolist()).tolist()
+        tree.bundle_x2[best_split]+[tree.split_x2[best_split]]).tolist()
 
     return (motif, regulator, best_split, 
             motif_bundle, regulator_bundle, 
@@ -273,9 +251,6 @@ def main():
     tree = DecisionTree(holdout, y, x1, x2)
     log('make tree stop', level=level)
 
-    # Make pool
-    pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
-
     ### Main Loop
     for i in xrange(1,config.TUNING_PARAMS.num_iter):
 
@@ -285,7 +260,7 @@ def main():
          motif_bundle, regulator_bundle, 
          rule_train_index, rule_test_index, rule_score, 
          above_motifs, above_regs) = find_next_decision_node_stable(
-             tree, holdout, y, x1, x2, pool)
+             tree, holdout, y, x1, x2)
         
         ### Add the rule with best loss
         tree.add_rule(motif, regulator, best_split, 
@@ -294,12 +269,13 @@ def main():
                       above_motifs, above_regs, holdout, y)
 
         ### Print progress
-        log_progress(tree, i)
+        util.log_progress(tree, i)
 
     pdb.set_trace()
 
     # Save tree state
-    save_tree_state(tree, pickle_file='{0}saved_trees/{1}_saved_tree_state_{2}_{3}iter'.format(OUTPUT_PATH, OUTPUT_PREFIX, method_label, tuning_params.num_iter))
+    save_tree_state(tree, pickle_file='{0}saved_trees/{1}_saved_tree_state_{2}_{3}iter'.format(
+        config.OUTPUT_PATH, config.OUTPUT_PREFIX, method_label, tuning_params.num_iter))
 
     ### Get plot label so plot label uses parameters used
     method_label=plot.get_plot_label()
@@ -310,24 +286,24 @@ def main():
         method_label, config.TUNING_PARAMS.num_iter)
     tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, method_label, out_file=out_file_name)
 
+    # # Make pool
+    # pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
+
     # Rank x1, x2, rule and node 
-    # margin_score.call_rank_by_margin_score(prefix='hema_CMP_Mono', 
-    #     methods=['by_x1', 'by_x2', 'by_x1_and_x2', 'by_node'], 
-    #     y=y, x1=x1, x2=x2, tree=tree, pool=pool,
-    #     x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_Mono_peaks.txt', 
-    #     x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_Mono_cells.txt')
+    # margin_score.call_rank_by_margin_score(prefix='hema_CMP_Mono',
+    #   methods=['by_x1', 'by_x2', 'by_x1_and_x2', 'by_node'],
+    #    y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
+    #    x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_Mono_peaks.txt',
+    #    x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_Mono_cells.txt')
 
-    margin_score.call_rank_by_margin_score(prefix='hema_CMP_Mono',  methods=['by_x1', 'by_x2', 'by_x1_and_x2', 'by_node'], y=y, x1=x1, x2=x2, tree=tree, pool=pool, x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_Mono_peaks.txt',  x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_Mono_cells.txt')
-
+    # # Close pool
+    # pool.close() # stop adding processes
+    # pool.join() # wait until all threads are done before going on
 
     ### Make plots
     plot.plot_margin(tree, method_label, config.TUNING_PARAMS.num_iter)
     plot.plot_balanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
     plot.plot_imbalanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
-
-    # Close pool
-    pool.close() # stop adding processes
-    pool.join() # wait until all threads are done before going on
 
 
 
