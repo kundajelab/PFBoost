@@ -19,7 +19,8 @@ class Data(object):
                 (data[:,2], (data[:,0]-1, data[:,1]-1)),
                 shape=(max(data[:,0]),max(data[:,1])))
         else:
-             self.data = csr_matrix(
+            ### XXX FIX
+            self.data = csr_matrix(
                 (data[:,2], (data[:,0]-1, data[:,1]-1)),
                 shape=(max(data[:,0]),max(data[:,1]))).toarray() # better way to do this?
            

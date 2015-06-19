@@ -23,12 +23,13 @@ from boosting_2D import margin_score
 from boosting_2D.data_class import *
 from boosting_2D.find_rule import *
 from boosting_2D import stabilize
+from boosting_2D import prior
 
 log = util.log
 
 TuningParams = namedtuple('TuningParams', [
     'num_iter',
-    'use_stumps', 'use_stable', 'use_corrected_loss',
+    'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
     'eta_1', 'eta_2', 'bundle_max', 'epsilon'
 ])
 
@@ -43,7 +44,7 @@ def parse_args():
                         default='/users/pgreens/projects/boosting/results/')
 
     parser.add_argument('--input-format', help='options are: matrix, triplet')
-    parser.add_argument('--mult-format', help='options are: matrix, dense')
+    parser.add_argument('--mult-format', help='options are: dense, sparse')
 
     parser.add_argument('-y', '--target-file', 
                         help='target matrix - dimensionality GxE')
@@ -76,6 +77,24 @@ def parse_args():
                         action='store_true')
     parser.add_argument('--corrected-loss', 
                         action='store_true', help='For corrected Loss')
+
+    parser.add_argument('--use_prior', 
+                        action='store_true', help='Use prior',)
+    parser.add_argument('--prior_input_format', 
+                        help='options are: matrix, triplet',)
+    parser.add_argument('--motif_reg_file', 
+                        default=None, help='motif-regulator priors [0,1] real-valued',)
+    parser.add_argument('--motif_reg_row_labels', 
+                        default=None, help='motif labels for motif-regulator prior',)
+    parser.add_argument('--motif_reg_col_labels', 
+                        default=None, help='regulator labels for motif-regulator prior',)
+    parser.add_argument('--reg_reg_file', 
+                        default=None, help='regulator-regulator priors [0,1] real-valued',) 
+    parser.add_argument('--reg_reg_row_labels', 
+                        default=None, help='motif labels for regulator-regulator prior',)    
+    parser.add_argument('--reg_reg_col_labels', 
+                        default=None, help='regulator labels for regulator-regulator prior',)
+    
 
     parser.add_argument('--ncpu', 
                         help='number of cores to run on', type=int)
@@ -123,53 +142,68 @@ def parse_args():
     config.TUNING_PARAMS = TuningParams(
         args.num_iter, 
         args.stumps, args.stable, args.corrected_loss,
+        args.use_prior,
         args.eta1, args.eta2, 20, 1./holdout.n_train)
+
+    if config.TUNING_PARAMS.use_prior:
+        prior.PRIOR_PARAMS=prior.PriorParams(
+            50, 0.995,
+            args.prior_input_format,
+            args.motif_reg_file, args.motif_reg_row_labels, args.motif_reg_col_labels,
+            args.reg_reg_file, args.reg_reg_row_labels, args.reg_reg_col_labels)
+        prior.prior_motifreg, prior.prior_regreg = prior.parse_prior(prior.PRIOR_PARAMS, x1, x2)
+
     config.NCPU = args.ncpu
 
     return (x1, x2, y, holdout)
 
-def find_next_decision_node(tree, holdout, y, x1, x2):
-    ## Calculate loss at all search nodes
-    # log('start rule_processes')
-    best_split, regulator_sign, loss_best = find_rule_processes(
-        tree, holdout, y, x1, x2) 
-    # log('end rule_processes')
+# def find_next_decision_node(tree, holdout, y, x1, x2):
+#     ## Calculate loss at all search nodes
+#     # log('start rule_processes')
+#     best_split, regulator_sign, loss_best = find_rule_processes(
+#         tree, holdout, y, x1, x2) 
+#     # log('end rule_processes')
 
-    # Get rule weights for the best split
-    # log('start find_rule_weights')
-    rule_weights = find_rule_weights(
-        tree.ind_pred_train[best_split], tree.weights, tree.ones_mat, 
-        holdout, y, x1, x2)
-    # log('end find_rule_weights')
+#     # Get rule weights for the best split
+#     # log('start find_rule_weights')
+#     rule_weights = find_rule_weights(
+#         tree.ind_pred_train[best_split], tree.weights, tree.ones_mat, 
+#         holdout, y, x1, x2)
+#     # log('end find_rule_weights')
 
-    # Get current rule, no stabilization
-    # log('start get_current_rule')
-    motif,regulator,reg_sign,rule_train_index,rule_test_index = get_current_rule(
-        tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
-    # log('end get_current_rule')
+#     # Get current rule, no stabilization
+#     # log('start get_current_rule')
+#     motif,regulator,reg_sign,rule_train_index,rule_test_index = get_current_rule(
+#         tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
+#     # log('end get_current_rule')
 
-    ## Update score without stabilization,  if stabilization results 
-    ## in one rule or if stabilization criterion not met
-    rule_score = calc_score(tree, rule_weights, rule_train_index)
-    motif_bundle = []
-    regulator_bundle = []
+#     ## Update score without stabilization,  if stabilization results 
+#     ## in one rule or if stabilization criterion not met
+#     rule_score = calc_score(tree, rule_weights, rule_train_index)
+#     motif_bundle = []
+#     regulator_bundle = []
 
-    ### Store motifs/regulators above this node (for margin score)
-    above_motifs = tree.above_motifs[best_split]+tree.split_x1[best_split].tolist()
-    above_regs = tree.above_regs[best_split]+tree.split_x2[best_split].tolist()
+#     ### Store motifs/regulators above this node (for margin score)
+#     above_motifs = tree.above_motifs[best_split]+tree.split_x1[best_split].tolist()
+#     above_regs = tree.above_regs[best_split]+tree.split_x2[best_split].tolist()
 
-    return (motif, regulator, best_split, 
-            motif_bundle, regulator_bundle, 
-            rule_train_index, rule_test_index, rule_score, 
-            above_motifs, above_regs)
+#     return (motif, regulator, best_split, 
+#             motif_bundle, regulator_bundle, 
+#             rule_train_index, rule_test_index, rule_score, 
+#             above_motifs, above_regs)
 
 
 def find_next_decision_node_stable(tree, holdout, y, x1, x2):
     ## Calculate loss at all search nodes
-    # log('start rule_processes')
+    # log('start rule_processes')    
     best_split, regulator_sign, loss_best = find_rule_processes(
         tree, holdout, y, x1, x2) 
     # log('end rule_processes')
+
+    # log('update with prior')
+    if config.TUNING_PARAMS.use_prior:
+        loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS, prior.prior_motifreg, prior.prior_regreg)
+    # log('finish with prior')
 
     # Get rule weights for the best split
     # log('start find_rule_weights')
@@ -203,7 +237,6 @@ def find_next_decision_node_stable(tree, holdout, y, x1, x2):
             motif, 
             regulator, regulator_sign, 
             best_split, rule_weights)
-
         # log('end bundle_rules')
 
         # rule score is the direction and magnitude of the prediciton update
@@ -286,6 +319,7 @@ def main():
         method_label, config.TUNING_PARAMS.num_iter)
     tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, method_label, out_file=out_file_name)
 
+    # XX Re-factor based on 
     # # Make pool
     # pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
 

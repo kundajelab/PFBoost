@@ -12,6 +12,6 @@ LOG_TIME = True
 
 TuningParams = namedtuple('TuningParams', [
     'num_iter',
-    'use_stumps', 'use_stable', 'use_corrected_loss',
+    'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
     'eta_1', 'eta_2', 'bundle_max', 'epsilon'
 ])
