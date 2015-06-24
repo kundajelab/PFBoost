@@ -16,7 +16,6 @@ import pdb
 
 from boosting_2D import util
 
-
 ### Keeps track of constants
 PriorParams = namedtuple('PriorParams', [
     'prior_constant', 'prior_decay_rate',
@@ -59,12 +58,15 @@ class Prior(object):
         prior_col_labels=self.col_labels.tolist()
         # prior_row_match_ind=pd.match(prior_row_labels, [el.replace('-','_').replace('.','_') for el in final_row_labels.tolist()])
         prior_row_match_ind=pd.match(prior_row_labels, final_row_labels)
-        prior_rows_to_transfer = [el for el in range(len(prior_row_labels)) if prior_row_match_ind[el]!=-1]
+        prior_rows_to_transfer = [el for el in range(len(prior_row_labels))
+             if prior_row_match_ind[el]!=-1]
         final_rows_to_fill = prior_row_match_ind[prior_row_match_ind!=-1]
         prior_col_match_ind=pd.match(prior_col_labels, final_col_labels)
-        prior_cols_to_transfer = [el for el in range(len(prior_col_labels)) if prior_col_match_ind[el]!=-1]
+        prior_cols_to_transfer = [el for el in range(len(prior_col_labels))
+             if prior_col_match_ind[el]!=-1]
         final_cols_to_fill = prior_col_match_ind[prior_col_match_ind!=-1]
-        final_data[np.ix_(final_rows_to_fill, final_cols_to_fill)]=prior_data[prior_rows_to_transfer,:][:,prior_cols_to_transfer]
+        final_data[np.ix_(final_rows_to_fill, final_cols_to_fill)]= \
+            prior_data[prior_rows_to_transfer,:][:,prior_cols_to_transfer]
         print 'sum of prior weights in final {0}'.format(final_data.sum())
         print 'sum of prior weights in full prior {0}'.format(prior_data.sum())
         self.data=final_data
