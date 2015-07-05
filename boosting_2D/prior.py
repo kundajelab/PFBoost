@@ -50,9 +50,9 @@ class Prior(object):
 
     def _load_dense_data(self, x1, x2):
         final_data=np.zeros((x1.num_row,x2.num_col))
-        # final_row_labels=x1.col_labels # WHEN PROCESS LABELS EARLIER
-        final_row_labels=[el.replace('-','_').replace('.','_') for el in x1.col_labels]
-        final_col_labels=x2.row_labels
+        # final_row_labels=x1.row_labels # WHEN PROCESS LABELS EARLIER
+        final_row_labels=[el.replace('-','_').replace('.','_') for el in x1.row_labels]
+        final_col_labels=x2.col_labels
         prior_data=np.genfromtxt(self.data_file)
         prior_row_labels=self.row_labels.tolist()
         prior_col_labels=self.col_labels.tolist()

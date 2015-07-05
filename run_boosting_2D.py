@@ -118,16 +118,16 @@ def parse_args():
 
     log('load x1 start')
     x1 = Motifs(args.motifs_file, 
-                args.target_row_labels, 
                 args.m_col_labels,
+                args.target_row_labels, 
                 args.input_format,
                 args.mult_format)
     log('load x1 stop')
     
     log('load x2 start')
     x2 = Regulators(args.regulators_file, 
-                    args.r_row_labels, 
                     args.target_col_labels,
+                    args.r_row_labels, 
                     args.input_format,
                     args.mult_format)
     log('load x2 stop')

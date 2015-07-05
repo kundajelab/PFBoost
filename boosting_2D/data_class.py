@@ -316,18 +316,18 @@ class DecisionTree(object):
             x2_ind = [tree.split_x2[i]]+tree.bundle_x2[i]
             above_node = tree.split_node[i]
             rule_score_mat.ix[i-1,'x1_feat'] = '|'.join(
-                np.unique(x1.col_labels[x1_ind]).tolist())
+                np.unique(x1.row_labels[x1_ind]).tolist())
             rule_score_mat.ix[i-1,'x2_feat'] = '|'.join(
-                np.unique(x2.row_labels[x2_ind]).tolist())
+                np.unique(x2.col_labels[x2_ind]).tolist())
             rule_score_mat.ix[i-1,'score'] = tree.scores[i]
             if tree.split_x1[above_node]=='root':
                 rule_score_mat.ix[i-1,'above_rule'] = 'root'
             else:
                 rule_score_mat.ix[i-1,'above_rule'] = '{0};{1}'.format(
-                     '|'.join(np.unique(x1.col_labels[
+                     '|'.join(np.unique(x1.row_labels[
                         [tree.split_x1[above_node]]+
                      tree.bundle_x1[above_node]]).tolist()),
-                     '|'.join(np.unique(x2.row_labels[
+                     '|'.join(np.unique(x2.col_labels[
                         [tree.split_x2[above_node]]+
                      tree.bundle_x2[above_node]]).tolist()))       
             rule_score_mat.ix[i-1,'tree_depth'] = tree.split_depth[i]

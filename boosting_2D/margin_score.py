@@ -19,7 +19,7 @@ def calc_margin_score_x1_wrapper(args):
 
 # calc_margin_score_x1(tree, y, x1, x2, csr_matrix(np.ones((y.num_row, y.num_col))), 'YML081W_YPD')
 def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
-    x1_feat_name = x1.col_labels[x1_feat_index]
+    x1_feat_name = x1.row_labels[x1_feat_index]
     allowed_x1_rules = [el for el in xrange(tree.nsplit)
          if x1_feat_index not in tree.above_motifs[el]
          +[tree.split_x1[el]]
@@ -27,7 +27,7 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
     x1_feat_nodes = [el for el in xrange(tree.nsplit) 
          if x1_feat_index in [tree.split_x1[el]]
          +tree.bundle_x1[el]]
-    x1_bundles = ['|'.join(x1.col_labels[[el for el in [tree.split_x1[node]]
+    x1_bundles = ['|'.join(x1.row_labels[[el for el in [tree.split_x1[node]]
          +tree.bundle_x1[node] if el != x1_feat_index]]) for node in x1_feat_nodes]
     x1_bundle_string = '--'.join([el if len(el)>0 else "none" for el in x1_bundles])
     # All rules where the motif is not above it, used in the split, or bundled in the split
@@ -65,7 +65,7 @@ def calc_margin_score_x2_wrapper(args):
 
 # calc_margin_score_x2(tree, y, x1, x2, csr_matrix(np.ones((y.num_row, y.num_col))), 'YDR085C')
 def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index):
-    x2_feat_name = x2.row_labels[x2_feat_index]
+    x2_feat_name = x2.col_labels[x2_feat_index]
     allowed_x2_rules = [el for el in xrange(tree.nsplit)
          if x2_feat_index not in tree.above_regs[el]
          +[tree.split_x2[el]]
@@ -73,7 +73,7 @@ def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index):
     x2_feat_nodes = [el for el in xrange(tree.nsplit)
          if x2_feat_index in [tree.split_x2[el]]
          +tree.bundle_x2[el]]
-    x2_bundles = ['|'.join(x2.row_labels[[el for el in [tree.split_x2[node]]
+    x2_bundles = ['|'.join(x2.col_labels[[el for el in [tree.split_x2[node]]
          +tree.bundle_x2[node] if el != x2_feat_index]]) for node in x2_feat_nodes]
     x2_bundle_string = '--'.join([el  if len(el)>0 else "none" for el in x2_bundles])
     # New Prediction Matrix 
@@ -107,8 +107,8 @@ def calc_margin_score_rule_wrapper(args):
 ### CALCULATE MARGIN SCORE BY ANY JOINT APPEARANCE OF MOTIF-REGULATOR (MULTIPLE NODES)
 def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_index):
     # Feature names
-    x1_feat_name = x1.col_labels[x1_feat_index]
-    x2_feat_name = x2.row_labels[x2_feat_index]
+    x1_feat_name = x1.row_labels[x1_feat_index]
+    x2_feat_name = x2.col_labels[x2_feat_index]
 
     # All rules where the x1/x2 feat is not above it, used in the split, or bundled in the split
     allowed_x1_rules = [el for el in xrange(tree.nsplit)
@@ -125,11 +125,11 @@ def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_in
          +tree.bundle_x1[el] and x2_feat_index in 
          [tree.split_x2[el]]+tree.bundle_x2[el]]
 
-    x1_bundles = ['|'.join(x1.col_labels[[el for el in [tree.split_x1[node]]
+    x1_bundles = ['|'.join(x1.row_labels[[el for el in [tree.split_x1[node]]
          +tree.bundle_x1[node] if el != x1_feat_index]]) for node in pair_nodes]
     x1_bundle_string = '--'.join([el if len(el)>0 else "none" for el in x1_bundles])
 
-    x2_bundles = ['|'.join(x2.row_labels[[el for el in [tree.split_x2[node]]
+    x2_bundles = ['|'.join(x2.col_labels[[el for el in [tree.split_x2[node]]
          +tree.bundle_x2[node] if el != x2_feat_index]]) for node in pair_nodes]
     x2_bundle_string = '--'.join([el if len(el)>0 else "none" for el in x2_bundles ])
 
@@ -185,15 +185,15 @@ def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
     # Feature names
     x1_feat_index = tree.split_x1[node]
     x2_feat_index = tree.split_x2[node]
-    x1_feat_name = x1.col_labels[x1_feat_index]
-    x2_feat_name = x2.row_labels[x2_feat_index]
+    x1_feat_name = x1.row_labels[x1_feat_index]
+    x2_feat_name = x2.col_labels[x2_feat_index]
 
     # All rules where the node is not above it or the node itself
     allowed_rules = [el for el in xrange(tree.nsplit)
          if node not in tree.above_nodes[el] if el!=node]
 
-    x1_bundle_string = '|'.join([x1.col_labels[el] for el in tree.bundle_x1[node]])
-    x2_bundle_string = '|'.join([x2.row_labels[el] for el in tree.bundle_x2[node]])
+    x1_bundle_string = '|'.join([x1.row_labels[el] for el in tree.bundle_x1[node]])
+    x2_bundle_string = '|'.join([x2.col_labels[el] for el in tree.bundle_x2[node]])
 
     # Allocate Prediction Matrix
     if y.sparse:
