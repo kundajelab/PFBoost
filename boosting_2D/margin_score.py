@@ -275,15 +275,15 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
     if method=='by_node':
         print 'by_node'
         # Get margin score for each rule
-        rule_processes = pool.map(calc_margin_score_node_wrapper, iterable=[ \
-            (tree, y, x1, x2, index_mat, node)  \
-            for node in xrange(1,tree.nsplit)])
+        # rule_processes = pool.map(calc_margin_score_node_wrapper, iterable=[ \
+        #     (tree, y, x1, x2, index_mat, node)  \
+        #     for node in xrange(1,tree.nsplit)])
         # pdb.set_trace()
         # SERIAL VERSION
-        # rule_processes = []    
-        # for node in xrange(1,tree.nsplit):
-        #     result=calc_margin_score_node(tree, y, x1, x2, index_mat, node)
-        #     rule_processes.append(result)
+        rule_processes = []    
+        for node in xrange(1,tree.nsplit):
+            result=calc_margin_score_node(tree, y, x1, x2, index_mat, node)
+            rule_processes.append(result)
         # Report data frame with feature 
         ranked_score_df = pd.DataFrame({'node':[el[0] for el in rule_processes], \
             'x1_feat':[el[1] for el in rule_processes], \

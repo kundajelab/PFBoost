@@ -157,6 +157,7 @@ def parse_args():
 
     return (x1, x2, y, holdout)
 
+### XXX EVENTUALLY COMPARE TO PREVIOUS SPEED
 # def find_next_decision_node(tree, holdout, y, x1, x2):
 #     ## Calculate loss at all search nodes
 #     # log('start rule_processes')
@@ -203,7 +204,6 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
     # log('update with prior')
     if config.TUNING_PARAMS.use_prior:
         loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS, prior.prior_motifreg, prior.prior_regreg, iteration)
-
     # log('finish with prior')
 
     # Get rule weights for the best split

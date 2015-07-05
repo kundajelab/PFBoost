@@ -52,15 +52,15 @@ y = TargetMatrix('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_d
                  'sparse')
 # Load x1
 x1 = Motifs('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/annotationMatrix_full_subset_CD34.txt', 
-            '/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/peak_headers_full_subset_CD34.txt', 
             '/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/annotationMatrix_headers_full.txt',
+            '/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/peak_headers_full_subset_CD34.txt', 
             'triplet',
             'sparse')
 
 # Load x2
 x2 = Regulators('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulatorExpression_bindingTFsonly.txt', 
-                '/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt', 
                 '/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/cell_types_pairwise.txt',
+                '/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt', 
                 'triplet',
                 'sparse')
 
