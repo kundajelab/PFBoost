@@ -193,7 +193,7 @@ def parse_args():
 #             above_motifs, above_regs)
 
 
-def find_next_decision_node_stable(tree, holdout, y, x1, x2, iteration):
+def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
     ## Calculate loss at all search nodes
     # log('start rule_processes')    
     best_split, regulator_sign, loss_best = find_rule_processes(
@@ -220,45 +220,55 @@ def find_next_decision_node_stable(tree, holdout, y, x1, x2, iteration):
          tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
     # log('end get_current_rule')
 
-    # Store current training weights
-    weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
+    if config.TUNING_PARAMS.use_stable:
+        # Store current training weights
+        weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
 
-    # Test if stabilization criterion is met
-    stable_test = stabilize.stable_boost_test(tree, rule_train_index, holdout)
-    stable_thresh = stabilize.stable_boost_thresh(tree, y, weights_i)
+        # Test if stabilization criterion is met
+        stable_test = stabilize.stable_boost_test(tree, rule_train_index, holdout)
+        stable_thresh = stabilize.stable_boost_thresh(tree, y, weights_i)
 
-    # If stabilization criterion met, then we want to find a bundle of 
-    # correlated rules to use as a single node  
-    if stable_test >= config.TUNING_PARAMS.eta_2*stable_thresh:
-        print 'stabilization criterion applies'
-        # Get rules that are bundled together
-        # log('start bundle_rules')
-        bundle = stabilize.bundle_rules(
-            tree, y, x1, x2, 
-            motif, 
-            regulator, regulator_sign, 
-            best_split, rule_weights)
-        # log('end bundle_rules')
+        # If stabilization criterion met, then we want to find a bundle of 
+        # correlated rules to use as a single node  
+        if stable_test >= config.TUNING_PARAMS.eta_2*stable_thresh:
+            print 'stabilization criterion applies'
+            # Get rules that are bundled together
+            # log('start bundle_rules')
+            bundle = stabilize.bundle_rules(
+                tree, y, x1, x2, 
+                motif, 
+                regulator, regulator_sign, 
+                best_split, rule_weights)
+            # log('end bundle_rules')
 
-        # rule score is the direction and magnitude of the prediciton update
-        # for the rule given by rule_weights and rule_train_index
-        ( rule_score, rule_train_index, rule_test_index 
-          ) = stabilize.get_rule_score_and_indices(bundle, 
-          tree.ind_pred_train, tree.ind_pred_test, 
-          best_split, weights_i, rule_weights,
-          tree, y, x1, x2, holdout,
-          rule_train_index, rule_test_index)
+            # rule score is the direction and magnitude of the prediciton update
+            # for the rule given by rule_weights and rule_train_index
+            ( rule_score, rule_train_index, rule_test_index 
+              ) = stabilize.get_rule_score_and_indices(bundle, 
+              tree.ind_pred_train, tree.ind_pred_test, 
+              best_split, weights_i, rule_weights,
+              tree, y, x1, x2, holdout,
+              rule_train_index, rule_test_index)
 
-        # Add bundled rules to bundle
-        motif_bundle = bundle.rule_bundle_regup_motifs+bundle.rule_bundle_regdown_motifs
-        regulator_bundle = bundle.rule_bundle_regup_regs+bundle.rule_bundle_regdown_regs
+            # Add bundled rules to bundle
+            motif_bundle = bundle.rule_bundle_regup_motifs+bundle.rule_bundle_regdown_motifs
+            regulator_bundle = bundle.rule_bundle_regup_regs+bundle.rule_bundle_regdown_regs
 
+        else:
+            # rule score is the direction and magnitude of the prediciton update
+            # for the rule given by rule_weights and rule_train_index
+            rule_score = calc_score(tree, rule_weights, rule_train_index)
+            motif_bundle = []
+            regulator_bundle = []
+
+    # If no stabilization
     else:
         # rule score is the direction and magnitude of the prediciton update
         # for the rule given by rule_weights and rule_train_index
         rule_score = calc_score(tree, rule_weights, rule_train_index)
         motif_bundle = []
         regulator_bundle = []
+
         
     above_motifs = tree.above_motifs[best_split]+np.unique(
         tree.bundle_x1[best_split]+[tree.split_x1[best_split]]).tolist()
@@ -293,7 +303,7 @@ def main():
         (motif, regulator, best_split, 
          motif_bundle, regulator_bundle, 
          rule_train_index, rule_test_index, rule_score, 
-         above_motifs, above_regs) = find_next_decision_node_stable(
+         above_motifs, above_regs) = find_next_decision_node(
              tree, holdout, y, x1, x2, i)
         
         ### Add the rule with best loss
