@@ -312,23 +312,23 @@ class DecisionTree(object):
         rule_score_mat = pd.DataFrame(index=range(len(tree.split_x1)-1),
          columns=['x1_feat', 'x2_feat', 'score', 'above_rule', 'tree_depth'])
         for i in xrange(1,len(tree.split_x1)):
-            x1_ind = tree.split_x1[i].tolist()+tree.bundle_x1[i]
-            x2_ind = tree.split_x2[i].tolist()+tree.bundle_x2[i]
+            x1_ind = [tree.split_x1[i]]+tree.bundle_x1[i]
+            x2_ind = [tree.split_x2[i]]+tree.bundle_x2[i]
             above_node = tree.split_node[i]
             rule_score_mat.ix[i-1,'x1_feat'] = '|'.join(
                 np.unique(x1.col_labels[x1_ind]).tolist())
             rule_score_mat.ix[i-1,'x2_feat'] = '|'.join(
                 np.unique(x2.row_labels[x2_ind]).tolist())
             rule_score_mat.ix[i-1,'score'] = tree.scores[i]
-            if tree.split_x1[above_node][0]=='root':
+            if tree.split_x1[above_node]=='root':
                 rule_score_mat.ix[i-1,'above_rule'] = 'root'
             else:
                 rule_score_mat.ix[i-1,'above_rule'] = '{0};{1}'.format(
                      '|'.join(np.unique(x1.col_labels[
-                        tree.split_x1[above_node].tolist()+
+                        [tree.split_x1[above_node]]+
                      tree.bundle_x1[above_node]]).tolist()),
                      '|'.join(np.unique(x2.row_labels[
-                        tree.split_x2[above_node].tolist()+
+                        [tree.split_x2[above_node]]+
                      tree.bundle_x2[above_node]]).tolist()))       
             rule_score_mat.ix[i-1,'tree_depth'] = tree.split_depth[i]
         if out_file!=None:

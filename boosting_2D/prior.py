@@ -19,7 +19,7 @@ from boosting_2D import util
 ### Keeps track of constants
 PriorParams = namedtuple('PriorParams', [
     'prior_constant', 'prior_decay_rate',
-    'prior_input_format',
+    'prior_input_format', 
     'motif_reg_file', 'motif_reg_row_labels', 'motif_reg_col_labels',
     'reg_reg_file', 'reg_reg_row_labels', 'reg_reg_col_labels'
 ])
@@ -95,18 +95,24 @@ def parse_prior(prior_params, x1, x2):
 
 ### Update the loss based on priors provided
 ### motif-regulator and regulator-parent regulator
-def update_loss_with_prior(loss_matrix, prior_params, prior_motifreg, prior_regreg):
+def update_loss_with_prior(loss_matrix, prior_params, prior_motifreg, prior_regreg, iteration):
     new_loss = loss_matrix
     if prior_motifreg!=None:
-        motifreg_multiplier = prior_motifreg.data*prior_params.prior_constant*prior_params.prior_decay_rate + 1
-        new_loss = util.element_mult(new_loss, motifreg_multiplier)
-    if prior_regreg!=None:
-        reg_row = reg_reg_prior[reg_reg_prior.row_labels==reg,]
-        reg_mat = np.vstack([reg_row for el in xrange(reg_reg_prior.num_row)])
-        regreg_multiplier = reg_mat*prior_params.prior_constant*prior_params.prior_decay_rate + 1
-        new_loss = util.element_mult(new_loss, regreg_multiplier)
-    # Update decay parameter (need to pass GLOBAL parameters so can update)
+        ones_mat=np.ones(prior_motifreg.data.shape)
+        loss_decrease = ones_mat-loss_matrix
+        motifreg_multiplier = prior_motifreg.data*prior_params.prior_constant*np.power(prior_params.prior_decay_rate,iteration) + 1
+        loss_decrease_weighted = util.element_mult(loss_decrease, motifreg_multiplier)
+        new_loss = ones_mat-loss_decrease_weighted
+    ### RE-DO
+    # if prior_regreg!=None:
+    #     reg_row = reg_reg_prior[reg_reg_prior.row_labels==reg,]
+    #     reg_mat = np.vstack([reg_row for el in xrange(reg_reg_prior.num_row)])
+    #     regreg_multiplier = reg_mat*prior_params.prior_constant*np.power(prior_params.prior_decay_rate,iteration) + 1
+    #     new_loss = util.element_mult(new_loss, regreg_multiplier)
     return(new_loss)
 
 
 
+prior = pd.read_table('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/prior_data/motifTFpriors.txt',header=None)
+prior.index = np.genfromtxt('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/prior_data/motifTFpriors.rows.txt', delimiter="\n", dtype="str")
+prior.columns= np.genfromtxt('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/prior_data/motifTFpriors.columns.txt', delimiter="\n", dtype="str")

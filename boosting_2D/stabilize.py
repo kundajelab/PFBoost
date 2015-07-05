@@ -255,28 +255,36 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
          np.square(sum(np.frombuffer(weights_i[weights_i.nonzero()]))))
 
     ## If large bundle, but hard cap on number of rules in bundle:
-    test_big_regup = ((symm_diff_w_regup < \
+    test_big_bundle = (symm_diff_w_regup < \
+         config.TUNING_PARAMS.eta_1*bundle_thresh).sum() + \
+         (symm_diff_w_regdown < \
          config.TUNING_PARAMS.eta_1*bundle_thresh).sum() \
-        < config.TUNING_PARAMS.eta_1*bundle_thresh).sum() \
-         > config.TUNING_PARAMS.bundle_max
-    test_big_regdown = ((symm_diff_w_regdown < \
-         config.TUNING_PARAMS.eta_1*bundle_thresh).sum() \
-        < config.TUNING_PARAMS.eta_1*bundle_thresh).sum() \
-         > config.TUNING_PARAMS.bundle_max
-
+          > config.TUNING_PARAMS.bundle_max
     # If large bundle cap at max bundle size
-    if test_big_regup or test_big_regdown:
-        pdb.set_trace()
+    if test_big_bundle:
         print "="*80
         print 'large bundle - cap at {0}'.format(config.TUNING_PARAMS.bundle_max)
-        # Rank all of the entries and get the top number of allowed rules 
-        ### XXX BETTER WAY TO DO THIS??
+        ### STARTED RE-DO Rank all of the entries and get the top number of allowed rules 
+        # min_val = np.sort(np.concatenate( \
+        #     (symm_diff_w_regup.toarray()[symm_diff_w_regup.nonzero()] \
+        #     ,symm_diff_w_regdown.toarray()[symm_diff_w_regdown.nonzero()])))[config.TUNING_PARAMS.bundle_max]
+        # if y.sparse: 
+        #     rule_bundle_regup = np.where(symm_diff_w_regup.toarray()<=min_val)
+        #     rule_bundle_regdown = np.where(symm_diff_w_regdown.toarray()<=min_val)
+        #     # Randomly sample top 20 if there is a tie
+        ### XXX BETTER WAY TO DO THIS?? (NEED TO BE SURE BOTH UP AND DOWN have at least MAX_BUNDLE/2 MOTIFS/REGS in them)
         if y.sparse: 
-            rule_bundle_regup = np.where(symm_diff_w_regup.todense().ravel().argsort().argsort().reshape(symm_diff_w_regup.toarray().shape) < config.TUNING_PARAMS.bundle_max)
-            rule_bundle_regdown = np.where(symm_diff_w_regdown.todense().ravel().argsort().argsort().reshape(symm_diff_w_regup.toarray().shape) < config.TUNING_PARAMS.bundle_max) 
+            rule_bundle_regup = np.where(symm_diff_w_regup.todense().ravel().argsort().argsort().reshape(symm_diff_w_regup.toarray().shape) < config.TUNING_PARAMS.bundle_max/2)
+            rule_bundle_regdown = np.where(symm_diff_w_regdown.todense().ravel().argsort().argsort().reshape(symm_diff_w_regup.toarray().shape) < config.TUNING_PARAMS.bundle_max/2) 
         else:
-            rule_bundle_regup = np.where(symm_diff_w_regup.ravel().argsort().argsort().reshape(symm_diff_w_regup.shape) < config.TUNING_PARAMS.bundle_max)
-            rule_bundle_regdown = np.where(symm_diff_w_regdown.ravel().argsort().argsort().reshape(symm_diff_w_regup.shape) < config.TUNING_PARAMS.bundle_max) 
+            rule_bundle_regup = np.where(symm_diff_w_regup.ravel().argsort().argsort().reshape(symm_diff_w_regup.shape) < config.TUNING_PARAMS.bundle_max/2)
+            rule_bundle_regdown = np.where(symm_diff_w_regdown.ravel().argsort().argsort().reshape(symm_diff_w_regup.shape) < config.TUNING_PARAMS.bundle_max/2) 
+
+        rule_bundle_regup_motifs = rule_bundle_regup[0].tolist()[0] # Keeping min loss rule
+        rule_bundle_regup_regs = rule_bundle_regup[1].tolist()[0]
+        rule_bundle_regdown_motifs = rule_bundle_regdown[0].tolist()[0]
+        rule_bundle_regdown_regs = rule_bundle_regdown[1].tolist()[0]
+
 
     # Otherwise take all bundled rules
     else:
@@ -284,10 +292,14 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
             config.TUNING_PARAMS.eta_1*bundle_thresh).nonzero()
         rule_bundle_regdown = (symm_diff_w_regdown < \
             config.TUNING_PARAMS.eta_1*bundle_thresh).nonzero()
-    rule_bundle_regup_motifs = rule_bundle_regup[0].tolist() # Keeping min loss rule
-    rule_bundle_regup_regs = rule_bundle_regup[1].tolist()
-    rule_bundle_regdown_motifs = rule_bundle_regdown[0].tolist()
-    rule_bundle_regdown_regs = rule_bundle_regdown[1].tolist()
+
+        rule_bundle_regup_motifs = rule_bundle_regup[0].tolist() # Keeping min loss rule
+        rule_bundle_regup_regs = rule_bundle_regup[1].tolist()
+        rule_bundle_regdown_motifs = rule_bundle_regdown[0].tolist()
+        rule_bundle_regdown_regs = rule_bundle_regdown[1].tolist()
+
+    if len(rule_bundle_regup_motifs)+len(rule_bundle_regdown_motifs)>40:
+        pdb.set_trace()
 
     # Print names of x1/x2 features that are bundled
     rule_bundle_motifs = x1.col_labels[ \

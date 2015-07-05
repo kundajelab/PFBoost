@@ -147,8 +147,8 @@ def parse_args():
 
     if config.TUNING_PARAMS.use_prior:
         prior.PRIOR_PARAMS=prior.PriorParams(
-            50, 0.995,
-            args.prior_input_format,
+            50, 0.998,
+            args.prior_input_format, 
             args.motif_reg_file, args.motif_reg_row_labels, args.motif_reg_col_labels,
             args.reg_reg_file, args.reg_reg_row_labels, args.reg_reg_col_labels)
         prior.prior_motifreg, prior.prior_regreg = prior.parse_prior(prior.PRIOR_PARAMS, x1, x2)
@@ -193,7 +193,7 @@ def parse_args():
 #             above_motifs, above_regs)
 
 
-def find_next_decision_node_stable(tree, holdout, y, x1, x2):
+def find_next_decision_node_stable(tree, holdout, y, x1, x2, iteration):
     ## Calculate loss at all search nodes
     # log('start rule_processes')    
     best_split, regulator_sign, loss_best = find_rule_processes(
@@ -202,7 +202,8 @@ def find_next_decision_node_stable(tree, holdout, y, x1, x2):
 
     # log('update with prior')
     if config.TUNING_PARAMS.use_prior:
-        loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS, prior.prior_motifreg, prior.prior_regreg)
+        loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS, prior.prior_motifreg, prior.prior_regreg, iteration)
+
     # log('finish with prior')
 
     # Get rule weights for the best split
@@ -293,7 +294,7 @@ def main():
          motif_bundle, regulator_bundle, 
          rule_train_index, rule_test_index, rule_score, 
          above_motifs, above_regs) = find_next_decision_node_stable(
-             tree, holdout, y, x1, x2)
+             tree, holdout, y, x1, x2, i)
         
         ### Add the rule with best loss
         tree.add_rule(motif, regulator, best_split, 
@@ -306,12 +307,12 @@ def main():
 
     pdb.set_trace()
 
-    # Save tree state
-    save_tree_state(tree, pickle_file='{0}saved_trees/{1}_saved_tree_state_{2}_{3}iter'.format(
-        config.OUTPUT_PATH, config.OUTPUT_PREFIX, method_label, tuning_params.num_iter))
-
     ### Get plot label so plot label uses parameters used
     method_label=plot.get_plot_label()
+
+    # Save tree state
+    save_tree_state(tree, pickle_file='{0}saved_trees/{1}_saved_tree_state_{2}_{3}iter'.format(
+        config.OUTPUT_PATH, config.OUTPUT_PREFIX, method_label, config.TUNING_PARAMS.num_iter))
 
     ### Write out rules
     out_file_name='{0}global_rules/{1}_tree_rules_{2}_{3}iter.txt'.format(
@@ -320,19 +321,25 @@ def main():
     tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, method_label, out_file=out_file_name)
 
     # XX Re-factor based on 
-    # # Make pool
-    # pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
+    # Make pool
+    pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
 
     # Rank x1, x2, rule and node 
-    # margin_score.call_rank_by_margin_score(prefix='hema_CMP_Mono',
-    #   methods=['by_x1', 'by_x2', 'by_x1_and_x2', 'by_node'],
-    #    y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
-    #    x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_Mono_peaks.txt',
-    #    x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_Mono_cells.txt')
+    margin_score.call_rank_by_margin_score(prefix='hema_CMP_v_Mono_1000iter_TFbindingonly',
+      methods=['by_node'],
+       y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
+       x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_peaks.txt',
+       x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_cells.txt')
+
+    margin_score.call_rank_by_margin_score(prefix='hema_MPP_HSC_v_pHSC_1000iter_TFbindingonly',
+      methods=['by_node'],
+       y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
+       x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_peaks.txt',
+       x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_cell_types.txt')
 
     # # Close pool
-    # pool.close() # stop adding processes
-    # pool.join() # wait until all threads are done before going on
+    pool.close() # stop adding processes
+    pool.join() # wait until all threads are done before going on
 
     ### Make plots
     plot.plot_margin(tree, method_label, config.TUNING_PARAMS.num_iter)

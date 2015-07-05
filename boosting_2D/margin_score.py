@@ -22,18 +22,18 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
     x1_feat_name = x1.col_labels[x1_feat_index]
     allowed_x1_rules = [el for el in xrange(tree.nsplit)
          if x1_feat_index not in tree.above_motifs[el]
-         +tree.split_x1[el].tolist()
+         +[tree.split_x1[el]]
          +tree.bundle_x1[el]]
     x1_feat_nodes = [el for el in xrange(tree.nsplit) 
-         if x1_feat_index in tree.split_x1[el].tolist()
+         if x1_feat_index in [tree.split_x1[el]]
          +tree.bundle_x1[el]]
-    x1_bundles = ['|'.join(x1.col_labels[[el for el in tree.split_x1[node].tolist()
+    x1_bundles = ['|'.join(x1.col_labels[[el for el in [tree.split_x1[node]]
          +tree.bundle_x1[node] if el != x1_feat_index]]) for node in x1_feat_nodes]
     x1_bundle_string = '--'.join([el if len(el)>0 else "none" for el in x1_bundles])
     # All rules where the motif is not above it, used in the split, or bundled in the split
     allowed_rules = [el for el in xrange(tree.nsplit)
          if x1_feat_index not in tree.above_motifs[el]
-         +tree.split_x1[el].tolist()
+         +[tree.split_x1[el]]
          +tree.bundle_x1[el]]
     # New predictions without rule
     if y.sparse:
@@ -46,7 +46,7 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
     # Get all rules where x1 feat is above or in rule or bundle
     rules_w_x1_feat = [el for el in xrange(tree.nsplit)
          if x1_feat_index in tree.above_motifs[el]+
-         tree.split_x1[el].tolist()
+         [tree.split_x1[el]]
          +tree.bundle_x1[el]]
     rule_index_mat = tree.ind_pred_train[rules_w_x1_feat[0]]
     for r in rules_w_x1_feat:
@@ -68,12 +68,12 @@ def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index):
     x2_feat_name = x2.row_labels[x2_feat_index]
     allowed_x2_rules = [el for el in xrange(tree.nsplit)
          if x2_feat_index not in tree.above_regs[el]
-         +tree.split_x2[el].tolist()
+         +[tree.split_x2[el]]
          +tree.bundle_x2[el]]
     x2_feat_nodes = [el for el in xrange(tree.nsplit)
-         if x2_feat_index in tree.split_x2[el].tolist()
+         if x2_feat_index in [tree.split_x2[el]]
          +tree.bundle_x2[el]]
-    x2_bundles = ['|'.join(x2.row_labels[[el for el in tree.split_x2[node].tolist()
+    x2_bundles = ['|'.join(x2.row_labels[[el for el in [tree.split_x2[node]]
          +tree.bundle_x2[node] if el != x2_feat_index]]) for node in x2_feat_nodes]
     x2_bundle_string = '--'.join([el  if len(el)>0 else "none" for el in x2_bundles])
     # New Prediction Matrix 
@@ -87,7 +87,7 @@ def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index):
     # Get all rules where x2 feat is above or in rule or bundle
     rules_w_x2_feat = [el for el in xrange(tree.nsplit)
          if x2_feat_index in tree.above_regs[el]+
-         tree.split_x2[el].tolist()
+         [tree.split_x2[el]]
          +tree.bundle_x2[el]]
     rule_index_mat = tree.ind_pred_train[rules_w_x2_feat[0]]
     for r in rules_w_x2_feat:
@@ -113,23 +113,23 @@ def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_in
     # All rules where the x1/x2 feat is not above it, used in the split, or bundled in the split
     allowed_x1_rules = [el for el in xrange(tree.nsplit)
          if x1_feat_index not in tree.above_motifs[el]
-         +tree.split_x1[el].tolist()
+         +[tree.split_x1[el]]
          +tree.bundle_x1[el]]
     allowed_x2_rules = [el for el in xrange(tree.nsplit)
          if x2_feat_index not in tree.above_regs[el]
-         +tree.split_x2[el].tolist()
+         +[tree.split_x2[el]]
          +tree.bundle_x2[el]]
     # All the nodes that contain x1 and x2 in bundle
     pair_nodes = [el for el in xrange(tree.nsplit) 
-         if x1_feat_index in tree.split_x1[el].tolist()
+         if x1_feat_index in [tree.split_x1[el]]
          +tree.bundle_x1[el] and x2_feat_index in 
-         tree.split_x2[el].tolist()+tree.bundle_x2[el]]
+         [tree.split_x2[el]]+tree.bundle_x2[el]]
 
-    x1_bundles = ['|'.join(x1.col_labels[[el for el in tree.split_x1[node].tolist()
+    x1_bundles = ['|'.join(x1.col_labels[[el for el in [tree.split_x1[node]]
          +tree.bundle_x1[node] if el != x1_feat_index]]) for node in pair_nodes]
     x1_bundle_string = '--'.join([el if len(el)>0 else "none" for el in x1_bundles])
 
-    x2_bundles = ['|'.join(x2.row_labels[[el for el in tree.split_x2[node].tolist()
+    x2_bundles = ['|'.join(x2.row_labels[[el for el in [tree.split_x2[node]]
          +tree.bundle_x2[node] if el != x2_feat_index]]) for node in pair_nodes]
     x2_bundle_string = '--'.join([el if len(el)>0 else "none" for el in x2_bundles ])
 
@@ -146,12 +146,12 @@ def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_in
     rules_w_x1_feat_and_x2_feat = list(
         set([el for el in xrange(tree.nsplit)
          if x2_feat_index in tree.above_regs[el]+
-         tree.split_x2[el].tolist()
+         [tree.split_x2[el]]
          +tree.bundle_x2[el]])
         &
         set([el for el in xrange(tree.nsplit)
          if x1_feat_index in tree.above_motifs[el]+
-         tree.split_x1[el].tolist()
+         [tree.split_x1[el]]
          +tree.bundle_x1[el]]))
     ### ! If considering joint power of motif + reg (any rule with either)
     # rules_w_x1_feat_or_x2_feat = np.unique(
@@ -183,8 +183,8 @@ def calc_margin_score_node_wrapper(args):
 # calculate for an individual node only
 def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
     # Feature names
-    x1_feat_index = tree.split_x1[node].tolist()[0]
-    x2_feat_index = tree.split_x2[node].tolist()[0]
+    x1_feat_index = tree.split_x1[node]
+    x2_feat_index = tree.split_x2[node]
     x1_feat_name = x1.col_labels[x1_feat_index]
     x2_feat_name = x2.row_labels[x2_feat_index]
 
@@ -192,8 +192,8 @@ def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
     allowed_rules = [el for el in xrange(tree.nsplit)
          if node not in tree.above_nodes[el] if el!=node]
 
-    x1_bundle_string = '|'.join(tree.bundle_x1[node])
-    x2_bundle_string = '|'.join(tree.bundle_x2[node])
+    x1_bundle_string = '|'.join([x1.col_labels[el] for el in tree.bundle_x1[node]])
+    x2_bundle_string = '|'.join([x2.row_labels[el] for el in tree.bundle_x2[node]])
 
     # Allocate Prediction Matrix
     if y.sparse:
@@ -224,12 +224,14 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
     if method=='by_x1':
         print 'by_x1'
         # All x1 features used in a treem, not equal to root
-        used_x1_feats = np.unique([el.tolist()[0] for el in tree.split_x1 if el != 'root']+ \
+        used_x1_feats = np.unique([el for el in tree.split_x1 if el != 'root']+ \
                 [el for listy in tree.bundle_x1 for el in listy if el != 'root']).tolist()
+        print 'got features'
         # Get margin score for each x1 features
         rule_processes = pool.map(calc_margin_score_x1_wrapper, iterable=[ \
             (tree, y, x1, x2, index_mat, m) \
             for m in used_x1_feats])
+        print 'finished rule processes'
         # Report data frame with feature 
         ranked_score_df = pd.DataFrame({'x1_feat':[el[0] for el in rule_processes], \
             'x1_feat_bundles':[el[1] for el in rule_processes], \
@@ -239,7 +241,7 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
     if method=='by_x2':
         print 'by_x2'
         # All x2 features used in a treem, not equal to root
-        used_x2_feats = np.unique([el.tolist()[0] for el in tree.split_x2 if el != 'root']+ \
+        used_x2_feats = np.unique([el for el in tree.split_x2 if el != 'root']+ \
                 [el for listy in tree.bundle_x2 for el in listy if el != 'root']).tolist()
         # Get margin score for each x2 feature
         rule_processes = pool.map(calc_margin_score_x2_wrapper, iterable=[ \
@@ -254,9 +256,9 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
     if method=='by_x1_and_x2':
         print 'by_x1_and_x2'
         # unlike previous take non-unique sets
-        used_x1_feats = [el.tolist()[0] for el in tree.split_x1 if el != 'root']+ \
+        used_x1_feats = [el for el in tree.split_x1 if el != 'root']+ \
                 [el for listy in tree.bundle_x1 for el in listy if el != 'root']
-        used_x2_feats = [el.tolist()[0] for el in tree.split_x2 if el != 'root']+ \
+        used_x2_feats = [el for el in tree.split_x2 if el != 'root']+ \
                 [el for listy in tree.bundle_x2 for el in listy if el != 'root']
         # Get margin score for each rule
         rule_processes = pool.map(calc_margin_score_rule_wrapper, iterable=[ \
@@ -276,7 +278,12 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         rule_processes = pool.map(calc_margin_score_node_wrapper, iterable=[ \
             (tree, y, x1, x2, index_mat, node)  \
             for node in xrange(1,tree.nsplit)])
-
+        # pdb.set_trace()
+        # SERIAL VERSION
+        # rule_processes = []    
+        # for node in xrange(1,tree.nsplit):
+        #     result=calc_margin_score_node(tree, y, x1, x2, index_mat, node)
+        #     rule_processes.append(result)
         # Report data frame with feature 
         ranked_score_df = pd.DataFrame({'node':[el[0] for el in rule_processes], \
             'x1_feat':[el[1] for el in rule_processes], \
@@ -286,6 +293,7 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
             'margin_score':[el[5] for el in rule_processes], \
             'rule_index_fraction':[el[6] for el in rule_processes]}).sort(columns=['margin_score'], ascending=False)
     ranked_score_df.drop_duplicates()
+    # pdb.set_trace()
     # Return matrix
     return ranked_score_df
 
@@ -334,7 +342,9 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, x1_feat_fi
         rank_score_df.to_csv('{0}/margin_scores/{1}_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
     if 'by_node' in methods:
         rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_node')
-        rank_score_df.to_csv('{0}/margin_scores/{1}_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+        rank_score_df.to_csv('{0}/margin_scores/{1}_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
     return 0
 
+# ranked_score_df.to_csv('/srv/persistent/pgreens/projects/boosting/results/margin_scores/hema_CMP_Mono_1000iter_TFbindingonly_top_rules_stable.txt', sep="\t", index=None, header=None)
+# ranked_score_df.to_csv('/srv/persistent/pgreens/projects/boosting/results/margin_scores/hema_MPP_HSC_1000iter_TFbindingonly_top_rules_stable.txt', sep="\t", index=None, header=None)
 
