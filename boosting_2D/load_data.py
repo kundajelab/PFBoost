@@ -80,3 +80,33 @@ prior_mr, prior_rr = prior.parse_prior(params, x1, x2)
 # Load tree
 tree = pickle.load(open('/srv/persistent/pgreens/projects/boosting/results/saved_trees/hematopoeisis_23K_stable_bindingTFsonly_saved_tree_state_adt_stable_1000iter', 'rb'))
 
+# XXX MAKE CODE PRETTY
+# Calculate the margin score for each individual 
+pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
+
+INDEX_PATH='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/'
+MARGIN_SCORE_PATH='/srv/persistent/pgreens/projects/boosting/results/margin_scores/'
+all_comp = pd.read_table('/users/pgreens/git/boosting_2D/hema_data/index_files/hema_tree_cell_comparisons.txt', sep='\t', header=None)
+for comp in all_comp.ix[:,0].tolist():
+    print comp
+    comp_reformat = comp.replace('v','_v_')
+    cell_file = '{0}hema_{1}_cells.txt'.format(INDEX_PATH, comp_reformat)
+    peak_file = '{0}hema_{1}_peaks.txt'.format(INDEX_PATH, comp_reformat)
+    # XXX REFORMAT SO STRING IS SOMEWHERE USEFUL
+    prefix = 'hema_{0}_1000iter_TFbindingonly'.format(comp_reformat)
+    # Compute margin score for each of these
+    margin_score.call_rank_by_margin_score(prefix=prefix,
+      methods=['by_node'],
+       y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
+       x1_feat_file=peak_file,
+       x2_feat_file=cell_file)
+    print comp
+
+# # Close pool
+pool.close() # stop adding processes
+pool.join() # wait until all threads are done before going on
+
+
+
+
+

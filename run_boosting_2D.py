@@ -347,6 +347,10 @@ def main():
        x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_peaks.txt',
        x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_cell_types.txt')
 
+    all_comp = pd.read_table('/users/pgreens/git/boosting_2D/hema_data/index_files/hema_tree_cell_comparisons.txt', sep='\t', header=None)
+    for comp in all_comp.ix[:,0].tolist():
+        prefix=
+
     # # Close pool
     pool.close() # stop adding processes
     pool.join() # wait until all threads are done before going on

@@ -109,6 +109,7 @@ def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_in
     # Feature names
     x1_feat_name = x1.row_labels[x1_feat_index]
     x2_feat_name = x2.col_labels[x2_feat_index]
+    # direction = np.sign(tree.scores[node])
 
     # All rules where the x1/x2 feat is not above it, used in the split, or bundled in the split
     allowed_x1_rules = [el for el in xrange(tree.nsplit)
@@ -188,6 +189,9 @@ def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
     x1_feat_name = x1.row_labels[x1_feat_index]
     x2_feat_name = x2.col_labels[x2_feat_index]
 
+    # Prediction of more or less accessible
+    direction = np.sign(tree.scores[node])
+
     # All rules where the node is not above it or the node itself
     allowed_rules = [el for el in xrange(tree.nsplit)
          if node not in tree.above_nodes[el] if el!=node]
@@ -216,7 +220,7 @@ def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
     # Fraction of examples of interest where rule used
     rule_index_fraction = float(rule_index_joint.sum())/index_mat.sum()
     print rule_index_fraction
-    return [node, x1_feat_name, x1_bundle_string, x2_feat_name, x2_bundle_string, margin_score, rule_index_fraction]
+    return [node, x1_feat_name, x1_bundle_string, x2_feat_name, x2_bundle_string, margin_score, rule_index_fraction, direction]
 
 def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
     assert method in ('by_x1', 'by_x2', 'by_x1_and_x2', 'by_node')
@@ -291,7 +295,8 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
             'x2_feat':[el[3] for el in rule_processes], \
             'x2_feat_bundles':[el[4] for el in rule_processes], \
             'margin_score':[el[5] for el in rule_processes], \
-            'rule_index_fraction':[el[6] for el in rule_processes]}).sort(columns=['margin_score'], ascending=False)
+            'rule_index_fraction':[el[6] for el in rule_processes], \
+            'direction':[el[7] for el in rule_processes]}).sort(columns=['margin_score'], ascending=False)
     ranked_score_df.drop_duplicates()
     # pdb.set_trace()
     # Return matrix
@@ -305,7 +310,8 @@ def get_index(y, x1, x2, tree, x1_feat_file=None, x2_feat_file=None):
         x1_file = pd.read_table(x1_feat_file, header=None)
         # if providing index numbers
         if x1_file.applymap(lambda x: isinstance(x, (int, float))).sum().tolist()[0]==x1_file.shape[0]:
-            x1_index = x1_file.ix[:,0].tolist()
+            # ASSUMING INPUT IS 1 BASED
+            x1_index = [el-1 for el in x1_file.ix[:,0].tolist()]
         # if providing labels
         else:
             x1_index = [el for el in xrange(y.data.shape[0]) if y.row_labels[el] in x1_file.ix[:,0].tolist()]
@@ -316,7 +322,8 @@ def get_index(y, x1, x2, tree, x1_feat_file=None, x2_feat_file=None):
         x2_file = pd.read_table(x2_feat_file, header=None)
         # if providing index numbers
         if x2_file.applymap(lambda x: isinstance(x, (int, float))).sum().tolist()[0]==x2_file.shape[0]: # this is terrible fix
-            x2_index = x2_file.ix[:,0].tolist()
+            # ASSUMING INPUT IS 1 BASED
+            x2_index = [el-1 for el in x2_file.ix[:,0].tolist()]
         # if providing labels
         else:
             x2_index = [el for el in xrange(y.data.shape[1]) if y.col_labels[el] in x2_file.ix[:,0].tolist()]
