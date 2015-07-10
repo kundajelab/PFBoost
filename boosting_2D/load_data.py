@@ -80,6 +80,10 @@ prior_mr, prior_rr = prior.parse_prior(params, x1, x2)
 # Load tree
 tree = pickle.load(open('/srv/persistent/pgreens/projects/boosting/results/saved_trees/hematopoeisis_23K_stable_bindingTFsonly_saved_tree_state_adt_stable_1000iter', 'rb'))
 
+
+### POST-PROCESSING
+################################################
+
 # XXX MAKE CODE PRETTY
 # Calculate the margin score for each individual 
 pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
