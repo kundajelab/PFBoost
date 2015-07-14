@@ -29,20 +29,6 @@ from boosting_2D.find_rule import *
 from boosting_2D import stabilize
 from boosting_2D import prior
 
-# Load config
-TuningParams = namedtuple('TuningParams', [
-    'num_iter',
-    'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
-    'eta_1', 'eta_2', 'bundle_max', 'epsilon'
-])
-config.OUTPUT_PATH = '/srv/persistent/pgreens/projects/boosting/results/'
-config.OUTPUT_PREFIX = 'hematopoeisis_23K_stable_bindingTFsonly'
-config.TUNING_PARAMS = TuningParams(
-    100, 
-    False, True, False,
-    True,
-    0.05, 0.01, 20, 1./holdout.n_train)
-config.NCPU = 4
 
 # Load y
 y = TargetMatrix('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/accessibilityMatrix_full_subset_CD34.txt', 
@@ -67,6 +53,21 @@ x2 = Regulators('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_da
 # Load holdout
 holdout = Holdout(y, 'sparse')
 
+# Load config
+TuningParams = namedtuple('TuningParams', [
+    'num_iter',
+    'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
+    'eta_1', 'eta_2', 'bundle_max', 'epsilon'
+])
+config.OUTPUT_PATH = '/srv/persistent/pgreens/projects/boosting/results/'
+config.OUTPUT_PREFIX = 'hematopoeisis_23K_stable_bindingTFsonly'
+config.TUNING_PARAMS = TuningParams(
+    100, 
+    False, True, False,
+    True,
+    0.05, 0.01, 20, 1./holdout.n_train)
+config.NCPU = 4
+
 # Prior
 params=prior.PriorParams(
     50, 0.998,
@@ -82,6 +83,10 @@ tree = pickle.load(open('/srv/persistent/pgreens/projects/boosting/results/saved
 
 
 ### POST-PROCESSING
+################################################################################################
+################################################################################################
+
+### Run margin score for each of the different cell types
 ################################################
 
 # XXX MAKE CODE PRETTY
@@ -111,6 +116,13 @@ pool.close() # stop adding processes
 pool.join() # wait until all threads are done before going on
 
 
+### Print margin score for each of the different cell types
+################################################
 
-
-
+INDEX_PATH='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/'
+MARGIN_SCORE_PATH='/srv/persistent/pgreens/projects/boosting/results/margin_scores/'
+all_comp = pd.read_table('/users/pgreens/git/boosting_2D/hema_data/index_files/hema_tree_cell_comparisons.txt', sep='\t', header=None)
+for comp in all_comp.ix[:,0].tolist():
+    print comp
+    result = pd.read_table('{0}hema_{1}_1000iter_TFbindingonly_top_nodes_stable.txt'.format(MARGIN_SCORE_PATH, comp.replace('v','_v_')), sep="\t", header=None)
+    print result.ix[0:10,[2,4,6]]

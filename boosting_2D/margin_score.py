@@ -10,6 +10,9 @@ import pandas as pd
 from boosting_2D import util
 from boosting_2D import config
 
+### XXX
+### Currently uses TSS file on nandi, can add as an argument
+
 
 ### Margin Score functions
 #######################
@@ -335,21 +338,76 @@ def get_index(y, x1, x2, tree, x1_feat_file=None, x2_feat_file=None):
         index_mat = csr_matrix(index_mat)
     return index_mat
 
+def split_index_mat_prom_enh(index_mat, y, tss_file):
+    ### THRESHOLDS F
+    prom_thresh=100
+    # Convert row labels to bed file and write to temporary file
+    temp_bed_file = os.path.splitext(y.data_file)[0]+'_row_coords_TEMP.txt'
+    temp_intersect_file = os.path.splitext(y.data_file)[0]+'_row_coords_tss_intersect_TEMP.txt'
+    row_coords=[el.split(';')[0].replace(':', '\t').replace('-','\t') for el in y.row_labels]
+    f = open(temp_bed_file, 'w')
+    for coord in row_coords:
+        f.write("%s\n"%coord)
+    f.close()
+    command="zcat %s |  awk '$14!=\".\"' | awk -v OFS=\"\t\" '{print $1, $4, $5, $14}' | \
+         bedtools closest -a %s -b - -d | bedtools groupby -g 1,2,3,4,5,6,8 -c 7 -o collapse | \
+         awk -v OFS='\t' '{print $1,$2,$3,$4,$5,$6,$8,$7}' \
+          > %s"%(tss_file, temp_bed_file, temp_intersect_file)
+    os.system(command)
+    result = pd.read_table(temp_intersect_file, sep='\t',header=None)
+    prom_index = pd.DataFrame(result.ix[:,7]<prom_thresh)
+    prom_mat = csr_matrix(np.hstack([prom_index for i in range(index_mat.shape[1])]))
+    enh_index = pd.DataFrame(result.ix[:,7]>=prom_thresh)
+    enh_mat = csr_matrix(np.hstack([enh_index for i in range(index_mat.shape[1])]))
+    index_mat_prom = index_mat.multiply(prom_mat)
+    index_mat_enh = index_mat.multiply(enh_mat)
+    os.system('rm {0}'.format(temp_bed_file))
+    os.system('rm {0}'.format(temp_intersect_file))
+    # Reurn index mats for promoter and enhancer regions
+    return (index_mat_prom, index_mat_enh)
+
 ### Call feature ranking
-def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, x1_feat_file=None, x2_feat_file=None):
+def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, x1_feat_file=None, x2_feat_file=None,split_prom_enh=True):
     index_mat = get_index(y, x1, x2, tree, x1_feat_file=x1_feat_file, x2_feat_file=x2_feat_file)
-    if 'by_x1' in methods:
-        rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_x1')
-        rank_score_df.to_csv('{0}/margin_scores/{1}_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
-    if 'by_x2' in methods:
-        rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_x2')
-        rank_score_df.to_csv('{0}/margin_scores/{1}_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
-    if 'by_x1_and_x2' in methods:
-        rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_x1_and_x2')
-        rank_score_df.to_csv('{0}/margin_scores/{1}_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
-    if 'by_node' in methods:
-        rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_node')
-        rank_score_df.to_csv('{0}/margin_scores/{1}_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+    ### TREAT ALL REGIONS TOGETHER
+    if split_prom_enh==False:
+        if 'by_x1' in methods:
+            rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_x1')
+            rank_score_df.to_csv('{0}/margin_scores/{1}_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+        if 'by_x2' in methods:
+            rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_x2')
+            rank_score_df.to_csv('{0}/margin_scores/{1}_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+        if 'by_x1_and_x2' in methods:
+            rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_x1_and_x2')
+            rank_score_df.to_csv('{0}/margin_scores/{1}_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+        if 'by_node' in methods:
+            rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_node')
+            rank_score_df.to_csv('{0}/margin_scores/{1}_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+    if split_prom_enh==True:
+        tss_file="""/mnt/data/annotations/by_release/hg19.GRCh37/GENCODE_ann/
+        gencodeTSS/v19/TSS_human_strict_with_gencodetss_notlow_ext50eachside
+        _merged_withgenctsscoord_andgnlist.gff.gz""".replace('\n','').replace(' ', '')
+        (index_mat_prom, index_mat_enh) = split_index_mat_prom_enh(index_mat, y, tss_file)
+        if 'by_x1' in methods:
+            rank_score_df_prom = rank_by_margin_score(tree, y, x1, x2, index_mat_prom, pool, method='by_x1')
+            rank_score_df_prom.to_csv('{0}/margin_scores/{1}_PROM_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_enh = rank_by_margin_score(tree, y, x1, x2, index_mat_enh, pool, method='by_x1')
+            rank_score_df_enh.to_csv('{0}/margin_scores/{1}_ENH_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+        if 'by_x2' in methods:
+            rank_score_df_prom = rank_by_margin_score(tree, y, x1, x2, index_mat_prom, pool, method='by_x2')
+            rank_score_df_prom.to_csv('{0}/margin_scores/{1}_PROM_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_enh = rank_by_margin_score(tree, y, x1, x2, index_mat_enh, pool, method='by_x2')
+            rank_score_df_enh.to_csv('{0}/margin_scores/{1}_ENH_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+        if 'by_x1_and_x2' in methods:
+            rank_score_df_prom = rank_by_margin_score(tree, y, x1, x2, index_mat_prom, pool, method='by_x1_and_x2')
+            rank_score_df_prom.to_csv('{0}/margin_scores/{1}_PROM_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_enh = rank_by_margin_score(tree, y, x1, x2, index_mat_enh, pool, method='by_x1_and_x2')
+            rank_score_df_enh.to_csv('{0}/margin_scores/{1}_ENH_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+        if 'by_node' in methods:
+            rank_score_df_prom = rank_by_margin_score(tree, y, x1, x2, index_mat_prom, pool, method='by_node')
+            rank_score_df_prom.to_csv('{0}/margin_scores/{1}_PROM_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_enh = rank_by_margin_score(tree, y, x1, x2, index_mat_enh, pool, method='by_node')
+            rank_score_df_enh.to_csv('{0}/margin_scores/{1}_ENH_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
     return 0
 
 # ranked_score_df.to_csv('/srv/persistent/pgreens/projects/boosting/results/margin_scores/hema_CMP_Mono_1000iter_TFbindingonly_top_rules_stable.txt', sep="\t", index=None, header=None)

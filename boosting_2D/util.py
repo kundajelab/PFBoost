@@ -33,7 +33,9 @@ def log_progress(tree, i):
         'rule score {0}'.format(tree.scores[i])])
     log(msg, log_time=False, level='VERBOSE')
 
+### log prints to STDERR
 log = Logger()
+
 
 ### Save Tree State 
 ##########################################

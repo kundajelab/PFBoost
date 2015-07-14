@@ -25,8 +25,10 @@ from boosting_2D.find_rule import *
 from boosting_2D import stabilize
 from boosting_2D import prior
 
+### Open log files
 log = util.log
 
+### Set constant parameters
 TuningParams = namedtuple('TuningParams', [
     'num_iter',
     'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
@@ -284,11 +286,25 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
 def main():
     print 'starting main loop'
 
-    level='QUIET'
     ### Parse arguments
+    level='QUIET'
     log('parse args start', level=level)
     (x1, x2, y, holdout) = parse_args()
     log('parse args end', level=level)
+
+    ### Get plot label so plot label uses parameters used
+    method_label=plot.get_plot_label()
+
+    ### logfile saves output to file
+    logfile_name='{0}log_files/LOG_{1}_{2}_{3}iter.txt'.format(
+            config.OUTPUT_PATH, config.OUTPUT_PREFIX, 
+            method_label, config.TUNING_PARAMS.num_iter)
+    f = open(logfile_name, 'w')
+    logfile = Logger(ofp=f)
+
+    ### Print time to output
+    t0 = time.time()
+    logfile('starting main loop: {0}'.format(t0), log_time=True)
 
     ### Create tree object
     log('make tree start', level=level)
@@ -315,11 +331,6 @@ def main():
         ### Print progress
         util.log_progress(tree, i)
 
-    pdb.set_trace()
-
-    ### Get plot label so plot label uses parameters used
-    method_label=plot.get_plot_label()
-
     # Save tree state
     save_tree_state(tree, pickle_file='{0}saved_trees/{1}_saved_tree_state_{2}_{3}iter'.format(
         config.OUTPUT_PATH, config.OUTPUT_PREFIX, method_label, config.TUNING_PARAMS.num_iter))
@@ -330,37 +341,37 @@ def main():
         method_label, config.TUNING_PARAMS.num_iter)
     tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, method_label, out_file=out_file_name)
 
-    # XX Re-factor based on 
+    # XX Re-factor based on post-processing modules
     # Make pool
-    pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
+    # pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
 
-    # Rank x1, x2, rule and node 
-    margin_score.call_rank_by_margin_score(prefix='hema_CMP_v_Mono_1000iter_TFbindingonly',
-      methods=['by_node'],
-       y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
-       x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_peaks.txt',
-       x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_cells.txt')
+    # # Rank x1, x2, rule and node 
+    # margin_score.call_rank_by_margin_score(prefix='hema_CMP_v_Mono_1000iter_TFbindingonly',
+    #   methods=['by_node'],
+    #    y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
+    #    x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_peaks.txt',
+    #    x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_cells.txt')
 
-    margin_score.call_rank_by_margin_score(prefix='hema_MPP_HSC_v_pHSC_1000iter_TFbindingonly',
-      methods=['by_node'],
-       y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
-       x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_peaks.txt',
-       x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_cell_types.txt')
+    # margin_score.call_rank_by_margin_score(prefix='hema_MPP_HSC_v_pHSC_1000iter_TFbindingonly',
+    #   methods=['by_node'],
+    #    y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
+    #    x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_peaks.txt',
+    #    x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_cells.txt')
 
-    all_comp = pd.read_table('/users/pgreens/git/boosting_2D/hema_data/index_files/hema_tree_cell_comparisons.txt', sep='\t', header=None)
-    for comp in all_comp.ix[:,0].tolist():
-        prefix=
-
-    # # Close pool
-    pool.close() # stop adding processes
-    pool.join() # wait until all threads are done before going on
+    # # # Close pool
+    # pool.close() # stop adding processes
+    # pool.join() # wait until all threads are done before going on
 
     ### Make plots
     plot.plot_margin(tree, method_label, config.TUNING_PARAMS.num_iter)
     plot.plot_balanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
     plot.plot_imbalanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
 
-
+    ### Print end time and close logfile pointer
+    t = time.time()
+    logfile('ending main loop: {0}'.format(t), log_time=True)
+    logfile('total time: {0}'.format(t-t0), log_time=True)
+    f.close()
 
 ### Main
 if __name__ == "__main__":
