@@ -302,6 +302,8 @@ def main():
     f = open(logfile_name, 'w')
     logfile = Logger(ofp=f)
 
+    ### Print command to log file
+
     ### Print time to output
     t0 = time.time()
     logfile('starting main loop: {0}'.format(t0), log_time=True)

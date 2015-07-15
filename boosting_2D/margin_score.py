@@ -6,6 +6,7 @@ import pdb
 import numpy as np 
 from scipy.sparse import *
 import pandas as pd
+import time
 
 from boosting_2D import util
 from boosting_2D import config
@@ -185,43 +186,84 @@ def calc_margin_score_node_wrapper(args):
     return calc_margin_score_node(*args)
 
 # calculate for an individual node only
+# def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
+#     # Feature names
+#     x1_feat_index = tree.split_x1[node]
+#     x2_feat_index = tree.split_x2[node]
+#     x1_feat_name = x1.row_labels[x1_feat_index]
+#     x2_feat_name = x2.col_labels[x2_feat_index]
+
+#     # Prediction of more or less accessible
+#     direction = np.sign(tree.scores[node])
+
+#     # All rules where the node is not above it or the node itself
+#     allowed_rules = [el for el in xrange(tree.nsplit)
+#          if node not in tree.above_nodes[el] if el!=node]
+
+#     x1_bundle_string = '|'.join([x1.row_labels[el] for el in tree.bundle_x1[node]])
+#     x2_bundle_string = '|'.join([x2.col_labels[el] for el in tree.bundle_x2[node]])
+
+#     # Allocate Prediction Matrix
+#     if y.sparse:
+#         pred_adj = csr_matrix((y.num_row,y.num_col), dtype='float64')
+#     else:
+#         pred_adj = np.zeros((y.num_row,y.num_col), dtype='float64')
+#     for rule in allowed_rules:
+#         pred_adj = pred_adj + tree.scores[rule]*tree.ind_pred_train[rule]
+#     margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+#     ### Chosen node and all nodes added below 
+#     rules_w_node = [el for el in xrange(tree.nsplit)
+#          if node in tree.above_nodes[el] or el==node]
+#     rule_index_mat = tree.ind_pred_train[rules_w_node[0]]
+#     for r in rules_w_node:
+#         rule_index_mat = rule_index_mat + tree.ind_pred_train[r]
+#     # Index where rule  is used 
+#     rule_index_mat = (rule_index_mat>0)
+#     # Index where rules is used and examples of interest
+#     rule_index_joint = util.element_mult(index_mat, rule_index_mat)
+#     # Fraction of examples of interest where rule used
+#     rule_index_fraction = float(rule_index_joint.sum())/index_mat.sum()
+#     print rule_index_fraction
+#     return [node, x1_feat_name, x1_bundle_string, x2_feat_name, x2_bundle_string, margin_score, rule_index_fraction, direction]
+
+## Making faster
 def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
     # Feature names
     x1_feat_index = tree.split_x1[node]
     x2_feat_index = tree.split_x2[node]
     x1_feat_name = x1.row_labels[x1_feat_index]
     x2_feat_name = x2.col_labels[x2_feat_index]
+    # stringify the bundle
+    x1_bundle_string = '|'.join([x1.row_labels[el] for el in tree.bundle_x1[node]])
+    x2_bundle_string = '|'.join([x2.col_labels[el] for el in tree.bundle_x2[node]])
 
     # Prediction of more or less accessible
     direction = np.sign(tree.scores[node])
 
     # All rules where the node is not above it or the node itself
-    allowed_rules = [el for el in xrange(tree.nsplit)
-         if node not in tree.above_nodes[el] if el!=node]
+    subtract_rules = [el for el in xrange(tree.nsplit)
+         if node in tree.above_nodes[el] if el!=node]+[node]
 
-    x1_bundle_string = '|'.join([x1.row_labels[el] for el in tree.bundle_x1[node]])
-    x2_bundle_string = '|'.join([x2.col_labels[el] for el in tree.bundle_x2[node]])
-
-    # Allocate Prediction Matrix
-    if y.sparse:
-        pred_adj = csr_matrix((y.num_row,y.num_col), dtype='float64')
-    else:
-        pred_adj = np.zeros((y.num_row,y.num_col), dtype='float64')
-    for rule in allowed_rules:
-        pred_adj = pred_adj + tree.scores[rule]*tree.ind_pred_train[rule]
+    # Get Prediction Matrix
+    pred_adj = tree.pred_train
+    for rule in subtract_rules:
+        pred_adj = pred_adj - tree.scores[rule]*tree.ind_pred_train[rule]
     margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+
     ### Chosen node and all nodes added below 
     rules_w_node = [el for el in xrange(tree.nsplit)
          if node in tree.above_nodes[el] or el==node]
     rule_index_mat = tree.ind_pred_train[rules_w_node[0]]
     for r in rules_w_node:
         rule_index_mat = rule_index_mat + tree.ind_pred_train[r]
+
     # Index where rule  is used 
     rule_index_mat = (rule_index_mat>0)
     # Index where rules is used and examples of interest
     rule_index_joint = util.element_mult(index_mat, rule_index_mat)
     # Fraction of examples of interest where rule used
     rule_index_fraction = float(rule_index_joint.sum())/index_mat.sum()
+
     print rule_index_fraction
     return [node, x1_feat_name, x1_bundle_string, x2_feat_name, x2_bundle_string, margin_score, rule_index_fraction, direction]
 
@@ -306,8 +348,8 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
     return ranked_score_df
 
 
-### Get the index with a text file or document of things of interest
-# index_mat = get_index(y, x1, x2, tree, x2_feat_file='/scratch/shared/bmi212boost_doNotDelete/index_files/SJ_ethnicity_is_NotHispanic_row16_x2_index.txt')
+### Get the index with a text file or document of of interest
+### Takes either index or the names of the features y.row_labels or y.col_labels
 def get_index(y, x1, x2, tree, x1_feat_file=None, x2_feat_file=None):
     if x1_feat_file!=None:
         x1_file = pd.read_table(x1_feat_file, header=None)
@@ -338,8 +380,10 @@ def get_index(y, x1, x2, tree, x1_feat_file=None, x2_feat_file=None):
         index_mat = csr_matrix(index_mat)
     return index_mat
 
+### Function takes the index matrix and splits it into promoter and enhancer matrices
+### Based on coordinates in y.row_labels
 def split_index_mat_prom_enh(index_mat, y, tss_file):
-    ### THRESHOLDS F
+    # Threshold for distance to TSSS
     prom_thresh=100
     # Convert row labels to bed file and write to temporary file
     temp_bed_file = os.path.splitext(y.data_file)[0]+'_row_coords_TEMP.txt'
@@ -349,18 +393,27 @@ def split_index_mat_prom_enh(index_mat, y, tss_file):
     for coord in row_coords:
         f.write("%s\n"%coord)
     f.close()
+    # Get the distances of the peaks from the TSS 
     command="zcat %s |  awk '$14!=\".\"' | awk -v OFS=\"\t\" '{print $1, $4, $5, $14}' | \
          bedtools closest -a %s -b - -d | bedtools groupby -g 1,2,3,4,5,6,8 -c 7 -o collapse | \
          awk -v OFS='\t' '{print $1,$2,$3,$4,$5,$6,$8,$7}' \
           > %s"%(tss_file, temp_bed_file, temp_intersect_file)
     os.system(command)
     result = pd.read_table(temp_intersect_file, sep='\t',header=None)
+    # Get promoter regions less the threshold and enhancer greater than equal to threshold
     prom_index = pd.DataFrame(result.ix[:,7]<prom_thresh)
-    prom_mat = csr_matrix(np.hstack([prom_index for i in range(index_mat.shape[1])]))
+    if y.sparse:
+        prom_mat = csr_matrix(np.hstack([prom_index for i in range(index_mat.shape[1])]))
+    else:
+        prom_mat = np.hstack([prom_index for i in range(index_mat.shape[1])])
     enh_index = pd.DataFrame(result.ix[:,7]>=prom_thresh)
-    enh_mat = csr_matrix(np.hstack([enh_index for i in range(index_mat.shape[1])]))
+    if y.sparse:
+        enh_mat = csr_matrix(np.hstack([enh_index for i in range(index_mat.shape[1])]))
+    else:
+        enh_mat = np.hstack([enh_index for i in range(index_mat.shape[1])])
     index_mat_prom = index_mat.multiply(prom_mat)
     index_mat_enh = index_mat.multiply(enh_mat)
+    # Remove the coordinate and intersection files
     os.system('rm {0}'.format(temp_bed_file))
     os.system('rm {0}'.format(temp_intersect_file))
     # Reurn index mats for promoter and enhancer regions
@@ -369,47 +422,76 @@ def split_index_mat_prom_enh(index_mat, y, tss_file):
 ### Call feature ranking
 def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, x1_feat_file=None, x2_feat_file=None,split_prom_enh=True):
     index_mat = get_index(y, x1, x2, tree, x1_feat_file=x1_feat_file, x2_feat_file=x2_feat_file)
-    ### TREAT ALL REGIONS TOGETHER
+    ### DO NOT SEPARATE ENHANCERS AND PROMOTERS
     if split_prom_enh==False:
+        index_mat_up = util.element_mult(index_mat, y.data==1)
+        index_mat_down = util.element_mult(index_mat, y.data==-1)
         if 'by_x1' in methods:
-            rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_x1')
-            rank_score_df.to_csv('{0}/margin_scores/{1}_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_up = rank_by_margin_score(tree, y, x1, x2, index_mat_up, pool, method='by_x1')
+            rank_score_df_up.to_csv('{0}/margin_scores/{1}_UP_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_down = rank_by_margin_score(tree, y, x1, x2, index_mat_down, pool, method='by_x1')
+            rank_score_df_down.to_csv('{0}/margin_scores/{1}_DOWN_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
         if 'by_x2' in methods:
-            rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_x2')
-            rank_score_df.to_csv('{0}/margin_scores/{1}_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_up = rank_by_margin_score(tree, y, x1, x2, index_mat_up, pool, method='by_x2')
+            rank_score_df_up.to_csv('{0}/margin_scores/{1}_UP_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_down = rank_by_margin_score(tree, y, x1, x2, index_mat_down, pool, method='by_x2')
+            rank_score_df_down.to_csv('{0}/margin_scores/{1}_DOWN_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
         if 'by_x1_and_x2' in methods:
-            rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_x1_and_x2')
-            rank_score_df.to_csv('{0}/margin_scores/{1}_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_up = rank_by_margin_score(tree, y, x1, x2, index_mat_up, pool, method='by_x1_and_x2')
+            rank_score_df_up.to_csv('{0}/margin_scores/{1}_UP_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_down = rank_by_margin_score(tree, y, x1, x2, index_mat_down, pool, method='by_x1_and_x2')
+            rank_score_df_down.to_csv('{0}/margin_scores/{1}_DOWN_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
         if 'by_node' in methods:
-            rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method='by_node')
-            rank_score_df.to_csv('{0}/margin_scores/{1}_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_up = rank_by_margin_score(tree, y, x1, x2, index_mat_up, pool, method='by_node')
+            rank_score_df_up.to_csv('{0}/margin_scores/{1}_UP_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_down = rank_by_margin_score(tree, y, x1, x2, index_mat_down, pool, method='by_node')
+            rank_score_df_down.to_csv('{0}/margin_scores/{1}_DOWN_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
     if split_prom_enh==True:
+        print 'separating index matrix into promoters and enhancers'
         tss_file="""/mnt/data/annotations/by_release/hg19.GRCh37/GENCODE_ann/
         gencodeTSS/v19/TSS_human_strict_with_gencodetss_notlow_ext50eachside
         _merged_withgenctsscoord_andgnlist.gff.gz""".replace('\n','').replace(' ', '')
         (index_mat_prom, index_mat_enh) = split_index_mat_prom_enh(index_mat, y, tss_file)
+        index_mat_prom_up = util.element_mult(index_mat_prom, y.data==1)
+        index_mat_prom_down = util.element_mult(index_mat_prom, y.data==-1)
+        index_mat_enh_up = util.element_mult(index_mat_enh, y.data==1)
+        index_mat_enh_down = util.element_mult(index_mat_enh, y.data==-1)
         if 'by_x1' in methods:
-            rank_score_df_prom = rank_by_margin_score(tree, y, x1, x2, index_mat_prom, pool, method='by_x1')
-            rank_score_df_prom.to_csv('{0}/margin_scores/{1}_PROM_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
-            rank_score_df_enh = rank_by_margin_score(tree, y, x1, x2, index_mat_enh, pool, method='by_x1')
-            rank_score_df_enh.to_csv('{0}/margin_scores/{1}_ENH_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_prom_up = rank_by_margin_score(tree, y, x1, x2, index_mat_prom_up, pool, method='by_x1')
+            rank_score_df_prom_up.to_csv('{0}/margin_scores/{1}_PROM_UP_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_enh_up = rank_by_margin_score(tree, y, x1, x2, index_mat_enh_up, pool, method='by_x1')
+            rank_score_df_enh_up.to_csv('{0}/margin_scores/{1}_ENH_UP_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_prom_down = rank_by_margin_score(tree, y, x1, x2, index_mat_prom_down, pool, method='by_x1')
+            rank_score_df_prom_down.to_csv('{0}/margin_scores/{1}_PROM_DOWN_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_enh_down = rank_by_margin_score(tree, y, x1, x2, index_mat_enh_down, pool, method='by_x1')
+            rank_score_df_enh_down.to_csv('{0}/margin_scores/{1}_ENH_DOWN_top_x1_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
         if 'by_x2' in methods:
-            rank_score_df_prom = rank_by_margin_score(tree, y, x1, x2, index_mat_prom, pool, method='by_x2')
-            rank_score_df_prom.to_csv('{0}/margin_scores/{1}_PROM_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
-            rank_score_df_enh = rank_by_margin_score(tree, y, x1, x2, index_mat_enh, pool, method='by_x2')
-            rank_score_df_enh.to_csv('{0}/margin_scores/{1}_ENH_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_prom_up = rank_by_margin_score(tree, y, x1, x2, index_mat_prom_up, pool, method='by_x2')
+            rank_score_df_prom_up.to_csv('{0}/margin_scores/{1}_PROM_UP_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_enh_up = rank_by_margin_score(tree, y, x1, x2, index_mat_enh_up, pool, method='by_x2')
+            rank_score_df_enh_up.to_csv('{0}/margin_scores/{1}_ENH_UP_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_prom_down = rank_by_margin_score(tree, y, x1, x2, index_mat_prom_down, pool, method='by_x2')
+            rank_score_df_prom_down.to_csv('{0}/margin_scores/{1}_PROM_DOWN_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_enh_down = rank_by_margin_score(tree, y, x1, x2, index_mat_enh_down, pool, method='by_x2')
+            rank_score_df_enh_down.to_csv('{0}/margin_scores/{1}_ENH_DOWN_top_x2_feat_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
         if 'by_x1_and_x2' in methods:
-            rank_score_df_prom = rank_by_margin_score(tree, y, x1, x2, index_mat_prom, pool, method='by_x1_and_x2')
-            rank_score_df_prom.to_csv('{0}/margin_scores/{1}_PROM_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
-            rank_score_df_enh = rank_by_margin_score(tree, y, x1, x2, index_mat_enh, pool, method='by_x1_and_x2')
-            rank_score_df_enh.to_csv('{0}/margin_scores/{1}_ENH_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_prom_up = rank_by_margin_score(tree, y, x1, x2, index_mat_prom_up, pool, method='by_x1_and_x2')
+            rank_score_df_prom_up.to_csv('{0}/margin_scores/{1}_PROM_UP_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_enh_up = rank_by_margin_score(tree, y, x1, x2, index_mat_enh_up, pool, method='by_x1_and_x2')
+            rank_score_df_enh_up.to_csv('{0}/margin_scores/{1}_ENH_UP_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_prom_down = rank_by_margin_score(tree, y, x1, x2, index_mat_prom_down, pool, method='by_x1_and_x2')
+            rank_score_df_prom_down.to_csv('{0}/margin_scores/{1}_PROM_DOWN_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_enh_down = rank_by_margin_score(tree, y, x1, x2, index_mat_enh_down, pool, method='by_x1_and_x2')
+            rank_score_df_enh_down.to_csv('{0}/margin_scores/{1}_ENH_DOWN_top_rules_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
         if 'by_node' in methods:
-            rank_score_df_prom = rank_by_margin_score(tree, y, x1, x2, index_mat_prom, pool, method='by_node')
-            rank_score_df_prom.to_csv('{0}/margin_scores/{1}_PROM_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
-            rank_score_df_enh = rank_by_margin_score(tree, y, x1, x2, index_mat_enh, pool, method='by_node')
-            rank_score_df_enh.to_csv('{0}/margin_scores/{1}_ENH_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_prom_up = rank_by_margin_score(tree, y, x1, x2, index_mat_prom_up, pool, method='by_node')
+            rank_score_df_prom_up.to_csv('{0}/margin_scores/{1}_PROM_UP_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_enh_up = rank_by_margin_score(tree, y, x1, x2, index_mat_enh_up, pool, method='by_node')
+            rank_score_df_enh_up.to_csv('{0}/margin_scores/{1}_ENH_UP_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_prom_down = rank_by_margin_score(tree, y, x1, x2, index_mat_prom_down, pool, method='by_node')
+            rank_score_df_prom_down.to_csv('{0}/margin_scores/{1}_PROM_DOWN_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
+            rank_score_df_enh_down = rank_by_margin_score(tree, y, x1, x2, index_mat_enh_down, pool, method='by_node')
+            rank_score_df_enh_down.to_csv('{0}/margin_scores/{1}_ENH_DOWN_top_nodes_stable.txt'.format(config.OUTPUT_PATH, prefix), sep="\t", index=None, header=None)
     return 0
 
-# ranked_score_df.to_csv('/srv/persistent/pgreens/projects/boosting/results/margin_scores/hema_CMP_Mono_1000iter_TFbindingonly_top_rules_stable.txt', sep="\t", index=None, header=None)
-# ranked_score_df.to_csv('/srv/persistent/pgreens/projects/boosting/results/margin_scores/hema_MPP_HSC_1000iter_TFbindingonly_top_rules_stable.txt', sep="\t", index=None, header=None)
 
