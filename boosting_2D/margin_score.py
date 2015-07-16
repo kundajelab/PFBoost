@@ -48,6 +48,7 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
     for rule in rules_w_x1_feat:
         pred_adj = pred_adj - tree.scores[rule]*tree.ind_pred_train[rule]
     margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+    margin_score_norm = margin_score/index_mat.sum()
 
     # Get all rules where x1 feat is above or in rule or bundle
     rule_index_mat = tree.ind_pred_train[rules_w_x1_feat[0]]
@@ -60,7 +61,7 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
     # Fraction of examples of interest where x1 feat used
     rule_index_fraction = float(rule_index_joint.sum())/index_mat.sum()
     print rule_index_fraction
-    return [x1_feat_name, x1_bundle_string, margin_score, rule_index_fraction]
+    return [x1_feat_name, x1_bundle_string, margin_score, margin_score_norm, rule_index_fraction]
 
 def calc_margin_score_x2_wrapper(args):
     return calc_margin_score_x2(*args)
@@ -93,6 +94,7 @@ def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index):
     for rule in rules_w_x2_feat:
         pred_adj = pred_adj - tree.scores[rule]*tree.ind_pred_train[rule]
     margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+    margin_score_norm = margin_score/index_mat.sum()
 
     # Get all rules where x1 feat is above or in rule or bundle
     rule_index_mat = tree.ind_pred_train[rules_w_x2_feat[0]]
@@ -105,7 +107,7 @@ def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index):
     # Fraction of examples of interest where x1 feat used
     rule_index_fraction = float(rule_index_joint.sum())/index_mat.sum()
     print rule_index_fraction
-    return [x2_feat_name, x2_bundle_string, margin_score, rule_index_fraction]
+    return [x2_feat_name, x2_bundle_string, margin_score, margin_score_norm, rule_index_fraction]
 
 def calc_margin_score_rule_wrapper(args):
     return calc_margin_score_rule(*args)
@@ -145,6 +147,8 @@ def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_in
     for rule in pair_rules:
         pred_adj = pred_adj - tree.scores[rule]*tree.ind_pred_train[rule]
     margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+    margin_score_norm = margin_score/index_mat.sum()
+
     ### If considering specific rule only (rule with both motif and reg, but any node that is it as first split or bundle)
     rules_w_x1_feat_and_x2_feat = list(
         set([el for el in xrange(tree.nsplit)
@@ -167,7 +171,7 @@ def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_in
     # Fraction of examples of interest where rule used
     rule_index_fraction = float(rule_index_joint.sum())/index_mat.sum()
     print rule_index_fraction
-    return [x1_feat_name, x1_bundle_string, x2_feat_name, x2_bundle_string, margin_score, rule_index_fraction]
+    return [x1_feat_name, x1_bundle_string, x2_feat_name, x2_bundle_string, margin_score, margin_score_norm, rule_index_fraction]
 
 
 def calc_margin_score_node_wrapper(args):
@@ -196,6 +200,7 @@ def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
     for rule in subtract_rules:
         pred_adj = pred_adj - tree.scores[rule]*tree.ind_pred_train[rule]
     margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+    margin_score_norm = margin_score/index_mat.sum()
 
     ### Chosen node and all nodes added below 
     rules_w_node = [el for el in xrange(tree.nsplit)
@@ -212,7 +217,7 @@ def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
     rule_index_fraction = float(rule_index_joint.sum())/index_mat.sum()
 
     print rule_index_fraction
-    return [node, x1_feat_name, x1_bundle_string, x2_feat_name, x2_bundle_string, margin_score, rule_index_fraction, direction]
+    return [node, x1_feat_name, x1_bundle_string, x2_feat_name, x2_bundle_string, margin_score, margin_score_norm, rule_index_fraction, direction]
 
 def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
     assert method in ('by_x1', 'by_x2', 'by_x1_and_x2', 'by_node')
@@ -235,7 +240,8 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         ranked_score_df = pd.DataFrame({'x1_feat':[el[0] for el in rule_processes], \
             'x1_feat_bundles':[el[1] for el in rule_processes], \
             'margin_score':[el[2] for el in rule_processes], \
-            'rule_index_fraction':[el[3] for el in rule_processes]}).sort(columns=['margin_score'], ascending=False)
+            'margin_score_norm':[el[3] for el in rule_processes], \
+            'rule_index_fraction':[el[4] for el in rule_processes]}).sort(columns=['margin_score'], ascending=False)
     # Rank x2 features only
     if method=='by_x2':
         print 'by_x2'
@@ -254,7 +260,8 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         ranked_score_df = pd.DataFrame({'x2_feat':[el[0] for el in rule_processes], \
             'x2_feat_bundles':[el[1] for el in rule_processes], \
             'margin_score':[el[2] for el in rule_processes], \
-            'rule_index_fraction':[el[3] for el in rule_processes]}).sort(columns=['margin_score'], ascending=False)
+            'margin_score_norm':[el[3] for el in rule_processes], \
+            'rule_index_fraction':[el[4] for el in rule_processes]}).sort(columns=['margin_score'], ascending=False)
     # Rank by rules 
     if method=='by_x1_and_x2':
         print 'by_x1_and_x2'
@@ -280,7 +287,8 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
             'x2_feat':[el[2] for el in rule_processes], \
             'x2_feat_bundles':[el[3] for el in rule_processes], \
             'margin_score':[el[4] for el in rule_processes], \
-            'rule_index_fraction':[el[5] for el in rule_processes]}).sort(columns=['margin_score'], ascending=False)
+            'margin_score_norm':[el[5] for el in rule_processes], \
+            'rule_index_fraction':[el[6] for el in rule_processes]}).sort(columns=['margin_score'], ascending=False)
     if method=='by_node':
         print 'by_node'
         # Get margin score for each rule
@@ -299,8 +307,9 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
             'x2_feat':[el[3] for el in rule_processes], \
             'x2_feat_bundles':[el[4] for el in rule_processes], \
             'margin_score':[el[5] for el in rule_processes], \
-            'rule_index_fraction':[el[6] for el in rule_processes], \
-            'direction':[el[7] for el in rule_processes]}).sort(columns=['margin_score'], ascending=False)
+            'margin_score_norm':[el[6] for el in rule_processes], \
+            'rule_index_fraction':[el[7] for el in rule_processes], \
+            'direction':[el[8] for el in rule_processes]}).sort(columns=['margin_score'], ascending=False)
     ranked_score_df.drop_duplicates()
     # Return matrix
     return ranked_score_df
@@ -401,22 +410,22 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, x1_feat_fi
             for key in rank_score_df_dict.keys():
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x1')
                 rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_feat.txt'.format(margin_outdir, prefix, key.upper()), 
-                    sep="\t", index=None, header=None)
+                    sep="\t", index=None, header=True)
         if 'by_x2' in methods:
             for key in rank_score_df_dict.keys():
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x2')
                 rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x2_feat.txt'.format(margin_outdir, prefix, key.upper()), 
-                    sep="\t", index=None, header=None)
+                    sep="\t", index=None, header=True)
         if 'by_x1_and_x2' in methods:
             for key in rank_score_df_dict.keys():
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x1_and_x2')
                 rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_and_x2_joint_feat.txt'.format(margin_outdir, prefix, key.upper()), 
-                    sep="\t", index=None, header=None)
+                    sep="\t", index=None, header=True)
         if 'by_node' in methods:
             for key in rank_score_df_dict.keys():
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_node')
                 rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_nodes.txt'.format(margin_outdir, prefix, key.upper()), 
-                    sep="\t", index=None, header=None)
+                    sep="\t", index=None, header=True)
     # separate promoters and enhancers 
     if split_prom_enh==True:
         print 'separating index matrix into promoters and enhancers'
@@ -437,26 +446,30 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, x1_feat_fi
             for key in rank_score_df_dict.keys():
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x1')
                 rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_feat.txt'.format(margin_outdir, prefix, key.upper()), 
-                    sep="\t", index=None, header=None)
+                    sep="\t", index=None, header=True)
         if 'by_x2' in methods:
             for key in rank_score_df_dict.keys():
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x2')
                 rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x2_feat.txt'.format(margin_outdir, prefix, key.upper()), 
-                    sep="\t", index=None, header=None)
+                    sep="\t", index=None, header=True)
         if 'by_x1_and_x2' in methods:
             for key in rank_score_df_dict.keys():
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x1_and_x2')
                 rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_and_x2_joint_feat.txt'.format(margin_outdir, prefix, key.upper()), 
-                    sep="\t", index=None, header=None)
+                    sep="\t", index=None, header=True)
         if 'by_node' in methods:
             for key in rank_score_df_dict.keys():
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_node')
                 rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_nodes.txt'.format(margin_outdir, prefix, key.upper()), 
-                    sep="\t", index=None, header=None)
-
-
-
-
+                    sep="\t", index=None, header=True)
     return 0
+
+
+
+
+
+
+
+
 
 
