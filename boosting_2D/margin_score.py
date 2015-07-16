@@ -5,13 +5,14 @@ import pdb
 
 import numpy as np 
 from scipy.sparse import *
+import scipy.stats
 import pandas as pd
 import time
 
 from boosting_2D import util
 from boosting_2D import config
 
-### XXX
+### XXX DEPENDENCIES
 ### Currently uses TSS file on nandi, can add as an argument
 
 
@@ -390,7 +391,7 @@ def split_index_mat_prom_enh(index_mat, y, tss_file):
     return (index_mat_prom, index_mat_enh)
 
 ### Call feature ranking
-def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, x1_feat_file=None, x2_feat_file=None,split_prom_enh=True):
+def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=100, x1_feat_file=None, x2_feat_file=None,split_prom_enh=True):
     # Create directory for this analysis
     margin_outdir = '{0}/margin_scores/{1}/'.format(config.OUTPUT_PATH, prefix)
     if not os.path.exists(margin_outdir):
@@ -445,25 +446,103 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, x1_feat_fi
         if 'by_x1' in methods:
             for key in rank_score_df_dict.keys():
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x1')
-                rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_feat.txt'.format(margin_outdir, prefix, key.upper()), 
-                    sep="\t", index=None, header=True)
+                if num_perm>0:
+                    rank_score_df_w_perm = calculate_null_margin_score_dist(rank_score_df_dict[key], 
+                        eval('index_mat_{0}'.format(key)), 'by_x1', pool, 100, tree, y, x1, x2)
+                    rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_x1_feat_permuted.txt'.format(margin_outdir, prefix, key.upper()), 
+                        sep="\t", index=None, header=True)
+                else:
+                    rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_feat.txt'.format(margin_outdir, prefix, key.upper()), 
+                        sep="\t", index=None, header=True)
+
         if 'by_x2' in methods:
             for key in rank_score_df_dict.keys():
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x2')
-                rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x2_feat.txt'.format(margin_outdir, prefix, key.upper()), 
-                    sep="\t", index=None, header=True)
+                if num_perm>0:
+                    rank_score_df_w_perm = calculate_null_margin_score_dist(rank_score_df_dict[key], 
+                        eval('index_mat_{0}'.format(key)), 'by_x2', pool, 100, tree, y, x1, x2)
+                    rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_x2_feat_permuted.txt'.format(margin_outdir, prefix, key.upper()), 
+                        sep="\t", index=None, header=True)
+                else:
+                    rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x2_feat.txt'.format(margin_outdir, prefix, key.upper()), 
+                        sep="\t", index=None, header=True)
+
         if 'by_x1_and_x2' in methods:
             for key in rank_score_df_dict.keys():
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x1_and_x2')
-                rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_and_x2_joint_feat.txt'.format(margin_outdir, prefix, key.upper()), 
-                    sep="\t", index=None, header=True)
+                if num_perm>0:
+                    rank_score_df_w_perm = calculate_null_margin_score_dist(rank_score_df_dict[key], 
+                        eval('index_mat_{0}'.format(key)), 'by_x1_and_x2', pool, 100, tree, y, x1, x2)
+                    rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_x1_and_x2_joint_feat_permuted.txt'.format(margin_outdir, prefix, key.upper()), 
+                        sep="\t", index=None, header=True)
+                else:
+                    rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_and_x2_joint_feat.txt'.format(margin_outdir, prefix, key.upper()), 
+                        sep="\t", index=None, header=True)
         if 'by_node' in methods:
             for key in rank_score_df_dict.keys():
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_node')
-                rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_nodes.txt'.format(margin_outdir, prefix, key.upper()), 
+                if num_perm>0:
+                    rank_score_df_w_perm = calculate_null_margin_score_dist(rank_score_df_dict[key], 
+                        eval('index_mat_{0}'.format(key)), 'by_node', pool, 100, tree, y, x1, x2)
+                    rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_nodes_permuted.txt'.format(margin_outdir, prefix, key.upper()), 
+                        sep="\t", index=None, header=True)
+                else:
+                    rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_nodes.txt'.format(margin_outdir, prefix, key.upper()), 
                     sep="\t", index=None, header=True)
+
     return 0
 
+
+### Calculate permutations of the index matrix and re-calculate margin scores
+def calculate_null_margin_score_dist(rank_score_df, index_mat, method, pool, num_perm, tree, y, x1, x2):
+    # Initialize dictionary of margin scores
+    dict_names = ['perm{0}'.format(el) for el in xrange(num_perm)]
+    margin_score_dict = {}
+    for name in dict_names: margin_score_dict[name]=0
+    # Set seed for permutations
+    random.seed(1)
+    # Given the index matrix, randomly sample the same number of + or - examples
+    if method=='by_x1':
+        # For each permutation calculate margin scores and add to dictionary
+        for i in xrange(num_perm):
+            # Permute rows
+            if y.sparse:
+                new_index=csr_matrix(np.apply_along_axis(np.random.permutation, 0, index_mat.toarray())) ### MAKE SPARSE
+            else:
+                new_index=np.apply_along_axis(np.random.permutation, 0, index_mat)
+            margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree, y, x1, x2, new_index, pool, method=method)
+    elif method=='by_x2':
+        # For each permutation calculate margin scores and add to dictionary
+        for i in num_perm:
+            # Permute columns
+            if y.sparse:
+                new_index=csr_matrix(np.apply_along_axis(np.random.permutation, 1, index_mat.toarray()))
+            else:
+                new_index=np.apply_along_axis(np.random.permutation, 1, index_mat)
+            margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree, y, x1, x2, new_index, pool, method=method)
+    elif method=='by_node' or method=='by_x1_and_x2':
+        # For each permutation calculate margin scores and add to dictionary
+        for i in num_perm:
+            # Permute rows and columns
+            if y.sparse:
+                new_index=csr_matrix(np.random.permutation(index_mat.toarray().flat).reshape(index_mat.shape))
+            else:
+                new_index=np.random.permutation(index_mat.flat).reshape(index_mat.shape)
+            margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree, y, x1, x2, new_index, pool, method=method)
+    else:
+        assert False, "provide method in ['by_x1', 'by_x2', 'by_x1_and_x2', 'by_node']"
+    # calculate p-values for each margin score 
+    pdb.set_trace()
+    all_margin_scores_ranked = np.sort([el for df in margin_score_dict.values() for el in df.ix[:,0].tolist()])
+    # Normality test
+    # scipy.stats.mstats.normaltest(margin_score_dict.values()[2].ix[:,0].tolist())
+    dist = getattr(scipy.stats, 'norm')
+    param = dist.fit(all_margin_scores_ranked)
+    # Get p-value based on normal distribution
+    pvalues = [scipy.stats.norm.pdf(el, param[0], param[1]) for el in rank_score_df.ix[:,0].tolist()]
+    qvalues = stats.p_adjust(FloatVector(pvalues), method = 'BH')
+    rank_score_df['pvalue']=pvalues
+    return rank_score_df
 
 
 
