@@ -92,6 +92,7 @@ tree = pickle.load(open('/srv/persistent/pgreens/projects/boosting/results/saved
 # XXX MAKE CODE PRETTY
 # Calculate the margin score for each individual 
 pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
+pool='blah'
 
 INDEX_PATH='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/'
 MARGIN_SCORE_PATH='/srv/persistent/pgreens/projects/boosting/results/margin_scores/'
@@ -105,7 +106,7 @@ for comp in all_comp.ix[:,0].tolist():
     prefix = 'hema_{0}_1000iter_TFbindingonly'.format(comp_reformat)
     # Compute margin score for each of these
     margin_score.call_rank_by_margin_score(prefix=prefix,
-      methods=['by_node'],
+      methods=['by_x1_and_x2'],
        y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
        x1_feat_file=peak_file,
        x2_feat_file=cell_file)
