@@ -391,7 +391,7 @@ def split_index_mat_prom_enh(index_mat, y, tss_file):
     return (index_mat_prom, index_mat_enh)
 
 ### Call feature ranking
-def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=100, x1_feat_file=None, x2_feat_file=None,split_prom_enh=True):
+def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=10, x1_feat_file=None, x2_feat_file=None,split_prom_enh=True):
     # Create directory for this analysis
     margin_outdir = '{0}/margin_scores/{1}/'.format(config.OUTPUT_PATH, prefix)
     if not os.path.exists(margin_outdir):
@@ -448,7 +448,7 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=1
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x1')
                 if num_perm>0:
                     rank_score_df_w_perm = calculate_null_margin_score_dist(rank_score_df_dict[key], 
-                        eval('index_mat_{0}'.format(key)), 'by_x1', pool, 100, tree, y, x1, x2)
+                        eval('index_mat_{0}'.format(key)), 'by_x1', pool, num_perm, tree, y, x1, x2)
                     rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_x1_feat_permuted.txt'.format(margin_outdir, prefix, key.upper()), 
                         sep="\t", index=None, header=True)
                 else:
@@ -460,7 +460,7 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=1
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x2')
                 if num_perm>0:
                     rank_score_df_w_perm = calculate_null_margin_score_dist(rank_score_df_dict[key], 
-                        eval('index_mat_{0}'.format(key)), 'by_x2', pool, 100, tree, y, x1, x2)
+                        eval('index_mat_{0}'.format(key)), 'by_x2', pool, num_perm, tree, y, x1, x2)
                     rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_x2_feat_permuted.txt'.format(margin_outdir, prefix, key.upper()), 
                         sep="\t", index=None, header=True)
                 else:
@@ -472,7 +472,7 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=1
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x1_and_x2')
                 if num_perm>0:
                     rank_score_df_w_perm = calculate_null_margin_score_dist(rank_score_df_dict[key], 
-                        eval('index_mat_{0}'.format(key)), 'by_x1_and_x2', pool, 100, tree, y, x1, x2)
+                        eval('index_mat_{0}'.format(key)), 'by_x1_and_x2', pool, num_perm, tree, y, x1, x2)
                     rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_x1_and_x2_joint_feat_permuted.txt'.format(margin_outdir, prefix, key.upper()), 
                         sep="\t", index=None, header=True)
                 else:
@@ -483,7 +483,7 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=1
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_node')
                 if num_perm>0:
                     rank_score_df_w_perm = calculate_null_margin_score_dist(rank_score_df_dict[key], 
-                        eval('index_mat_{0}'.format(key)), 'by_node', pool, 100, tree, y, x1, x2)
+                        eval('index_mat_{0}'.format(key)), 'by_node', pool, num_perm, tree, y, x1, x2)
                     rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_nodes_permuted.txt'.format(margin_outdir, prefix, key.upper()), 
                         sep="\t", index=None, header=True)
                 else:
@@ -513,7 +513,7 @@ def calculate_null_margin_score_dist(rank_score_df, index_mat, method, pool, num
             margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree, y, x1, x2, new_index, pool, method=method)
     elif method=='by_x2':
         # For each permutation calculate margin scores and add to dictionary
-        for i in num_perm:
+        for i in xrange(num_perm):
             # Permute columns
             if y.sparse:
                 new_index=csr_matrix(np.apply_along_axis(np.random.permutation, 1, index_mat.toarray()))
@@ -522,7 +522,7 @@ def calculate_null_margin_score_dist(rank_score_df, index_mat, method, pool, num
             margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree, y, x1, x2, new_index, pool, method=method)
     elif method=='by_node' or method=='by_x1_and_x2':
         # For each permutation calculate margin scores and add to dictionary
-        for i in num_perm:
+        for i in xrange(num_perm):
             # Permute rows and columns
             if y.sparse:
                 new_index=csr_matrix(np.random.permutation(index_mat.toarray().flat).reshape(index_mat.shape))
@@ -532,20 +532,22 @@ def calculate_null_margin_score_dist(rank_score_df, index_mat, method, pool, num
     else:
         assert False, "provide method in ['by_x1', 'by_x2', 'by_x1_and_x2', 'by_node']"
     # calculate p-values for each margin score 
-    pdb.set_trace()
-    all_margin_scores_ranked = np.sort([el for df in margin_score_dict.values() for el in df.ix[:,0].tolist()])
-    # Normality test
-    # scipy.stats.mstats.normaltest(margin_score_dict.values()[2].ix[:,0].tolist())
-    dist = getattr(scipy.stats, 'norm')
-    param = dist.fit(all_margin_scores_ranked)
-    # Get p-value based on normal distribution
-    pvalues = [scipy.stats.norm.pdf(el, param[0], param[1]) for el in rank_score_df.ix[:,0].tolist()]
-    qvalues = stats.p_adjust(FloatVector(pvalues), method = 'BH')
+    all_margin_scores_ranked = np.sort([el for df in margin_score_dict.values() for el in df.ix[:,'margin_score'].tolist()])
+    pvalues = [float(sum(all_margin_scores_ranked>el))/len(all_margin_scores_ranked) for el in rank_score_df.ix[:,'margin_score'].tolist()]
     rank_score_df['pvalue']=pvalues
+    # qvalues = stats.p_adjust(FloatVector(pvalues), method = 'BH')
     return rank_score_df
 
 
 
+### Plot
+# import matplotlib.pyplot as plt
+# plt.figure()
+# plt.hist(all_margin_scores_ranked[all_margin_scores_ranked!=0], bins=100)
+# plt.title("Ranked Margin Scores")
+# plt.xlabel("Value")
+# plt.ylabel("Frequency")
+# plt.savefig('/users/pgreens/all_margin_scores_ranked_hist_no_zero.png')
 
 
 

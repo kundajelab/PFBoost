@@ -106,11 +106,26 @@ for comp in all_comp.ix[:,0].tolist():
     prefix = 'hema_{0}_1000iter_TFbindingonly'.format(comp_reformat)
     # Compute margin score for each of these
     margin_score.call_rank_by_margin_score(prefix=prefix,
-      methods=['by_x1', 'by_x2', 'by_x1_and_x2'],
-       y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
+      methods=['by_x1', 'by_x2', 'by_node'],
+       y=y, x1=x1, x2=x2, tree=tree, pool=pool, num_perm=100,
        x1_feat_file=peak_file,
-       x2_feat_file=cell_file)
+       x2_feat_file=cell_file)  
     print comp
+
+
+# Rank x1, x2, rule and node 
+margin_score.call_rank_by_margin_score(prefix='hema_CMP_v_Mono_1000iter_TFbindingonly',
+  methods=['by_node'],
+   y=y, x1=x1, x2=x2, tree=tree, pool=pool, num_perm=10,
+   x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_peaks.txt',
+   x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_cells.txt')
+
+margin_score.call_rank_by_margin_score(prefix='hema_MPP_HSC_v_pHSC_1000iter_TFbindingonly',
+  methods=['by_node'],
+   y=y, x1=x1, x2=x2, tree=tree, pool=pool, num_perm=100,
+   x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_peaks.txt',
+   x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_cells.txt')
+
 
 # # Close pool
 # pool.close() # stop adding processes
