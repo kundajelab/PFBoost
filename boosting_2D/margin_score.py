@@ -8,6 +8,7 @@ from scipy.sparse import *
 import scipy.stats
 import pandas as pd
 import time
+from matplotlib import pyplot as plt
 
 from boosting_2D import util
 from boosting_2D import config
@@ -391,7 +392,7 @@ def split_index_mat_prom_enh(index_mat, y, tss_file):
     return (index_mat_prom, index_mat_enh)
 
 ### Call feature ranking
-def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=10, x1_feat_file=None, x2_feat_file=None,split_prom_enh=True):
+def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=100, x1_feat_file=None, x2_feat_file=None,split_prom_enh=True):
     # Create directory for this analysis
     margin_outdir = '{0}/margin_scores/{1}/'.format(config.OUTPUT_PATH, prefix)
     if not os.path.exists(margin_outdir):
@@ -449,7 +450,7 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=1
                 if num_perm>0:
                     rank_score_df_w_perm = calculate_null_margin_score_dist(rank_score_df_dict[key], 
                         eval('index_mat_{0}'.format(key)), 'by_x1', pool, num_perm, tree, y, x1, x2)
-                    rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_x1_feat_permuted.txt'.format(margin_outdir, prefix, key.upper()), 
+                    rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_x1_feat_{3}_permutations.txt'.format(margin_outdir, prefix, key.upper(), num_perm), 
                         sep="\t", index=None, header=True)
                 else:
                     rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_feat.txt'.format(margin_outdir, prefix, key.upper()), 
@@ -461,7 +462,7 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=1
                 if num_perm>0:
                     rank_score_df_w_perm = calculate_null_margin_score_dist(rank_score_df_dict[key], 
                         eval('index_mat_{0}'.format(key)), 'by_x2', pool, num_perm, tree, y, x1, x2)
-                    rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_x2_feat_permuted.txt'.format(margin_outdir, prefix, key.upper()), 
+                    rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_x2_feat_{3}_permutations.txt'.format(margin_outdir, prefix, key.upper(), num_perm), 
                         sep="\t", index=None, header=True)
                 else:
                     rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x2_feat.txt'.format(margin_outdir, prefix, key.upper()), 
@@ -473,7 +474,7 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=1
                 if num_perm>0:
                     rank_score_df_w_perm = calculate_null_margin_score_dist(rank_score_df_dict[key], 
                         eval('index_mat_{0}'.format(key)), 'by_x1_and_x2', pool, num_perm, tree, y, x1, x2)
-                    rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_x1_and_x2_joint_feat_permuted.txt'.format(margin_outdir, prefix, key.upper()), 
+                    rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_x1_and_x2_joint_feat_{3}_permutations.txt'.format(margin_outdir, prefix, key.upper(), num_perm), 
                         sep="\t", index=None, header=True)
                 else:
                     rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_and_x2_joint_feat.txt'.format(margin_outdir, prefix, key.upper()), 
@@ -484,7 +485,7 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=1
                 if num_perm>0:
                     rank_score_df_w_perm = calculate_null_margin_score_dist(rank_score_df_dict[key], 
                         eval('index_mat_{0}'.format(key)), 'by_node', pool, num_perm, tree, y, x1, x2)
-                    rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_nodes_permuted.txt'.format(margin_outdir, prefix, key.upper()), 
+                    rank_score_df_w_perm.to_csv('{0}{1}_{2}_top_nodes_{3}_permutations.txt'.format(margin_outdir, prefix, key.upper(), num_perm), 
                         sep="\t", index=None, header=True)
                 else:
                     rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_nodes.txt'.format(margin_outdir, prefix, key.upper()), 
@@ -540,7 +541,7 @@ def calculate_null_margin_score_dist(rank_score_df, index_mat, method, pool, num
 
 
 
-### Plot
+# Plot
 # import matplotlib.pyplot as plt
 # plt.figure()
 # plt.hist(all_margin_scores_ranked[all_margin_scores_ranked!=0], bins=100)
@@ -548,6 +549,75 @@ def calculate_null_margin_score_dist(rank_score_df, index_mat, method, pool, num
 # plt.xlabel("Value")
 # plt.ylabel("Frequency")
 # plt.savefig('/users/pgreens/all_margin_scores_ranked_hist_no_zero.png')
+
+
+### Plot the normalized margin scores over all the conditions
+###############################################################
+### element direction in ["ENH_UP", "ENH_DOWN", "PROM_UP", "PROM_DOWN"]
+### Currently just works with x1_feat and x2_feat
+def plot_norm_margin_score_across_conditions(conditions, method, plot_label, num_feat, element_direction):
+    # Read in all the files
+    result_path='/srv/persistent/pgreens/projects/boosting/results/margin_scores/'
+    result_dfs = {}
+    for condition in conditions:
+        print condition
+        result_dfs[condition] = pd.read_table('{0}{1}/{1}_{2}_top_{3}.txt'.format(result_path, condition, element_direction, method))
+        result_dfs[condition]['condition']=[condition]*result_dfs[condition].shape[0]
+    result_df = pd.concat(result_dfs.values()).sort(columns=['margin_score_norm'], ascending=False)
+    result_df.index=range(result_df.shape[0])
+    # Get top 10 regulators
+    top_reg = []
+    index = 0
+    while len(top_reg)<num_feat:
+        ### XXX METHOD must match column label ['x1_feat, x2_feat']
+        while result_df.ix[index,method] in top_reg:
+            index+=1
+        top_reg = top_reg+[result_df.ix[index,method]]
+    # Allocate plot matrix
+    plot_df = pd.DataFrame(index=conditions, columns=top_reg)
+    for condition in plot_df.index:
+        plot_df.ix[condition,:]=[result_dfs[condition].ix[result_dfs[condition].ix[:,method]==reg,'margin_score_norm'].tolist()[0] for reg in top_reg]
+    plt.figure(figsize=(12, 9))
+    plt.pcolor(plot_df)
+    plt.yticks(np.arange(0.5, len(plot_df.index), 1), plot_df.index)
+    plt.xticks(np.arange(0.5, len(plot_df.columns), 1), plot_df.columns, rotation=90)
+    # plt.jet()
+    plt.colorbar()
+    plt.show()
+    plt.xlabel('Feature')
+    plt.ylabel('Experiment')
+    plt.title('Normalized Margin Scores Across Conditions {0} \n {1}'.format(element_direction, plot_label))
+    plt.legend(loc=1)
+    # plt.savefig('/users/pgreens/temp_heatmap.png', bbox_inches='tight')
+    plt.savefig('{0}/plots/margin_score_plots/{1}_top{2}_{3}_{4}.png'.format(config.OUTPUT_PATH, plot_label, num_feat, method, element_direction), bbox_inches='tight')
+
+
+### Find discriminative motifs and enhancers between conditions
+###############################################################
+
+method='x1_feat'
+label = 'hema_MPP_v_LMPP_against_MPP_v_CMP_1000iter_TFbindingonly_ENH_DOWN'
+conditions = ['/srv/persistent/pgreens/projects/boosting/results/margin_scores/hema_MPP_v_LMPP_1000iter_TFbindingonly/hema_MPP_v_LMPP_1000iter_TFbindingonly_ENH_DOWN_top_x1_feat.txt',
+ '/srv/persistent/pgreens/projects/boosting/results/margin_scores/hema_MPP_v_CMP_1000iter_TFbindingonly/hema_MPP_v_CMP_1000iter_TFbindingonly_ENH_DOWN_top_x1_feat.txt']
+def find_discrimative_features(conditions, method, out_file):
+    ### For each feature calculate the difference in normalized margin score
+    df1 = pd.read_table(conditions[0], header=0)
+    df2 = pd.read_table(conditions[1], header=0)
+    joint_feat = list(set(df1[method]) & set(df2[method]))
+    discrim_df = pd.DataFrame(index=range(len(joint_feat)), columns=['norm_margin_score_diff', method])
+    for i in discrim_df.index.tolist():
+        diff = df1.ix[df1[method]==joint_feat[i],'margin_score_norm'].tolist()[0]-df2.ix[df2[method]==joint_feat[i],'margin_score_norm'].tolist()[0]
+        discrim_df.ix[i,:]=[diff, joint_feat[i]]
+    discrim_df['sort'] = discrim_df['norm_margin_score_diff'].abs()
+    discrim_df = discrim_df.sort(columns='sort', ascending=False).drop('sort', axis=1)
+    discrim_df.to_csv(out_file, header=True, index=False, sep="\t")
+
+
+### Calculate discriminative motifs over all of these things
+# for pair in itertools.combinations(iterable, r)
+#     for element_direction in ["ENH_UP", "ENH_DOWN", "PROM_UP", "PROM_DOWN"]:
+#         for method in ['x1_feat', 'x2_feat']:
+
 
 
 

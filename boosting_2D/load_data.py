@@ -115,13 +115,13 @@ for comp in all_comp.ix[:,0].tolist():
 
 # Rank x1, x2, rule and node 
 margin_score.call_rank_by_margin_score(prefix='hema_CMP_v_Mono_1000iter_TFbindingonly',
-  methods=['by_node'],
-   y=y, x1=x1, x2=x2, tree=tree, pool=pool, num_perm=10,
+  methods=['by_x1', 'by_x2'],
+   y=y, x1=x1, x2=x2, tree=tree, pool=pool, num_perm=100,
    x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_peaks.txt',
    x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_cells.txt')
 
 margin_score.call_rank_by_margin_score(prefix='hema_MPP_HSC_v_pHSC_1000iter_TFbindingonly',
-  methods=['by_node'],
+  methods=['by_x1', 'by_x2'],
    y=y, x1=x1, x2=x2, tree=tree, pool=pool, num_perm=100,
    x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_peaks.txt',
    x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_cells.txt')
@@ -142,3 +142,57 @@ for comp in all_comp.ix[:,0].tolist():
     print comp
     result = pd.read_table('{0}hema_{1}_1000iter_TFbindingonly_top_nodes_stable.txt'.format(MARGIN_SCORE_PATH, comp.replace('v','_v_')), sep="\t", header=None)
     print result.ix[0:10,[2,4,6]]
+
+
+### Plot normalized margin scores for top regulators and motifs
+################################################
+
+conditions = [
+"hema_HSC_v_MPP_1000iter_TFbindingonly", 
+"hema_MPP_v_CMP_1000iter_TFbindingonly", 
+"hema_CMP_v_GMP_1000iter_TFbindingonly", 
+"hema_GMP_v_Mono_1000iter_TFbindingonly",
+"hema_MPP_v_LMPP_1000iter_TFbindingonly",
+"hema_CLP_v_Bcell_1000iter_TFbindingonly", 
+"hema_CLP_v_CD4Tcell_1000iter_TFbindingonly", 
+"hema_CLP_v_CD8Tcell_1000iter_TFbindingonly", 
+"hema_CLP_v_NKcell_1000iter_TFbindingonly", 
+"hema_CMP_v_MEP_1000iter_TFbindingonly", 
+"hema_LMPP_v_CLP_1000iter_TFbindingonly", 
+"hema_MEP_v_Ery_1000iter_TFbindingonly"]
+
+# "hema_CMP_v_Mono_1000iter_TFbindingonly", 
+# "hema_MPP_HSC_v_pHSC_1000iter_TFbindingonly"
+
+### Re-write outputs to be "by_x1"
+plot_label = '1000iter_TFbindingonly_all_comparisons'
+num_feat = 20
+method='x1_feat'
+element_direction='ENH_UP'
+margin_score.plot_norm_margin_score_across_conditions(conditions, method, plot_label, num_feat, element_direction)
+
+result_path='/srv/persistent/pgreens/projects/boosting/results/margin_scores/'
+
+### Compare UP TO DOWN ENH
+for cell_type in [el for el in os.listdir('/srv/persistent/pgreens/projects/boosting/results/margin_scores') if el != 'old']:
+    for element_direction in ["ENH", "PROM"]:
+        for method in ['x1_feat', 'x2_feat']:
+            conditions = ['{0}{1}/{1}_{2}_UP_top_{3}.txt'.format(result_path, cell_type, element_direction, method),
+            '{0}{1}/{1}_{2}_DOWN_top_{3}.txt'.format(result_path, cell_type, element_direction, method)]
+            out_file='{0}{1}/{1}_{2}_UP_v_DOWN_top_{3}_discriminative.txt'.format(result_path, cell_type, element_direction, method)
+            margin_scorefind_discrimative_features(conditions=conditions, method=method, out_file=out_file)
+
+# COMARE increased to decreased accessibility
+for cell_type in [el for el in os.listdir('/srv/persistent/pgreens/projects/boosting/results/margin_scores') if el != 'old']:
+    if cell_type in ['hema_CMP_v_Mono_1000iter_TFbindingonly','hema_MPP_HSC_v_pHSC_1000iter_TFbindingonly']:
+        continue
+    # for element_direction in ["ENH_UP", "ENH_DOWN", "PROM_UP", "PROM_DOWN"]:
+    for element_direction in ["UP", "DOWN"]:
+        for method in ['x1_feat', 'x2_feat']:
+            conditions = ['{0}{1}/{1}_ENH_{2}_top_{3}.txt'.format(result_path, cell_type, element_direction, method),
+            '{0}{1}/{1}_PROM_{2}_top_{3}.txt'.format(result_path, cell_type, element_direction, method)]
+            out_file='{0}{1}/{1}_ENH_v_PROM_{2}_top_{3}_discriminative.txt'.format(result_path, cell_type, element_direction, method)
+            margin_score.find_discrimative_features(conditions=conditions, method=method, out_file=out_file)
+
+#   
+
