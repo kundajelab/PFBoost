@@ -173,16 +173,18 @@ margin_score.plot_norm_margin_score_across_conditions(conditions, method, plot_l
 
 result_path='/srv/persistent/pgreens/projects/boosting/results/margin_scores/'
 
-### Compare UP TO DOWN ENH
+### Compare UP TO DOWN  for enhancers and promoters
 for cell_type in [el for el in os.listdir('/srv/persistent/pgreens/projects/boosting/results/margin_scores') if el != 'old']:
+    if cell_type in ['hema_CMP_v_Mono_1000iter_TFbindingonly','hema_MPP_HSC_v_pHSC_1000iter_TFbindingonly']:
+        continue
     for element_direction in ["ENH", "PROM"]:
         for method in ['x1_feat', 'x2_feat']:
             conditions = ['{0}{1}/{1}_{2}_UP_top_{3}.txt'.format(result_path, cell_type, element_direction, method),
             '{0}{1}/{1}_{2}_DOWN_top_{3}.txt'.format(result_path, cell_type, element_direction, method)]
             out_file='{0}{1}/{1}_{2}_UP_v_DOWN_top_{3}_discriminative.txt'.format(result_path, cell_type, element_direction, method)
-            margin_scorefind_discrimative_features(conditions=conditions, method=method, out_file=out_file)
+            margin_score.find_discrimative_features(conditions=conditions, method=method, out_file=out_file)
 
-# COMARE increased to decreased accessibility
+# COMPARE increased to decreased accessibility
 for cell_type in [el for el in os.listdir('/srv/persistent/pgreens/projects/boosting/results/margin_scores') if el != 'old']:
     if cell_type in ['hema_CMP_v_Mono_1000iter_TFbindingonly','hema_MPP_HSC_v_pHSC_1000iter_TFbindingonly']:
         continue
