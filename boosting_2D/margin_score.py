@@ -44,6 +44,12 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
          if x1_feat_index in tree.above_motifs[el]
          +[tree.split_x1[el]]
          +tree.bundle_x1[el]]
+    if len(rules_w_x1_feat)>10:
+        pdb.set_trace()
+
+    # For each cell type comparison, print the rules that apply 
+    # for ind in range(y.num_col): print ind; print np.nonzero([np.apply_along_axis(np.sum, 0, tree.ind_pred_train[rule].toarray())[ind] for rule in range(1,tree.nsplit)])
+    # for rule in range(tree.nsplit): a = np.apply_along_axis(np.sum, 0, tree.ind_pred_train[rule].toarray()); print a[1]
 
     # New predictions without rule (adjusted prediction = pred_adj)
     pred_adj = tree.pred_train
@@ -62,7 +68,7 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
     rule_index_joint = util.element_mult(index_mat, rule_index_mat)
     # Fraction of examples of interest where x1 feat used
     rule_index_fraction = float(rule_index_joint.sum())/index_mat.sum()
-    print rule_index_fraction
+    # print rule_index_fraction
     return [x1_feat_name, x1_bundle_string, margin_score, margin_score_norm, rule_index_fraction]
 
 def calc_margin_score_x2_wrapper(args):
@@ -446,6 +452,8 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=1
         # For each method, get the margin score matrix and write to file
         if 'by_x1' in methods:
             for key in rank_score_df_dict.keys():
+                key = 'enh_up'
+                print key
                 y_value = +1 if 'up' in key else -1
                 rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x1')
                 if num_perm>0:
@@ -540,6 +548,7 @@ def calculate_null_margin_score_dist(rank_score_df, index_mat, method, pool, num
         for i in xrange(num_perm):
             # Permute rows
             new_index=sample_values_from_axis(y=y, index_mat=index_mat, method=method, value=y_value)
+            # print new_index.sum()
             margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree, y, x1, x2, new_index, pool, method=method)
     elif method=='by_x2':
         # For each permutation calculate margin scores and add to dictionary
@@ -557,70 +566,11 @@ def calculate_null_margin_score_dist(rank_score_df, index_mat, method, pool, num
         assert False, "provide method in ['by_x1', 'by_x2', 'by_x1_and_x2', 'by_node']"
     # calculate p-values for each margin score 
     all_margin_scores_ranked = np.sort([el for df in margin_score_dict.values() for el in df.ix[:,'margin_score'].tolist()])
+    print all_margin_scores_ranked
     pvalues = [float(sum(all_margin_scores_ranked>el))/len(all_margin_scores_ranked) for el in rank_score_df.ix[:,'margin_score'].tolist()]
     rank_score_df['pvalue']=pvalues
     # qvalues = stats.p_adjust(FloatVector(pvalues), method = 'BH')
     return rank_score_df
-
-
-
-# ### Calculate permutations of the index matrix and re-calculate margin scores
-# def calculate_null_margin_score_dist(rank_score_df, index_mat, method, pool, num_perm, tree, y, x1, x2, y_value):
-#     # Initialize dictionary of margin scores
-#     dict_names = ['perm{0}'.format(el) for el in xrange(num_perm)]
-#     margin_score_dict = {}
-#     for name in dict_names: margin_score_dict[name]=0
-#     # Set seed for permutations
-#     random.seed(1)
-#     # Given the index matrix, randomly sample the same number of + or - examples
-#     if method=='by_x1':
-#         # For each permutation calculate margin scores and add to dictionary
-#         for i in xrange(num_perm):
-#             # Permute rows
-#             if y.sparse:
-#                 new_index=csr_matrix(np.apply_along_axis(np.random.permutation, 0, index_mat.toarray())) ### MAKE SPARSE
-#             else:
-#                 new_index=np.apply_along_axis(np.random.permutation, 0, index_mat)
-#             margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree, y, x1, x2, new_index, pool, method=method)
-#     elif method=='by_x2':
-#         # For each permutation calculate margin scores and add to dictionary
-#         for i in xrange(num_perm):
-#             # Permute columns
-#             if y.sparse:    
-#                 new_index=csr_matrix(np.apply_along_axis(np.random.permutation, 1, index_mat.toarray()))
-#             else:
-#                 new_index=np.apply_along_axis(np.random.permutation, 1, index_mat)
-#             margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree, y, x1, x2, new_index, pool, method=method)
-#     elif method=='by_node' or method=='by_x1_and_x2':
-#         # For each permutation calculate margin scores and add to dictionary
-#         for i in xrange(num_perm):
-#             # Permute rows and columns
-#             if y.sparse:
-#                 new_index=csr_matrix(np.random.permutation(index_mat.toarray().flat).reshape(index_mat.shape))
-#             else:
-#                 new_index=np.random.permutation(index_mat.flat).reshape(index_mat.shape)
-#             margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree, y, x1, x2, new_index, pool, method=method)
-#     else:
-#         assert False, "provide method in ['by_x1', 'by_x2', 'by_x1_and_x2', 'by_node']"
-#     # calculate p-values for each margin score 
-#     all_margin_scores_ranked = np.sort([el for df in margin_score_dict.values() for el in df.ix[:,'margin_score'].tolist()])
-#     pvalues = [float(sum(all_margin_scores_ranked>el))/len(all_margin_scores_ranked) for el in rank_score_df.ix[:,'margin_score'].tolist()]
-#     rank_score_df['pvalue']=pvalues
-#     pdb.set_trace()
-#     # qvalues = stats.p_adjust(FloatVector(pvalues), method = 'BH')
-#     return rank_score_df
-
-
-
-# Plot
-# import matplotlib.pyplot as plt
-# plt.figure()
-# plt.hist(all_margin_scores_ranked[all_margin_scores_ranked!=0], bins=100)
-# plt.title("Ranked Margin Scores")
-# plt.xlabel("Value")
-# plt.ylabel("Frequency")
-# plt.savefig('/users/pgreens/all_margin_scores_ranked_hist_no_zero.png')
-
 
 ### Plot the normalized margin scores over all the conditions
 ###############################################################

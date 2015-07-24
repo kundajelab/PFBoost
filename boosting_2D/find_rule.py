@@ -205,19 +205,22 @@ def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout, y, x1
         regulator=int(regulator)
 
     ## Find indices of where motif and regulator appear
+    pdb.set_trace()
     if x2.sparse:
         valid_m = np.nonzero(x1.data[motif,:])[1]
         valid_r = np.where(x2.data.toarray()[:,regulator]==regulator_sign)[0]
     else:
         valid_m = np.nonzero(x1.data[motif,:])[0]
         valid_r = np.where(x2.data[:,regulator]==regulator_sign)[0]
-    
+ 
     ### Get joint motif-regulator index - training and testing
     if y.sparse:
         valid_mat = csr_matrix((y.num_row,y.num_col), dtype=np.bool)
     else:
         valid_mat = np.zeros((y.num_row,y.num_col), dtype=np.bool)
     valid_mat[np.ix_(valid_m, valid_r)]=1 # XX not efficient
+    print np.apply_along_axis(np.sum,0,valid_mat.toarray())[0]
+    # pdb.set_trace()
     rule_train_index = util.element_mult(valid_mat, tree.ind_pred_train[best_split])
     rule_test_index = util.element_mult(valid_mat, tree.ind_pred_test[best_split])
 
