@@ -205,7 +205,6 @@ def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout, y, x1
         regulator=int(regulator)
 
     ## Find indices of where motif and regulator appear
-    pdb.set_trace()
     if x2.sparse:
         valid_m = np.nonzero(x1.data[motif,:])[1]
         valid_r = np.where(x2.data.toarray()[:,regulator]==regulator_sign)[0]

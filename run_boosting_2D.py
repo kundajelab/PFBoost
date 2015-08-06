@@ -107,6 +107,16 @@ def parse_args():
                         help='format for holdout matrix', 
                         default=None)
 
+    parser.add_argument('--shuffle_y', 
+                        help='flag to shuffle the contents of y matrix', 
+                        action='store_true')
+    parser.add_argument('--shuffle_x1', 
+                        help='flag to shuffle the contents of y matrix', 
+                        action='store_true')
+    parser.add_argument('--shuffle_x2', 
+                        help='flag to shuffle the contents of y matrix', 
+                        action='store_true')
+
     # Parse arguments
     args = parser.parse_args()
     
@@ -134,6 +144,14 @@ def parse_args():
                     args.mult_format)
     log('load x2 stop')
    
+   ### Shuffle data
+    if args.shuffle_y:
+        y = util.shuffle_data_object(y)
+    if args.shuffle_x1:
+        x1 = util.shuffle_data_object(x1)
+    if args.shuffle_x2:
+        x2 = util.shuffle_data_object(x1)
+
     # model_state = ModelState()
     log('load holdout start')
     holdout = Holdout(y, args.mult_format, args.holdout_file, args.holdout_format)
@@ -156,6 +174,7 @@ def parse_args():
         prior.prior_motifreg, prior.prior_regreg = prior.parse_prior(prior.PRIOR_PARAMS, x1, x2)
 
     config.NCPU = args.ncpu
+
 
     return (x1, x2, y, holdout)
 

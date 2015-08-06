@@ -2,9 +2,12 @@ import sys
 import config
 import time
 from datetime import datetime
-import numpy as np 
-from scipy.sparse import *
 import pickle
+import copy
+
+import numpy as np 
+import sklearn.utils
+from scipy.sparse import *
 
 ### Log 
 ##########################################
@@ -66,6 +69,10 @@ def calc_margin(y, pred_test):
     margin = element_mult(y, pred_test)
     return margin.sum()
 
+
+### Matrix Operations
+##########################################
+
 def element_mult(matrix1, matrix2):
     if isinstance(matrix1, csr.csr_matrix) and isinstance(matrix2, csr.csr_matrix):
         return matrix1.multiply(matrix2)
@@ -81,3 +88,17 @@ def matrix_mult(matrix1, matrix2):
         return np.dot(matrix1, matrix2)
     else:
         assert False, "Inconsistent matrix formats '%s' '%s'" % (type(matrix1), type(matrix2))
+
+
+### Randomization Functions
+##########################################
+
+### Takes a data class object (y, x1, x2) and shuffle the data (in the same proportions)
+def shuffle_data_object(obj):
+    shuffle_obj = copy.deepcopy(obj)
+    if obj.sparse:
+        shuffle_obj.data = sklearn.utils.shuffle(obj.data, replace=False, random_state=1)
+    else:
+        random.seed(1)
+        shuffle_obj.data = random.shuffle(shuffle_obj.data)
+    return shuffle_obj
