@@ -9,7 +9,14 @@ key = key[,1:3]
 ### Multiple Hypothesis Corrections
 ########################################################################
 path="/srv/persistent/pgreens/projects/hema_gwas/results/nonrank_enrich_results/"
+### Use all files
 use_files = system(sprintf("ls %s", path), intern=TRUE)
+### Use peaks UP files
+use_files = grep("up", system(sprintf("ls %s", path), intern=TRUE), value=T)
+### Use peaks DOWN files
+use_files = grep("down", system(sprintf("ls %s", path), intern=TRUE), value=T)
+
+### Iterate through file and do multiple hypothesis corrections
 for (file in use_files[grep("adjusted", use_files, invert=T)]){
 	pval_df = read.table(sprintf('%s%s',path, file), stringsAsFactors=FALSE)
 	colnames(pval_df)=c('study', 'pval', 'effect_size', 'conf05', 'conf95', 'sig_overlap', 'sig_no_overlap', 'nonsig_overlap', 'nonsig_no_overlap')
@@ -39,22 +46,8 @@ for (file in use_files){
 	pval_df=pval_df[!is.infinite(pval_df$effect_size),]
 	# pval_df$neg_log10_adj_pval[pval_df$adj_pval==0]=310
 	pval_df$neg_log10_adj_pval[pval_df$adj_pval<2.2*10^(-16)]=16
-	# if (with_duplicates==FALSE){
-	# 	# for duplicate diseases keep the highest ranked
-	# 	dup_studies = names(table(pval_df$study_abbrev)[table(pval_df$study_abbrev)>1])
-	# 	print(dup_studies)
-	# 	for (study in dup_studies){
-	# 		remove_ind = which(pval_df$study_abbrev==study)[2:length(which(pval_df$study_abbrev==study))]
-	#  		pval_df = pval_df[-remove_ind,]		
-	# 	}
-	# }
-	# if (with_duplicates==FALSE){
-	# 	# pdf(sprintf('/srv/persistent/pgreens/projects/hqtl_gwas/non_rank_enrich_tests/plots/%s_thresh%s_pval_by_fold_enrich_just_gwas_no_duplicates.pdf', mark, thresh), width=10, height=10)
-	# 	pdf(sprintf('%s%s_thresh%s_pval_by_fold_enrich_no_duplicates.pdf', plot_path, cell_comp, thresh), width=10, height=10)
-	# } else{
+	# PLOT
 	pdf(sprintf('%s%s_thresh%s_pval_by_fold_enrich.pdf', plot_path, cell_comp, thresh), width=10, height=10)
-		# pdf(sprintf('/srv/persistent/pgreens/projects/hqtl_gwas/non_rank_enrich_tests/plots/%s_thresh%s_pval_by_fold_enrich.pdf', mark, thresh), width=10, height=10)
-	# }
 	log_pval_thresh=2
 	label_ind = which(pval_df$neg_log10_adj_pval>log_pval_thresh)
 	no_label_ind =which(pval_df$neg_log10_adj_pval<=log_pval_thresh)
