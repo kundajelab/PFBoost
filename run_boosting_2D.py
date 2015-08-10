@@ -158,12 +158,11 @@ def parse_args():
     log('load holdout stop')
 
     # All output in date-stamped directory in output path
-    time_dir = time.strftime("%Y_%m_%d")
-    if not os.path.exists(args.output_path+time_dir):
-        os.makedirs(args.output_path+time_dir)
-
-    config.OUTPUT_PATH = args.output_path+time_dir+'/'
-    config.OUTPUT_PREFIX = args.output_prefix
+    time_stamp = time.strftime("%Y_%m_%d")
+    config.OUTPUT_PATH = args.output_path
+    config.OUTPUT_PREFIX = time_stamp+'_'+args.output_prefix
+    if not os.path.exists(config.OUTPUT_PATH+config.OUTPUT_PREFIX):
+        os.makedirs(config.OUTPUT_PATH+config.OUTPUT_PREFIX)
     config.TUNING_PARAMS = TuningParams(
         args.num_iter, 
         args.stumps, args.stable, args.corrected_loss,
@@ -316,19 +315,17 @@ def main():
     (x1, x2, y, holdout) = parse_args()
     log('parse args end', level=level)
 
-    pdb.set_trace()
-
     ### Get plot label so plot label uses parameters used
     method_label=plot.get_plot_label()
 
     ### logfile saves output to file
-    logfile_name='{0}log_files/LOG_{1}_{2}_{3}iter.txt'.format(
+    logfile_name='{0}{1}/LOG_FILE_{2}_{3}iter__{1}.txt'.format(
             config.OUTPUT_PATH, config.OUTPUT_PREFIX, 
             method_label, config.TUNING_PARAMS.num_iter)
+    if not os.path.exists('{0}log_files'.format(config.OUTPUT_PATH)):
+        os.makedirs('{0}log_files'.format(config.OUTPUT_PATH))
     f = open(logfile_name, 'w')
     logfile = Logger(ofp=f)
-
-    ### Print command to log file
 
     ### Print time to output
     t0 = time.time()
@@ -360,35 +357,14 @@ def main():
         util.log_progress(tree, i)
 
     # Save tree state
-    save_tree_state(tree, pickle_file='{0}saved_trees/{1}_saved_tree_state_{2}_{3}iter'.format(
+    save_tree_state(tree, pickle_file='{0}{1}/saved_tree_state_{2}_{3}iter__{1}'.format(
         config.OUTPUT_PATH, config.OUTPUT_PREFIX, method_label, config.TUNING_PARAMS.num_iter))
 
     ### Write out rules
-    out_file_name='{0}global_rules/{1}_tree_rules_{2}_{3}iter.txt'.format(
+    out_file_name='{0}{1}/global_rules_{2}_{3}iter__{1}.txt'.format(
         config.OUTPUT_PATH, config.OUTPUT_PREFIX, 
         method_label, config.TUNING_PARAMS.num_iter)
     tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, method_label, out_file=out_file_name)
-
-    # XX Re-factor based on post-processing modules
-    # Make pool
-    # pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
-
-    # # Rank x1, x2, rule and node 
-    # margin_score.call_rank_by_margin_score(prefix='hema_CMP_v_Mono_1000iter_TFbindingonly',
-    #   methods=['by_node'],
-    #    y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
-    #    x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_peaks.txt',
-    #    x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_cells.txt')
-
-    # margin_score.call_rank_by_margin_score(prefix='hema_MPP_HSC_v_pHSC_1000iter_TFbindingonly',
-    #   methods=['by_node'],
-    #    y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
-    #    x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_peaks.txt',
-    #    x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_cells.txt')
-
-    # # # Close pool
-    # pool.close() # stop adding processes
-    # pool.join() # wait until all threads are done before going on
 
     ### Make plots
     plot.plot_margin(tree, method_label, config.TUNING_PARAMS.num_iter)
