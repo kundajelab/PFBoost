@@ -24,6 +24,7 @@ from boosting_2D.data_class import *
 from boosting_2D.find_rule import *
 from boosting_2D import stabilize
 from boosting_2D import prior
+from boosting_2D import write_load_data_script
 
 ### Open log files
 log = util.log
@@ -361,14 +362,18 @@ def main():
         util.log_progress(tree, i)
 
     # Save tree state
-    save_tree_state(tree, pickle_file='{0}{1}/saved_tree_state_{2}_{3}iter__{1}'.format(
-        config.OUTPUT_PATH, config.OUTPUT_PREFIX, method_label, config.TUNING_PARAMS.num_iter))
+    tree_file_name='{0}{1}/saved_tree_state_{2}_{3}iter__{1}'.format(
+        config.OUTPUT_PATH, config.OUTPUT_PREFIX, method_label, config.TUNING_PARAMS.num_iter)
+    save_tree_state(tree, pickle_file=tree_file_name)
 
     ### Write out rules
-    out_file_name='{0}{1}/global_rules_{2}_{3}iter__{1}.txt'.format(
+    rule_file_name='{0}{1}/global_rules_{2}_{3}iter__{1}.txt'.format(
         config.OUTPUT_PATH, config.OUTPUT_PREFIX, 
         method_label, config.TUNING_PARAMS.num_iter)
-    tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, method_label, out_file=out_file_name)
+    tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, method_label, out_file=rule_file_name)
+
+    ### Write out load data file
+    write_load_data_script.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name, method_label)
 
     ### Make plots
     if config.PLOT:
