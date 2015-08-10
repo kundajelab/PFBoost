@@ -34,10 +34,17 @@ for (file in use_files[grep("adjusted", use_files, invert=T)]){
 plot_path="/srv/persistent/pgreens/projects/hema_gwas/plots/nonrank_enrich_plots/"
 
 thresh="10e-5"
-use_files = system(sprintf("ls %s/*thresh%s_sorted_adjusted.txt", path, thresh), intern=TRUE)
+
+### Use all files
+use_files = grep("adjusted", system(sprintf("ls %s", path), intern=TRUE), value=T)
+### Use peaks UP files
+use_files = grep("adjusted", grep("up", system(sprintf("ls %s", path), intern=TRUE), value=T), value=T)
+### Use peaks DOWN files
+use_files = grep("adjusted", grep("down", system(sprintf("ls %s", path), intern=TRUE), value=T), value=T)
+
 for (file in use_files){
 	cell_comp=strsplit(basename(file), "_peak")[[1]][1]
-	pval_df = read.delim(sprintf('%s', file), stringsAsFactors=FALSE, header=TRUE)
+	pval_df = read.delim(sprintf('%s%s', path, file), stringsAsFactors=FALSE, header=TRUE)
 	pval_df[,'neg_log10_adj_pval']=-log10(pval_df$adj_pval)
 	pval_df = pval_df[order(pval_df$neg_log10_adj_pval,decreasing = TRUE),]
 	# pval_df=pval_df[pval_df$neg_log10_adj_pval>0.02,]
@@ -64,8 +71,10 @@ for (file in use_files){
 	par(new=T)
 	plot(pval_df$log2_fold_enrich[no_label_ind], pval_df$neg_log10_adj_pval[no_label_ind], pch=16, col='orange', xlim=c(xmin, xmax), ylim=c(ymin, ymax),ylab="", xlab="", cex=1.6, cex.axis=1.6)
 	par(new=T)
-	text(pval_df$log2_fold_enrich[label_ind], pval_df$neg_log10_adj_pval[label_ind], labels=pval_df$study_abbrev[label_ind], pos=4, xlim=c(xmin, xmax), ylim=c(ymin, ymax), xlab="", ylab="",srt=15, cex=0.75, offset=0.2)
-	par(new=T)
+	if (length(label_ind)>0){
+		text(pval_df$log2_fold_enrich[label_ind], pval_df$neg_log10_adj_pval[label_ind], labels=pval_df$study_abbrev[label_ind], pos=4, xlim=c(xmin, xmax), ylim=c(ymin, ymax), xlab="", ylab="",srt=15, cex=0.75, offset=0.2)
+		par(new=T)	
+	}
 	# text(pval_df$log2_fold_enrich[label_ind], pval_df$neg_log10_adj_pval[label_ind], labels=pval_df$study_abbrev[label_ind], pos=4, xlim=c(xmin, xmax), ylim=c(ymin, ymax), xlab="", ylab="")
 	dev.off()
 }

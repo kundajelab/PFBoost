@@ -157,7 +157,12 @@ def parse_args():
     holdout = Holdout(y, args.mult_format, args.holdout_file, args.holdout_format)
     log('load holdout stop')
 
-    config.OUTPUT_PATH = args.output_path
+    # All output in date-stamped directory in output path
+    time_dir = time.strftime("%Y_%m_%d")
+    if not os.path.exists(args.output_path+time_dir):
+        os.makedirs(args.output_path+time_dir)
+
+    config.OUTPUT_PATH = args.output_path+time_dir+'/'
     config.OUTPUT_PREFIX = args.output_prefix
     config.TUNING_PARAMS = TuningParams(
         args.num_iter, 
@@ -310,6 +315,8 @@ def main():
     log('parse args start', level=level)
     (x1, x2, y, holdout) = parse_args()
     log('parse args end', level=level)
+
+    pdb.set_trace()
 
     ### Get plot label so plot label uses parameters used
     method_label=plot.get_plot_label()

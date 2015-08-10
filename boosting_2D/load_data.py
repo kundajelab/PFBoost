@@ -1,6 +1,14 @@
 ### TEMPORARY Function to load data only 
 ### Peyton Greenside
 ### 6/18/15
+##############################################################################################
+
+### Future set up: 
+# will have a load_data file that is sourced and a separate calculate_margin_score.
+# have a post-processing folder with all post-processing code
+# first step will just be to source the load data file and then work with whatever is in charge
+
+##############################################################################################
 
 import sys
 import os
@@ -29,6 +37,10 @@ from boosting_2D.find_rule import *
 from boosting_2D import stabilize
 from boosting_2D import prior
 
+
+### LOAD DATA`
+################################################################################################
+################################################################################################
 
 # Load y
 y = TargetMatrix('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/accessibilityMatrix_full_subset_CD34.txt', 
@@ -82,7 +94,6 @@ prior_mr, prior_rr = prior.parse_prior(params, x1, x2)
 tree = pickle.load(open('/srv/persistent/pgreens/projects/boosting/results/saved_trees/hematopoeisis_23K_stable_bindingTFsonly_saved_tree_state_adt_stable_1000iter', 'rb'))
 # tree = pickle.load(open('/srv/persistent/pgreens/projects/boosting/results/saved_trees/hematopoeisis_23K_stable_bindingTFsonly_NULL_saved_tree_state_adt_stable_1000iter', 'rb'))
 
-
 ### POST-PROCESSING
 ################################################################################################
 ################################################################################################
@@ -105,15 +116,21 @@ for comp in all_comp.ix[:,0].tolist()[1::]:
     cell_file = '{0}hema_{1}_cells_direct_comp.txt'.format(INDEX_PATH, comp_reformat)
     peak_file = '{0}hema_{1}_peaks.txt'.format(INDEX_PATH, comp_reformat)
     # XXX REFORMAT SO STRING IS SOMEWHERE USEFUL
-    prefix = 'hema_{0}_1000iter_TFbindingonly_NULL_direct_comp'.format(comp_reformat)
-    # prefix = 'hema_{0}_1000iter_TFbindingonly_direct_comp'.format(comp_reformat)
-    # Compute margin score for each of these
+    # Compute margin score BY USING NULL TREE MODEL
+    # prefix = 'hema_{0}_1000iter_TFbindingonly_NULL_direct_comp'.format(comp_reformat)
+    # margin_score.call_rank_by_margin_score(prefix=prefix,
+    #   methods=['by_x1', 'by_x2', 'by_node'],
+    #    y=y, x1=x1, x2=x2, tree=tree, pool=pool, num_perm=1000,
+    #    x1_feat_file=peak_file,
+    #    x2_feat_file=cell_file,
+    #    null_tree_file='/srv/persistent/pgreens/projects/boosting/results/saved_trees/hematopoeisis_23K_stable_bindingTFsonly_NULL_saved_tree_state_adt_stable_1000iter')  
+    # Compute margin score BY SHUFFLING THE Y TARGET
+    prefix = 'hema_{0}_1000iter_TFbindingonly_direct_comp'.format(comp_reformat)
     margin_score.call_rank_by_margin_score(prefix=prefix,
       methods=['by_x1', 'by_x2', 'by_node'],
-       y=y, x1=x1, x2=x2, tree=tree, pool=pool, num_perm=10,
+       y=y, x1=x1, x2=x2, tree=tree, pool=pool, num_perm=1000,
        x1_feat_file=peak_file,
-       x2_feat_file=cell_file,
-       null_tree_file='/srv/persistent/pgreens/projects/boosting/results/saved_trees/hematopoeisis_23K_stable_bindingTFsonly_NULL_saved_tree_state_adt_stable_1000iter')  
+       x2_feat_file=cell_file)
     print comp
 
 
