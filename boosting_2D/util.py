@@ -21,7 +21,7 @@ class Logger():
         if level == 'DEBUG' and not config.DEBUG: return
         if level == 'VERBOSE' and not config.VERBOSE: return
         if level == 'QUIET': return
-        if config.LOG_TIME:
+        if log_time:
             time_stamp = datetime.fromtimestamp(time.time()).strftime(
                 '%Y-%m-%d %H:%M:%S: ')
             msg = time_stamp + msg

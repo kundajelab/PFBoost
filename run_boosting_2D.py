@@ -119,7 +119,8 @@ def parse_args():
 
     # Parse arguments
     args = parser.parse_args()
-    
+
+
     log('load y start ')
     y = TargetMatrix(args.target_file, 
                      args.target_row_labels, 
@@ -178,7 +179,6 @@ def parse_args():
         prior.prior_motifreg, prior.prior_regreg = prior.parse_prior(prior.PRIOR_PARAMS, x1, x2)
 
     config.NCPU = args.ncpu
-
 
     return (x1, x2, y, holdout)
 
@@ -326,6 +326,7 @@ def main():
         os.makedirs('{0}log_files'.format(config.OUTPUT_PATH))
     f = open(logfile_name, 'w')
     logfile = Logger(ofp=f)
+    logfile("Command run:\n {0} \n \n ".format(' '.join(sys.argv)), log_time=False)
 
     ### Print time to output
     t0 = time.time()
