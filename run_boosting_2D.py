@@ -79,6 +79,8 @@ def parse_args():
                         action='store_true')
     parser.add_argument('--corrected-loss', 
                         action='store_true', help='For corrected Loss')
+    parser.add_argument('--plot', 
+                        action='store_true', help='Plot imbalanced & balanced loss and margins')
 
     parser.add_argument('--use_prior', 
                         action='store_true', help='Use prior',)
@@ -179,6 +181,7 @@ def parse_args():
         prior.prior_motifreg, prior.prior_regreg = prior.parse_prior(prior.PRIOR_PARAMS, x1, x2)
 
     config.NCPU = args.ncpu
+    config.PLOT = args.plot
 
     return (x1, x2, y, holdout)
 
@@ -322,8 +325,8 @@ def main():
     logfile_name='{0}{1}/LOG_FILE_{2}_{3}iter__{1}.txt'.format(
             config.OUTPUT_PATH, config.OUTPUT_PREFIX, 
             method_label, config.TUNING_PARAMS.num_iter)
-    if not os.path.exists('{0}log_files'.format(config.OUTPUT_PATH)):
-        os.makedirs('{0}log_files'.format(config.OUTPUT_PATH))
+    if not os.path.exists('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)):
+        os.makedirs('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX))
     f = open(logfile_name, 'w')
     logfile = Logger(ofp=f)
     logfile("Command run:\n {0} \n \n ".format(' '.join(sys.argv)), log_time=False)
@@ -368,9 +371,11 @@ def main():
     tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, method_label, out_file=out_file_name)
 
     ### Make plots
-    plot.plot_margin(tree, method_label, config.TUNING_PARAMS.num_iter)
-    plot.plot_balanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
-    plot.plot_imbalanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
+    if config.PLOT:
+        plot.configure_plot_dir(tree, method_label, config.TUNING_PARAMS.num_iter)
+        plot.plot_margin(tree, method_label, config.TUNING_PARAMS.num_iter)
+        plot.plot_balanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
+        plot.plot_imbalanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
 
     ### Print end time and close logfile pointer
     t = time.time()
