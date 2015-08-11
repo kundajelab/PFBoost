@@ -214,6 +214,5 @@ for cell_type in [el for el in os.listdir('/srv/persistent/pgreens/projects/boos
             '{0}{1}/{1}_PROM_{2}_top_{3}.txt'.format(result_path, cell_type, element_direction, method)]
             out_file='{0}{1}/{1}_ENH_v_PROM_{2}_top_{3}_discriminative.txt'.format(result_path, cell_type, element_direction, method)
             margin_score.find_discrimative_features(conditions=conditions, method=method, out_file=out_file)
-
-#   
+   
 

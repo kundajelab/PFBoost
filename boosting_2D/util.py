@@ -9,6 +9,7 @@ import numpy as np
 import sklearn.utils
 from scipy.sparse import *
 
+
 ### Log 
 ##########################################
 
@@ -38,6 +39,22 @@ def log_progress(tree, i):
 
 ### log prints to STDERR
 log = Logger()
+
+### Label Functions 
+##########################################
+
+# Get method label added to output
+def get_method_label():
+    if config.TUNING_PARAMS.use_stable:
+        stable_label='stable'
+    else:
+        stable_label='non_stable'
+    if config.TUNING_PARAMS.use_stumps:
+        method='stumps'
+    else:
+        method='adt'
+    method_label = '{0}_{1}'.format(method, stable_label)
+    return method_label
 
 
 ### Save Tree State 

@@ -308,8 +308,7 @@ class DecisionTree(object):
         self.train_margins.append(train_margin)
         self.test_margins.append(test_margin)
 
-    def write_out_rules(self, tree, x1, x2, tuning_params,
-         method_label, out_file=None):
+    def write_out_rules(self, tree, x1, x2, tuning_params, out_file=None):
         # Allocate matrix of rules
         rule_score_mat = pd.DataFrame(index=range(len(tree.split_x1)-1),
          columns=['x1_feat', 'x2_feat', 'score', 'above_rule', 'tree_depth'])

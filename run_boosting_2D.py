@@ -123,7 +123,7 @@ def parse_args():
     # Parse arguments
     args = parser.parse_args()
 
-
+    # Load the three feature matrices
     log('load y start ')
     y = TargetMatrix(args.target_file, 
                      args.target_row_labels, 
@@ -148,7 +148,7 @@ def parse_args():
                     args.mult_format)
     log('load x2 stop')
    
-   ### Shuffle data
+    # Shuffle data
     if args.shuffle_y:
         y = util.shuffle_data_object(y)
     if args.shuffle_x1:
@@ -156,23 +156,30 @@ def parse_args():
     if args.shuffle_x2:
         x2 = util.shuffle_data_object(x1)
 
-    # model_state = ModelState()
+    # Load holdout
     log('load holdout start')
     holdout = Holdout(y, args.mult_format, args.holdout_file, args.holdout_format)
     log('load holdout stop')
 
-    # All output in date-stamped directory in output path
-    time_stamp = time.strftime("%Y_%m_%d")
-    config.OUTPUT_PATH = args.output_path
-    config.OUTPUT_PREFIX = time_stamp+'_'+args.output_prefix
-    if not os.path.exists(config.OUTPUT_PATH+config.OUTPUT_PREFIX):
-        os.makedirs(config.OUTPUT_PATH+config.OUTPUT_PREFIX)
+    # Configure tuning tarameters
     config.TUNING_PARAMS = TuningParams(
         args.num_iter, 
         args.stumps, args.stable, args.corrected_loss,
         args.use_prior,
         args.eta1, args.eta2, 20, 1./holdout.n_train)
 
+    # Get method label so plot label uses parameters used
+    method_label=util.get_method_label()
+    # get time stamp
+    time_stamp = time.strftime("%Y_%m_%d")
+    # Configure output directory - date-stamped directory in output path
+    config.OUTPUT_PATH = args.output_path
+    config.OUTPUT_PREFIX = time_stamp+'_'+args.output_prefix+'_'+method_label+'_'+str(config.TUNING_PARAMS.num_iter)+'iter'
+    if not os.path.exists(config.OUTPUT_PATH+config.OUTPUT_PREFIX):
+        os.makedirs(config.OUTPUT_PATH+config.OUTPUT_PREFIX)
+
+
+    # Configure prior matrix
     if config.TUNING_PARAMS.use_prior:
         prior.PRIOR_PARAMS=prior.PriorParams(
             50, 0.998,
@@ -186,43 +193,8 @@ def parse_args():
 
     return (x1, x2, y, holdout)
 
-### XXX EVENTUALLY COMPARE TO PREVIOUS SPEED
-# def find_next_decision_node(tree, holdout, y, x1, x2):
-#     ## Calculate loss at all search nodes
-#     # log('start rule_processes')
-#     best_split, regulator_sign, loss_best = find_rule_processes(
-#         tree, holdout, y, x1, x2) 
-#     # log('end rule_processes')
 
-#     # Get rule weights for the best split
-#     # log('start find_rule_weights')
-#     rule_weights = find_rule_weights(
-#         tree.ind_pred_train[best_split], tree.weights, tree.ones_mat, 
-#         holdout, y, x1, x2)
-#     # log('end find_rule_weights')
-
-#     # Get current rule, no stabilization
-#     # log('start get_current_rule')
-#     motif,regulator,reg_sign,rule_train_index,rule_test_index = get_current_rule(
-#         tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
-#     # log('end get_current_rule')
-
-#     ## Update score without stabilization,  if stabilization results 
-#     ## in one rule or if stabilization criterion not met
-#     rule_score = calc_score(tree, rule_weights, rule_train_index)
-#     motif_bundle = []
-#     regulator_bundle = []
-
-#     ### Store motifs/regulators above this node (for margin score)
-#     above_motifs = tree.above_motifs[best_split]+tree.split_x1[best_split].tolist()
-#     above_regs = tree.above_regs[best_split]+tree.split_x2[best_split].tolist()
-
-#     return (motif, regulator, best_split, 
-#             motif_bundle, regulator_bundle, 
-#             rule_train_index, rule_test_index, rule_score, 
-#             above_motifs, above_regs)
-
-
+### Find next decision node given current state of tree
 def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
     ## Calculate loss at all search nodes
     # log('start rule_processes')    
@@ -319,13 +291,9 @@ def main():
     (x1, x2, y, holdout) = parse_args()
     log('parse args end', level=level)
 
-    ### Get plot label so plot label uses parameters used
-    method_label=plot.get_plot_label()
-
     ### logfile saves output to file
-    logfile_name='{0}{1}/LOG_FILE_{2}_{3}iter__{1}.txt'.format(
-            config.OUTPUT_PATH, config.OUTPUT_PREFIX, 
-            method_label, config.TUNING_PARAMS.num_iter)
+    logfile_name='{0}{1}/LOG_FILE.txt'.format(
+            config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     if not os.path.exists('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)):
         os.makedirs('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX))
     f = open(logfile_name, 'w')
@@ -362,25 +330,24 @@ def main():
         util.log_progress(tree, i)
 
     # Save tree state
-    tree_file_name='{0}{1}/saved_tree_state_{2}_{3}iter__{1}'.format(
-        config.OUTPUT_PATH, config.OUTPUT_PREFIX, method_label, config.TUNING_PARAMS.num_iter)
+    tree_file_name='{0}{1}/saved_tree_state__{1}'.format(
+        config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     save_tree_state(tree, pickle_file=tree_file_name)
 
     ### Write out rules
-    rule_file_name='{0}{1}/global_rules_{2}_{3}iter__{1}.txt'.format(
-        config.OUTPUT_PATH, config.OUTPUT_PREFIX, 
-        method_label, config.TUNING_PARAMS.num_iter)
-    tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, method_label, out_file=rule_file_name)
+    rule_file_name='{0}{1}/global_rules__{1}.txt'.format(
+        config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, out_file=rule_file_name)
 
     ### Write out load data file
-    write_load_data_script.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name, method_label)
+    write_load_data_script.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name)
 
     ### Make plots
     if config.PLOT:
-        plot.configure_plot_dir(tree, method_label, config.TUNING_PARAMS.num_iter)
-        plot.plot_margin(tree, method_label, config.TUNING_PARAMS.num_iter)
-        plot.plot_balanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
-        plot.plot_imbalanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
+        plot.configure_plot_dir(tree, config.TUNING_PARAMS.num_iter)
+        plot.plot_margin(tree, config.TUNING_PARAMS.num_iter)
+        plot.plot_balanced_error(tree, config.TUNING_PARAMS.num_iter)
+        plot.plot_imbalanced_error(tree, config.TUNING_PARAMS.num_iter)
 
     ### Print end time and close logfile pointer
     t = time.time()
