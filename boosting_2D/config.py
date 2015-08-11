@@ -7,7 +7,6 @@ TUNING_PARAMS = None
 NCPU = None
 
 VERBOSE = True
-DEBUG = True
 LOG_TIME = True
 
 PLOT = True

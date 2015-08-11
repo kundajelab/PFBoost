@@ -196,36 +196,35 @@ def parse_args():
 
 ### Find next decision node given current state of tree
 def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
+    level='QUIET'
     ## Calculate loss at all search nodes
-    # log('start rule_processes')    
+    log('find rule process', level=level)
     best_split, regulator_sign, loss_best = find_rule_processes(
         tree, holdout, y, x1, x2) 
-    # log('end rule_processes')
 
-    # log('update with prior')
+    log('update loss with prior', level=level)
     if config.TUNING_PARAMS.use_prior:
         loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS, prior.prior_motifreg, prior.prior_regreg, iteration)
-    # log('finish with prior')
 
     # Get rule weights for the best split
-    # log('start find_rule_weights')
+    log('find rule weights', level=level)
     rule_weights = find_rule_weights(
         tree.ind_pred_train[best_split], tree.weights, tree.ones_mat, 
         holdout, y, x1, x2)
-    # log('end find_rule_weights')
 
     # Get current rule, no stabilization
-    # log('start get_current_rule')
+    log('get current rule', level=level)
     (motif, regulator, regulator_sign, rule_train_index, rule_test_index 
      ) = get_current_rule(
          tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
-    # log('end get_current_rule')
 
     if config.TUNING_PARAMS.use_stable:
+        log('starting stabilization', level=level)
         # Store current training weights
         weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
 
         # Test if stabilization criterion is met
+        log('stabilization test', level=level)
         stable_test = stabilize.stable_boost_test(tree, rule_train_index, holdout)
         stable_thresh = stabilize.stable_boost_thresh(tree, y, weights_i)
 
@@ -234,16 +233,16 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
         if stable_test >= config.TUNING_PARAMS.eta_2*stable_thresh:
             print 'stabilization criterion applies'
             # Get rules that are bundled together
-            # log('start bundle_rules')
+            log('getting rule bundle', level=level)
             bundle = stabilize.bundle_rules(
                 tree, y, x1, x2, 
                 motif, 
                 regulator, regulator_sign, 
                 best_split, rule_weights)
-            # log('end bundle_rules')
 
             # rule score is the direction and magnitude of the prediciton update
             # for the rule given by rule_weights and rule_train_index
+            log('updating scores and indices with bundle', level=level)
             ( rule_score, rule_train_index, rule_test_index 
               ) = stabilize.get_rule_score_and_indices(bundle, 
               tree.ind_pred_train, tree.ind_pred_test, 
@@ -252,12 +251,14 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
               rule_train_index, rule_test_index)
 
             # Add bundled rules to bundle
+            log('adding bundles to rule', level=level)
             motif_bundle = bundle.rule_bundle_regup_motifs+bundle.rule_bundle_regdown_motifs
             regulator_bundle = bundle.rule_bundle_regup_regs+bundle.rule_bundle_regdown_regs
 
         else:
             # rule score is the direction and magnitude of the prediciton update
             # for the rule given by rule_weights and rule_train_index
+            log('updating rule without stabilization', level=level)
             rule_score = calc_score(tree, rule_weights, rule_train_index)
             motif_bundle = []
             regulator_bundle = []
@@ -266,11 +267,13 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
     else:
         # rule score is the direction and magnitude of the prediciton update
         # for the rule given by rule_weights and rule_train_index
+        log('updating rule without stabilization', level=level)
         rule_score = calc_score(tree, rule_weights, rule_train_index)
         motif_bundle = []
         regulator_bundle = []
 
         
+    log('adding above motifs/regs', level=level)
     above_motifs = tree.above_motifs[best_split]+np.unique(
         tree.bundle_x1[best_split]+[tree.split_x1[best_split]]).tolist()
     above_regs = tree.above_regs[best_split]+np.unique(
@@ -286,7 +289,7 @@ def main():
     print 'starting main loop'
 
     ### Parse arguments
-    level='QUIET'
+    level='VERBOSE'
     log('parse args start', level=level)
     (x1, x2, y, holdout) = parse_args()
     log('parse args end', level=level)
@@ -314,6 +317,7 @@ def main():
 
         log('iteration {0}'.format(i))
         
+        log('find next node', level=level)
         (motif, regulator, best_split, 
          motif_bundle, regulator_bundle, 
          rule_train_index, rule_test_index, rule_score, 
@@ -321,6 +325,7 @@ def main():
              tree, holdout, y, x1, x2, i)
         
         ### Add the rule with best loss
+        log('adding next rule', level=level)
         tree.add_rule(motif, regulator, best_split, 
                       motif_bundle, regulator_bundle, 
                       rule_train_index, rule_test_index, rule_score, 

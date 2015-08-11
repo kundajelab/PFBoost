@@ -17,11 +17,10 @@ class Logger():
     def __init__(self, ofp=sys.stderr):
         self.ofp = ofp
     
-    def __call__(self, msg, log_time=False, level=None):
-        assert level in ('DEBUG', 'VERBOSE', 'QUIET', None)
-        if level == 'DEBUG' and not config.DEBUG: return
-        if level == 'VERBOSE' and not config.VERBOSE: return
-        if level == 'QUIET': return
+    def __call__(self, msg, log_time=True, level=None):
+        assert level in ('VERBOSE', 'QUIET', None)
+        # if level == 'VERBOSE' or config.VERBOSE: 
+        if level == 'QUIET' or not config.VERBOSE: return
         if log_time:
             time_stamp = datetime.fromtimestamp(time.time()).strftime(
                 '%Y-%m-%d %H:%M:%S: ')
@@ -43,7 +42,7 @@ log = Logger()
 ### Label Functions 
 ##########################################
 
-# Get method label added to output
+# Get method label added to config.OUTPUT_PREFIX
 def get_method_label():
     if config.TUNING_PARAMS.use_stable:
         stable_label='stable'
@@ -105,7 +104,6 @@ def matrix_mult(matrix1, matrix2):
         return np.dot(matrix1, matrix2)
     else:
         assert False, "Inconsistent matrix formats '%s' '%s'" % (type(matrix1), type(matrix2))
-
 
 ### Randomization Functions
 ##########################################

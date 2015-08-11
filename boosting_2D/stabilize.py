@@ -15,6 +15,8 @@ from boosting_2D import util
 from boosting_2D import config
 from boosting_2D import find_rule
 
+log = util.log
+
 ### Define bundle class - store  bundled motifs+regulators with min loss rule
 class BundleStore(object):
     def __init__(self, 
@@ -192,8 +194,10 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
 
 # Get rules to average (give motif, regulator and index)
 def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
+    level='QUIET'
     print 'starting bundle rules'
     print 'best split is {0}'.format(best_split)
+    log('calculate A', level=level)
 
     weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
 
@@ -214,6 +218,7 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
 
     ## Calculate weights and weights square of all the other rules (B)
     # W+ + W- from find_rule()
+    log('calculate B', level=level)
     b_weights_regup = rule_weights.w_up_regup+ \
         rule_weights.w_down_regup 
     b_weights_regdown = rule_weights.w_up_regdown+ \
@@ -221,6 +226,7 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
 
     ## Calculate intersection of A and B (A union B)
     # Allocate matrix with best rule in repeated m matrix, and best rule in repeated r matrix
+    log('calculate A+B', level=level)
     if y.sparse:
         x1_best = vstack([x1.data[m,:] for el in range(x1.num_row)])
         reg_vec = (x2.data[:,r]==reg)
@@ -231,6 +237,7 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
         x2_best = np.hstack([reg_vec for el in range(x2.num_col)]) 
 
     # Multiply best rule times all other rules
+    log('best rule times others', level=level)
     x1_intersect = util.element_mult(x1_best, x1.data)
     x2_up = x2.element_mult(x2.data>0)
     x2_down = abs(x2.element_mult(x2.data<0))
@@ -238,6 +245,7 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
     x2_intersect_regdown = util.element_mult(x2_best, x2_down)
 
     # Get weights for intersection
+    log('intersection weights', level=level)
     ab_weights_regup = util.matrix_mult(
         util.matrix_mult(x1_intersect, weights_i),
          x2_intersect_regup) # PRE-FILTER weights
@@ -246,15 +254,17 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
          x2_intersect_regdown) # PRE-FILTER weights
 
     # Get symmetric difference in weights
+    log('symmetric diff', level=level)
     symm_diff_w_regup = a_weights + b_weights_regup - 2*ab_weights_regup
     symm_diff_w_regdown = a_weights + b_weights_regdown - 2*ab_weights_regdown
 
     ## Calculate threshold for stabilization
-    bundle_thresh = np.sqrt(sum([np.square(w)
-         for w in np.frombuffer(weights_i[weights_i.nonzero()])])/
-         np.square(sum(np.frombuffer(weights_i[weights_i.nonzero()]))))
-
+    log('get threshold', level=level)
+    bundle_thresh = np.sqrt(sum(np.square(
+        np.frombuffer(weights_i[weights_i.nonzero()]))
+        )/np.square(sum(np.frombuffer(weights_i[weights_i.nonzero()]))))
     ## If large bundle, but hard cap on number of rules in bundle:
+    log('test bundle size', level=level)
     test_big_bundle = (symm_diff_w_regup < \
          config.TUNING_PARAMS.eta_1*bundle_thresh).sum() + \
          (symm_diff_w_regdown < \
@@ -262,6 +272,7 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
           > config.TUNING_PARAMS.bundle_max
     # If large bundle cap at max bundle size
     if test_big_bundle:
+        log('cap bundle', level=level)
         print "="*80
         print 'large bundle - cap at {0}'.format(config.TUNING_PARAMS.bundle_max)
         ### STARTED RE-DO Rank all of the entries and get the top number of allowed rules 
@@ -288,6 +299,7 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
 
     # Otherwise take all bundled rules
     else:
+        log('keep bundle', level=level)
         rule_bundle_regup = (symm_diff_w_regup < \
             config.TUNING_PARAMS.eta_1*bundle_thresh).nonzero()
         rule_bundle_regdown = (symm_diff_w_regdown < \
