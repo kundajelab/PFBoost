@@ -211,7 +211,7 @@ def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout, y, x1
     else:
         valid_m = np.nonzero(x1.data[motif,:])[0]
         valid_r = np.where(x2.data[:,regulator]==regulator_sign)[0]
-    
+ 
     ### Get joint motif-regulator index - training and testing
     if y.sparse:
         valid_mat = csr_matrix((y.num_row,y.num_col), dtype=np.bool)

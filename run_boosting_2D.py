@@ -24,9 +24,12 @@ from boosting_2D.data_class import *
 from boosting_2D.find_rule import *
 from boosting_2D import stabilize
 from boosting_2D import prior
+from boosting_2D import write_load_data_script
 
+### Open log files
 log = util.log
 
+### Set constant parameters
 TuningParams = namedtuple('TuningParams', [
     'num_iter',
     'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
@@ -77,6 +80,8 @@ def parse_args():
                         action='store_true')
     parser.add_argument('--corrected-loss', 
                         action='store_true', help='For corrected Loss')
+    parser.add_argument('--plot', 
+                        action='store_true', help='Plot imbalanced & balanced loss and margins')
 
     parser.add_argument('--use_prior', 
                         action='store_true', help='Use prior',)
@@ -105,9 +110,20 @@ def parse_args():
                         help='format for holdout matrix', 
                         default=None)
 
+    parser.add_argument('--shuffle_y', 
+                        help='flag to shuffle the contents of y matrix', 
+                        action='store_true')
+    parser.add_argument('--shuffle_x1', 
+                        help='flag to shuffle the contents of y matrix', 
+                        action='store_true')
+    parser.add_argument('--shuffle_x2', 
+                        help='flag to shuffle the contents of y matrix', 
+                        action='store_true')
+
     # Parse arguments
     args = parser.parse_args()
-    
+
+    # Load the three feature matrices
     log('load y start ')
     y = TargetMatrix(args.target_file, 
                      args.target_row_labels, 
@@ -132,19 +148,38 @@ def parse_args():
                     args.mult_format)
     log('load x2 stop')
    
-    # model_state = ModelState()
+    # Shuffle data
+    if args.shuffle_y:
+        y = util.shuffle_data_object(y)
+    if args.shuffle_x1:
+        x1 = util.shuffle_data_object(x1)
+    if args.shuffle_x2:
+        x2 = util.shuffle_data_object(x1)
+
+    # Load holdout
     log('load holdout start')
     holdout = Holdout(y, args.mult_format, args.holdout_file, args.holdout_format)
     log('load holdout stop')
 
-    config.OUTPUT_PATH = args.output_path
-    config.OUTPUT_PREFIX = args.output_prefix
+    # Configure tuning tarameters
     config.TUNING_PARAMS = TuningParams(
         args.num_iter, 
         args.stumps, args.stable, args.corrected_loss,
         args.use_prior,
         args.eta1, args.eta2, 20, 1./holdout.n_train)
 
+    # Get method label so plot label uses parameters used
+    method_label=util.get_method_label()
+    # get time stamp
+    time_stamp = time.strftime("%Y_%m_%d")
+    # Configure output directory - date-stamped directory in output path
+    config.OUTPUT_PATH = args.output_path
+    config.OUTPUT_PREFIX = time_stamp+'_'+args.output_prefix+'_'+method_label+'_'+str(config.TUNING_PARAMS.num_iter)+'iter'
+    if not os.path.exists(config.OUTPUT_PATH+config.OUTPUT_PREFIX):
+        os.makedirs(config.OUTPUT_PATH+config.OUTPUT_PREFIX)
+
+
+    # Configure prior matrix
     if config.TUNING_PARAMS.use_prior:
         prior.PRIOR_PARAMS=prior.PriorParams(
             50, 0.998,
@@ -154,77 +189,42 @@ def parse_args():
         prior.prior_motifreg, prior.prior_regreg = prior.parse_prior(prior.PRIOR_PARAMS, x1, x2)
 
     config.NCPU = args.ncpu
+    config.PLOT = args.plot
 
     return (x1, x2, y, holdout)
 
-### XXX EVENTUALLY COMPARE TO PREVIOUS SPEED
-# def find_next_decision_node(tree, holdout, y, x1, x2):
-#     ## Calculate loss at all search nodes
-#     # log('start rule_processes')
-#     best_split, regulator_sign, loss_best = find_rule_processes(
-#         tree, holdout, y, x1, x2) 
-#     # log('end rule_processes')
 
-#     # Get rule weights for the best split
-#     # log('start find_rule_weights')
-#     rule_weights = find_rule_weights(
-#         tree.ind_pred_train[best_split], tree.weights, tree.ones_mat, 
-#         holdout, y, x1, x2)
-#     # log('end find_rule_weights')
-
-#     # Get current rule, no stabilization
-#     # log('start get_current_rule')
-#     motif,regulator,reg_sign,rule_train_index,rule_test_index = get_current_rule(
-#         tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
-#     # log('end get_current_rule')
-
-#     ## Update score without stabilization,  if stabilization results 
-#     ## in one rule or if stabilization criterion not met
-#     rule_score = calc_score(tree, rule_weights, rule_train_index)
-#     motif_bundle = []
-#     regulator_bundle = []
-
-#     ### Store motifs/regulators above this node (for margin score)
-#     above_motifs = tree.above_motifs[best_split]+tree.split_x1[best_split].tolist()
-#     above_regs = tree.above_regs[best_split]+tree.split_x2[best_split].tolist()
-
-#     return (motif, regulator, best_split, 
-#             motif_bundle, regulator_bundle, 
-#             rule_train_index, rule_test_index, rule_score, 
-#             above_motifs, above_regs)
-
-
+### Find next decision node given current state of tree
 def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
+    level='QUIET'
     ## Calculate loss at all search nodes
-    # log('start rule_processes')    
+    log('find rule process', level=level)
     best_split, regulator_sign, loss_best = find_rule_processes(
         tree, holdout, y, x1, x2) 
-    # log('end rule_processes')
 
-    # log('update with prior')
+    log('update loss with prior', level=level)
     if config.TUNING_PARAMS.use_prior:
         loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS, prior.prior_motifreg, prior.prior_regreg, iteration)
-    # log('finish with prior')
 
     # Get rule weights for the best split
-    # log('start find_rule_weights')
+    log('find rule weights', level=level)
     rule_weights = find_rule_weights(
         tree.ind_pred_train[best_split], tree.weights, tree.ones_mat, 
         holdout, y, x1, x2)
-    # log('end find_rule_weights')
 
     # Get current rule, no stabilization
-    # log('start get_current_rule')
+    log('get current rule', level=level)
     (motif, regulator, regulator_sign, rule_train_index, rule_test_index 
      ) = get_current_rule(
          tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
-    # log('end get_current_rule')
 
     if config.TUNING_PARAMS.use_stable:
+        log('starting stabilization', level=level)
         # Store current training weights
         weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
 
         # Test if stabilization criterion is met
+        log('stabilization test', level=level)
         stable_test = stabilize.stable_boost_test(tree, rule_train_index, holdout)
         stable_thresh = stabilize.stable_boost_thresh(tree, y, weights_i)
 
@@ -233,16 +233,16 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
         if stable_test >= config.TUNING_PARAMS.eta_2*stable_thresh:
             print 'stabilization criterion applies'
             # Get rules that are bundled together
-            # log('start bundle_rules')
+            log('getting rule bundle', level=level)
             bundle = stabilize.bundle_rules(
                 tree, y, x1, x2, 
                 motif, 
                 regulator, regulator_sign, 
                 best_split, rule_weights)
-            # log('end bundle_rules')
 
             # rule score is the direction and magnitude of the prediciton update
             # for the rule given by rule_weights and rule_train_index
+            log('updating scores and indices with bundle', level=level)
             ( rule_score, rule_train_index, rule_test_index 
               ) = stabilize.get_rule_score_and_indices(bundle, 
               tree.ind_pred_train, tree.ind_pred_test, 
@@ -251,12 +251,14 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
               rule_train_index, rule_test_index)
 
             # Add bundled rules to bundle
+            log('adding bundles to rule', level=level)
             motif_bundle = bundle.rule_bundle_regup_motifs+bundle.rule_bundle_regdown_motifs
             regulator_bundle = bundle.rule_bundle_regup_regs+bundle.rule_bundle_regdown_regs
 
         else:
             # rule score is the direction and magnitude of the prediciton update
             # for the rule given by rule_weights and rule_train_index
+            log('updating rule without stabilization', level=level)
             rule_score = calc_score(tree, rule_weights, rule_train_index)
             motif_bundle = []
             regulator_bundle = []
@@ -265,11 +267,13 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
     else:
         # rule score is the direction and magnitude of the prediciton update
         # for the rule given by rule_weights and rule_train_index
+        log('updating rule without stabilization', level=level)
         rule_score = calc_score(tree, rule_weights, rule_train_index)
         motif_bundle = []
         regulator_bundle = []
 
         
+    log('adding above motifs/regs', level=level)
     above_motifs = tree.above_motifs[best_split]+np.unique(
         tree.bundle_x1[best_split]+[tree.split_x1[best_split]]).tolist()
     above_regs = tree.above_regs[best_split]+np.unique(
@@ -284,11 +288,24 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
 def main():
     print 'starting main loop'
 
-    level='QUIET'
     ### Parse arguments
+    level='VERBOSE'
     log('parse args start', level=level)
     (x1, x2, y, holdout) = parse_args()
     log('parse args end', level=level)
+
+    ### logfile saves output to file
+    logfile_name='{0}{1}/LOG_FILE.txt'.format(
+            config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    if not os.path.exists('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)):
+        os.makedirs('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX))
+    f = open(logfile_name, 'w')
+    logfile = Logger(ofp=f)
+    logfile("Command run:\n {0} \n \n ".format(' '.join(sys.argv)), log_time=False)
+
+    ### Print time to output
+    t0 = time.time()
+    logfile('starting main loop: {0}'.format(t0), log_time=True)
 
     ### Create tree object
     log('make tree start', level=level)
@@ -300,6 +317,7 @@ def main():
 
         log('iteration {0}'.format(i))
         
+        log('find next node', level=level)
         (motif, regulator, best_split, 
          motif_bundle, regulator_bundle, 
          rule_train_index, rule_test_index, rule_score, 
@@ -307,6 +325,7 @@ def main():
              tree, holdout, y, x1, x2, i)
         
         ### Add the rule with best loss
+        log('adding next rule', level=level)
         tree.add_rule(motif, regulator, best_split, 
                       motif_bundle, regulator_bundle, 
                       rule_train_index, rule_test_index, rule_score, 
@@ -315,52 +334,31 @@ def main():
         ### Print progress
         util.log_progress(tree, i)
 
-    pdb.set_trace()
-
-    ### Get plot label so plot label uses parameters used
-    method_label=plot.get_plot_label()
-
     # Save tree state
-    save_tree_state(tree, pickle_file='{0}saved_trees/{1}_saved_tree_state_{2}_{3}iter'.format(
-        config.OUTPUT_PATH, config.OUTPUT_PREFIX, method_label, config.TUNING_PARAMS.num_iter))
+    tree_file_name='{0}{1}/saved_tree_state__{1}'.format(
+        config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    save_tree_state(tree, pickle_file=tree_file_name)
 
     ### Write out rules
-    out_file_name='{0}global_rules/{1}_tree_rules_{2}_{3}iter.txt'.format(
-        config.OUTPUT_PATH, config.OUTPUT_PREFIX, 
-        method_label, config.TUNING_PARAMS.num_iter)
-    tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, method_label, out_file=out_file_name)
+    rule_file_name='{0}{1}/global_rules__{1}.txt'.format(
+        config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, out_file=rule_file_name)
 
-    # XX Re-factor based on 
-    # Make pool
-    pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
-
-    # Rank x1, x2, rule and node 
-    margin_score.call_rank_by_margin_score(prefix='hema_CMP_v_Mono_1000iter_TFbindingonly',
-      methods=['by_node'],
-       y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
-       x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_peaks.txt',
-       x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_cells.txt')
-
-    margin_score.call_rank_by_margin_score(prefix='hema_MPP_HSC_v_pHSC_1000iter_TFbindingonly',
-      methods=['by_node'],
-       y=y, x1=x1, x2=x2, tree=tree, pool=pool, 
-       x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_peaks.txt',
-       x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_cell_types.txt')
-
-    all_comp = pd.read_table('/users/pgreens/git/boosting_2D/hema_data/index_files/hema_tree_cell_comparisons.txt', sep='\t', header=None)
-    for comp in all_comp.ix[:,0].tolist():
-        prefix=
-
-    # # Close pool
-    pool.close() # stop adding processes
-    pool.join() # wait until all threads are done before going on
+    ### Write out load data file
+    write_load_data_script.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name)
 
     ### Make plots
-    plot.plot_margin(tree, method_label, config.TUNING_PARAMS.num_iter)
-    plot.plot_balanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
-    plot.plot_imbalanced_error(tree, method_label, config.TUNING_PARAMS.num_iter)
+    if config.PLOT:
+        plot.configure_plot_dir(tree, config.TUNING_PARAMS.num_iter)
+        plot.plot_margin(tree, config.TUNING_PARAMS.num_iter)
+        plot.plot_balanced_error(tree, config.TUNING_PARAMS.num_iter)
+        plot.plot_imbalanced_error(tree, config.TUNING_PARAMS.num_iter)
 
-
+    ### Print end time and close logfile pointer
+    t = time.time()
+    logfile('ending main loop: {0}'.format(t), log_time=True)
+    logfile('total time: {0}'.format(t-t0), log_time=True)
+    f.close()
 
 ### Main
 if __name__ == "__main__":

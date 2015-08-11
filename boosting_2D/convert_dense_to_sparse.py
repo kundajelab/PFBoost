@@ -26,7 +26,7 @@ parser.add_argument('--input-file',
 parser.add_argument('--output-file', 
                     help='path to write the results to')
 parser.add_argument('--with-labels', 
-                    help='path to write the results to', action='store_true')
+                    help='if the dense matrix has labels so skip first line', action='store_true')
 
 args = parser.parse_args()
 input_file=args.input_file

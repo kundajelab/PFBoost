@@ -2,9 +2,13 @@ import sys
 import config
 import time
 from datetime import datetime
-import numpy as np 
-from scipy.sparse import *
 import pickle
+import copy
+
+import numpy as np 
+import sklearn.utils
+from scipy.sparse import *
+
 
 ### Log 
 ##########################################
@@ -13,12 +17,11 @@ class Logger():
     def __init__(self, ofp=sys.stderr):
         self.ofp = ofp
     
-    def __call__(self, msg, log_time=False, level=None):
-        assert level in ('DEBUG', 'VERBOSE', 'QUIET', None)
-        if level == 'DEBUG' and not config.DEBUG: return
-        if level == 'VERBOSE' and not config.VERBOSE: return
-        if level == 'QUIET': return
-        if config.LOG_TIME:
+    def __call__(self, msg, log_time=True, level=None):
+        assert level in ('VERBOSE', 'QUIET', None)
+        # if level == 'VERBOSE' or config.VERBOSE: 
+        if level == 'QUIET' or not config.VERBOSE: return
+        if log_time:
             time_stamp = datetime.fromtimestamp(time.time()).strftime(
                 '%Y-%m-%d %H:%M:%S: ')
             msg = time_stamp + msg
@@ -33,7 +36,25 @@ def log_progress(tree, i):
         'rule score {0}'.format(tree.scores[i])])
     log(msg, log_time=False, level='VERBOSE')
 
+### log prints to STDERR
 log = Logger()
+
+### Label Functions 
+##########################################
+
+# Get method label added to config.OUTPUT_PREFIX
+def get_method_label():
+    if config.TUNING_PARAMS.use_stable:
+        stable_label='stable'
+    else:
+        stable_label='non_stable'
+    if config.TUNING_PARAMS.use_stumps:
+        method='stumps'
+    else:
+        method='adt'
+    method_label = '{0}_{1}'.format(method, stable_label)
+    return method_label
+
 
 ### Save Tree State 
 ##########################################
@@ -64,6 +85,10 @@ def calc_margin(y, pred_test):
     margin = element_mult(y, pred_test)
     return margin.sum()
 
+
+### Matrix Operations
+##########################################
+
 def element_mult(matrix1, matrix2):
     if isinstance(matrix1, csr.csr_matrix) and isinstance(matrix2, csr.csr_matrix):
         return matrix1.multiply(matrix2)
@@ -79,3 +104,16 @@ def matrix_mult(matrix1, matrix2):
         return np.dot(matrix1, matrix2)
     else:
         assert False, "Inconsistent matrix formats '%s' '%s'" % (type(matrix1), type(matrix2))
+
+### Randomization Functions
+##########################################
+
+### Takes a data class object (y, x1, x2) and shuffle the data (in the same proportions)
+def shuffle_data_object(obj):
+    shuffle_obj = copy.deepcopy(obj)
+    if obj.sparse:
+        shuffle_obj.data = sklearn.utils.shuffle(obj.data, replace=False, random_state=1)
+    else:
+        random.seed(1)
+        shuffle_obj.data = random.shuffle(shuffle_obj.data)
+    return shuffle_obj
