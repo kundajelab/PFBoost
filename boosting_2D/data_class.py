@@ -2,6 +2,7 @@
 import sys
 import os
 import random
+import pdb
 
 import numpy as np 
 from scipy.sparse import *
@@ -251,24 +252,30 @@ class DecisionTree(object):
         self.above_regs.append(above_regs)
         self.above_nodes.append([best_split]+self.above_nodes[best_split])
 
+        log('updating prediction')
         self._update_prediction(rule_score, rule_train_index, rule_test_index)
+        log('updating weights')
         self._update_weights(holdout,y)
+        log('updating error')
         self._update_error(holdout, y)
+        log('updating margin')
         self._update_margin(y)
 
     def _update_prediction(self, score, train_index, test_index):        
         # Update predictions
-        self.pred_train = self.pred_train + score*train_index
-        self.pred_test = self.pred_test + score*test_index
+        self.pred_train += score*train_index
+        self.pred_test += score*test_index
 
     def _update_weights(self, holdout, y):
         # Update weights
+        log('first weights part')
         if self.sparse:
             exp_term = np.negative(y.element_mult(self.pred_train))
             exp_term.data = np.exp(exp_term.data)
         else:
             exp_term = np.negative(y.element_mult(self.pred_train))
             exp_term[exp_term.nonzero()]=np.exp(exp_term[exp_term.nonzero()])
+        log('second weights part')
         new_weights = element_mult(exp_term, holdout.ind_train_all)
         # print (new_weights/new_weights.sum())[new_weights.nonzero()]
         self.weights = new_weights/new_weights.sum()

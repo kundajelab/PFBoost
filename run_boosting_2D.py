@@ -196,7 +196,7 @@ def parse_args():
 
 ### Find next decision node given current state of tree
 def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
-    level='QUIET'
+    level='VERBOSE'
     ## Calculate loss at all search nodes
     log('find rule process', level=level)
     best_split, regulator_sign, loss_best = find_rule_processes(

@@ -88,7 +88,7 @@ def find_rule_processes(tree, holdout, y, x1, x2):
 
     rule_processes = []
 
-    # this shoudl be an attribute of tree. Also, during the tree init,
+    # this should be an attribute of tree. Also, during the tree init,
     # accessing the global variables x1, x2, and y is really bad form. Since
     # you only need the dimensions you sohuld pass those as arguments into the 
     # init function. 

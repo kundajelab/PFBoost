@@ -83,27 +83,27 @@ for comp in $(cat $cell_compare);
 do
   echo $comp
   ### Process UP Peaks
-  # pval_file=$NONRANK_PATH$comp"_up_peak_gwas_overlap_fisher_test_pvals_thresh"$thresh".txt"
-  # pval_file_sorted=$NONRANK_PATH$comp"_up_peak_gwas_overlap_fisher_test_pvals_thresh"$thresh"_sorted.txt"
-  # if [ -f $pval_file ]; then
-  #   rm $pval_file
-  # fi
-  # touch $pval_file
-  # for result in $(ls $RANK_PATH*"/"*"hema_"$comp"_peaks_up_test_region_overlaps.txt");
-  # do
-  #   gwas0=$(basename $result)
-  #   var="_hema_"$comp"_peaks_up_test_region_overlaps.txt"
-  #   gwas=${gwas0/$var/}
-  #   num_rsid=$(cat $result | awk -v OFS="\t" -v t=$thresh '$5<t' | wc -l)
-  #   if [ $num_rsid -ge 400 ]; then
-  #     echo $gwas
-  #     overlap_file=$result
-  #     ### WITH half of gwas as back up
-  #     Rscript /users/pgreens/scripts/gwas_enrichment_fisher_test.R -l $overlap_file -f $gwas -t $thresh -o $pval_file
-  #   fi
-  # done
-  # cat $pval_file | sort -g -k2,2 > $pval_file_sorted
-  # rm $pval_file
+  pval_file=$NONRANK_PATH$comp"_up_peak_gwas_overlap_fisher_test_pvals_thresh"$thresh".txt"
+  pval_file_sorted=$NONRANK_PATH$comp"_up_peak_gwas_overlap_fisher_test_pvals_thresh"$thresh"_sorted.txt"
+  if [ -f $pval_file ]; then
+    rm $pval_file
+  fi
+  touch $pval_file
+  for result in $(ls $RANK_PATH*"/"*"hema_"$comp"_peaks_up_test_region_overlaps.txt");
+  do
+    gwas0=$(basename $result)
+    var="_hema_"$comp"_peaks_up_test_region_overlaps.txt"
+    gwas=${gwas0/$var/}
+    num_rsid=$(cat $result | awk -v OFS="\t" -v t=$thresh '$5<t' | wc -l)
+    if [ $num_rsid -ge 400 ]; then
+      echo $gwas
+      overlap_file=$result
+      ### WITH half of gwas as back up
+      Rscript /users/pgreens/scripts/gwas_enrichment_fisher_test.R -l $overlap_file -f $gwas -t $thresh -o $pval_file
+    fi
+  done
+  cat $pval_file | sort -g -k2,2 > $pval_file_sorted
+  rm $pval_file
   ## Process DOWN Peaks
   pval_file=$NONRANK_PATH$comp"_down_peak_gwas_overlap_fisher_test_pvals_thresh"$thresh".txt"
   pval_file_sorted=$NONRANK_PATH$comp"_down_peak_gwas_overlap_fisher_test_pvals_thresh"$thresh"_sorted.txt"
@@ -128,4 +128,21 @@ do
   rm $pval_file
 done
 
-### Multiple hypothesis corrections
+### Multiple hypothesis corrections + PLOT in hema_fdr_and_plot.R
+
+NONRANK_PATH=/srv/persistent/pgreens/projects/hema_gwas/results/nonrank_enrich_results/
+for study in $(ls $NONRANK_PATH | grep up_peak | grep adjusted);
+do
+    echo $study
+    cat $NONRANK_PATH$study | awk -v FS="\t" '$11<0.05' | cut -f1,11
+done
+
+for study in $(ls $NONRANK_PATH | grep down_peak | grep adjusted);
+do
+    echo $study
+    cat $NONRANK_PATH$study | awk -v FS="\t" '$11<0.05' | cut -f1,11
+done
+
+
+
+
