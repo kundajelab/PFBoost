@@ -87,17 +87,17 @@ def parse_args():
                         action='store_true', help='Use prior',)
     parser.add_argument('--prior_input_format', 
                         help='options are: matrix, triplet',)
-    parser.add_argument('--motif_reg_file', 
+    parser.add_argument('--motif-reg-file', 
                         default=None, help='motif-regulator priors [0,1] real-valued',)
-    parser.add_argument('--motif_reg_row_labels', 
+    parser.add_argument('--motif-reg-row_labels', 
                         default=None, help='motif labels for motif-regulator prior',)
-    parser.add_argument('--motif_reg_col_labels', 
+    parser.add_argument('--motif-reg-col_labels', 
                         default=None, help='regulator labels for motif-regulator prior',)
-    parser.add_argument('--reg_reg_file', 
+    parser.add_argument('--reg-reg-file', 
                         default=None, help='regulator-regulator priors [0,1] real-valued',) 
-    parser.add_argument('--reg_reg_row_labels', 
+    parser.add_argument('--reg-reg-row-labels', 
                         default=None, help='motif labels for regulator-regulator prior',)    
-    parser.add_argument('--reg_reg_col_labels', 
+    parser.add_argument('--reg-reg-col-labels', 
                         default=None, help='regulator labels for regulator-regulator prior',)
     
 
@@ -110,13 +110,16 @@ def parse_args():
                         help='format for holdout matrix', 
                         default=None)
 
-    parser.add_argument('--shuffle_y', 
+    parser.add_argument('--compress-regulators', 
+                        help='combine regulators with same pattern across conditions', 
+                        action='store_true')
+    parser.add_argument('--shuffle-y', 
                         help='flag to shuffle the contents of y matrix', 
                         action='store_true')
-    parser.add_argument('--shuffle_x1', 
+    parser.add_argument('--shuffle-x1', 
                         help='flag to shuffle the contents of y matrix', 
                         action='store_true')
-    parser.add_argument('--shuffle_x2', 
+    parser.add_argument('--shuffle-x2', 
                         help='flag to shuffle the contents of y matrix', 
                         action='store_true')
 
@@ -155,6 +158,10 @@ def parse_args():
         x1 = util.shuffle_data_object(x1)
     if args.shuffle_x2:
         x2 = util.shuffle_data_object(x1)
+
+    # Compress regulators
+    if args.compress_regulators:
+        x2 = util.compress_regulators(x2)
 
     # Load holdout
     log('load holdout start')
@@ -318,8 +325,8 @@ def main():
     tree = DecisionTree(holdout, y, x1, x2)
     log('make tree stop', level=level)
 
-    from IPython import embed; embed()
-    # pdb.set_trace()
+    # from IPython import embed; embed()
+    pdb.set_trace()
 
     ### Main Loop
     for i in xrange(1,config.TUNING_PARAMS.num_iter):

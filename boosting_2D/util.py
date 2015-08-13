@@ -163,7 +163,6 @@ def compress_regulators(x2_obj):
     x2_obj.col_labels = new_labels
     return(x2_obj)
 
-
 # x2_obj = copy.deepcopy(x2)
 # new_x2_obj = util.compress_regulators(x2_obj)
 
