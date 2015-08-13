@@ -17,6 +17,8 @@ from boosting_2D import config
 import sklearn.utils
 import pickle
 
+log = util.log
+
 ### XXX DEPENDENCIES
 ### Currently uses TSS file on nandi, can add as an argument
 
@@ -26,7 +28,7 @@ import pickle
 
 def calc_margin_score_x1_wrapper(args):
     return calc_margin_score_x1(*args)
-
+# 
 def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
     x1_feat_name = x1.row_labels[x1_feat_index]
     # All rules where x1 is in split or bundled
@@ -39,9 +41,11 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
     #      +tree.bundle_x1[node] if el != x1_feat_index]]) for node in x1_feat_nodes]
     # x1_bundle_string = '--'.join([el if len(el)>0 else "none" for el in x1_bundles])
     # Write all unique terms bundled (separated by pipe) or None of no motifs bundled
-    unique_bundle_terms=np.unique([x1.row_labels[el] for node in x1_feat_nodes for el in [tree.split_x1[node]]
-          +tree.bundle_x1[node] if el != x1_feat_index]).tolist()
-    x1_bundle_string = '|'.join(unique_bundle_terms) if len(unique_bundle_terms)>0 else "None"
+    unique_bundle_terms=np.unique([x1.row_labels[el] for node in x1_feat_nodes
+      for el in [tree.split_x1[node]]+tree.bundle_x1[node]
+      if el != x1_feat_index]).tolist()
+    x1_bundle_string = '|'.join(unique_bundle_terms) if len(
+        unique_bundle_terms)>0 else "None"
 
     # All rules where the motif is above it, used in the split, or bundled in the split
     rules_w_x1_feat = [el for el in xrange(tree.nsplit)
@@ -54,16 +58,26 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
     # for rule in range(tree.nsplit): a = np.apply_along_axis(np.sum, 0, tree.ind_pred_train[rule].toarray()); print a[1]
 
     # New predictions without rule (adjusted prediction = pred_adj)
-    pred_adj = tree.pred_train
+    pred_adj = copy.deepcopy(tree.pred_train)
     for rule in rules_w_x1_feat:
-        pred_adj = pred_adj - tree.scores[rule]*tree.ind_pred_train[rule]
+        pred_adj -= tree.scores[rule]*tree.ind_pred_train[rule]
+    # time.time()
+    # for rule in rules_w_x1_feat: pred_adj -= tree.scores[rule]*tree.ind_pred_train[rule]
+    # time.time()
+    # pred_adj -= np.sum([tree.scores[rule]*tree.ind_pred_train[rule] for rule in rules_w_x1_feat])
+    # time.time()
     margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
     margin_score_norm = margin_score/index_mat.sum()
 
     # Get all rules where x1 feat is above or in rule or bundle
     rule_index_mat = tree.ind_pred_train[rules_w_x1_feat[0]]
     for r in rules_w_x1_feat:
-        rule_index_mat = rule_index_mat + tree.ind_pred_train[r]
+        rule_index_mat += tree.ind_pred_train[r]
+    # time.time()
+    # for r in rules_w_x1_feat: rule_index_mat += tree.ind_pred_train[r]
+    # time.time()
+    # rule_index_mat += np.sum([tree.ind_pred_train[r] for r in rules_w_x1_feat])
+    # time.time()
     # Index where x1 feat is used 
     rule_index_mat = (rule_index_mat>0)
     # Index where x1 feat is used and examples of interest
@@ -238,10 +252,21 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         used_x1_feats = np.unique([el for el in tree.split_x1 if el != 'root']+ \
             [el for listy in tree.bundle_x1 for el in listy if el != 'root']).tolist()
         ### SERIAL VERSION
+        log('starting rule processes')
+        pdb.set_trace()
+        time.time()
         rule_processes = []    
         for feat in used_x1_feats:
             result=calc_margin_score_x1(tree, y, x1, x2, index_mat, feat)
             rule_processes.append(result)
+        time.time()
+        log('ending rule processes')
+        # time.time()
+        # rule_processes = []    
+        # for feat in used_x1_feats: result=calc_margin_score_x1(tree, y, x1, x2, index_mat, feat); rule_processes.append(result)
+        # time.time()
+        # rule_processes = pool.map(calc_margin_score_x1_wrapper, iterable=[ (tree, y, x1, x2, index_mat, m) for m in used_x1_feats])
+        # time.time()
         # Get margin score for each x1 features
         # rule_processes = pool.map(calc_margin_score_x1_wrapper, iterable=[ \
         #     (tree, y, x1, x2, index_mat, m) \
@@ -400,8 +425,8 @@ def split_index_mat_prom_enh(index_mat, y, tss_file):
     return (index_mat_prom, index_mat_enh)
 
 ### Call feature ranking
-def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=100, x1_feat_file=None, x2_feat_file=None, split_prom_enh=True, null_tree_file=None
-):
+def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=100,
+ x1_feat_file=None, x2_feat_file=None, split_prom_enh=True, null_tree_file=None):
     # Create directory for this analysis
     margin_outdir = '{0}/margin_scores/{1}/'.format(config.OUTPUT_PATH, prefix)
     if not os.path.exists(margin_outdir):
@@ -419,23 +444,31 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=1
         index_mat_down = util.element_mult(index_mat, y.data==-1)
         if 'by_x1' in methods:
             for key in rank_score_df_dict.keys():
-                rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x1')
-                rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_feat.txt'.format(margin_outdir, prefix, key.upper()), 
+                rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2,
+                 eval('index_mat_{0}'.format(key)), pool, method='by_x1')
+                rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_feat.txt'.format(
+                    margin_outdir, prefix, key.upper()), 
                     sep="\t", index=None, header=True)
         if 'by_x2' in methods:
             for key in rank_score_df_dict.keys():
-                rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x2')
-                rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x2_feat.txt'.format(margin_outdir, prefix, key.upper()), 
+                rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2,
+                 eval('index_mat_{0}'.format(key)), pool, method='by_x2')
+                rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x2_feat.txt'.format(
+                    margin_outdir, prefix, key.upper()), 
                     sep="\t", index=None, header=True)
         if 'by_x1_and_x2' in methods:
             for key in rank_score_df_dict.keys():
-                rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x1_and_x2')
-                rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_and_x2_joint_feat.txt'.format(margin_outdir, prefix, key.upper()), 
+                rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2,
+                 eval('index_mat_{0}'.format(key)), pool, method='by_x1_and_x2')
+                rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_x1_and_x2_joint_feat.txt'.format(
+                    margin_outdir, prefix, key.upper()), 
                     sep="\t", index=None, header=True)
         if 'by_node' in methods:
             for key in rank_score_df_dict.keys():
-                rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_node')
-                rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_nodes.txt'.format(margin_outdir, prefix, key.upper()), 
+                rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2,
+                 eval('index_mat_{0}'.format(key)), pool, method='by_node')
+                rank_score_df_dict[key].to_csv('{0}{1}_{2}_top_nodes.txt'.format(
+                    margin_outdir, prefix, key.upper()), 
                     sep="\t", index=None, header=True)
     # separate promoters and enhancers 
     if split_prom_enh==True:
@@ -458,7 +491,8 @@ def call_rank_by_margin_score(prefix, methods, y, x1, x2, tree, pool, num_perm=1
             for key in rank_score_df_dict.keys():
                 print key
                 y_value = +1 if 'up' in key else -1
-                rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2, eval('index_mat_{0}'.format(key)), pool, method='by_x1')
+                rank_score_df_dict[key] = rank_by_margin_score(tree, y, x1, x2,
+                 eval('index_mat_{0}'.format(key)), pool, method='by_x1')
                 if num_perm>0:
                     if null_tree_file==None:
                         rank_score_df_w_perm = calculate_null_margin_score_dist_by_shuffling_target(rank_score_df_dict[key], 
@@ -608,7 +642,8 @@ def calculate_null_margin_score_dist_by_shuffling_target(rank_score_df, index_ma
     return rank_score_df
 
 
-def calculate_null_margin_score_dist_from_NULL_tree(rank_score_df, index_mat, method, pool, num_perm, tree, y, x1, x2, y_value, null_tree_file):
+def calculate_null_margin_score_dist_from_NULL_tree(rank_score_df, index_mat, method,
+ pool, num_perm, tree, y, x1, x2, y_value, null_tree_file):
     # Read in NULL tree
     tree_null = pickle.load(open(null_tree_file, 'rb'))
     # Initialize dictionary of margin scores
@@ -622,26 +657,34 @@ def calculate_null_margin_score_dist_from_NULL_tree(rank_score_df, index_mat, me
         # For each permutation calculate margin scores and add to dictionary
         for i in xrange(num_perm):
             # Permute rows
-            new_index=sample_values_from_data_class(y=y_null, index_mat=index_mat, method=method, value=y_value)
-            margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree_null, y_null, x1, x2, new_index, pool, method=method)
+            new_index=sample_values_from_data_class(y=y_null, index_mat=index_mat,
+             method=method, value=y_value)
+            margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree_null,
+             y_null, x1, x2, new_index, pool, method=method)
     elif method=='by_x2':
         # For each permutation calculate margin scores and add to dictionary
         for i in xrange(num_perm):
             # Permute columns
-            new_index=sample_values_from_data_class(y=y_null, index_mat=index_mat, method=method, value=y_value)
-            margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree_null, y_null, x1, x2, new_index, pool, method=method)
+            new_index=sample_values_from_data_class(y=y_null, index_mat=index_mat,
+             method=method, value=y_value)
+            margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree_null,
+             y_null, x1, x2, new_index, pool, method=method)
     elif method=='by_node' or method=='by_x1_and_x2':
         # For each permutation calculate margin scores and add to dictionary
         for i in xrange(num_perm):
             # Permute rows and columns
-            new_index=sample_values_from_data_class(y=y_null, index_mat=index_mat, method=method, value=y_value)
-            margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree_null, y_null, x1, x2, new_index, pool, method=method)
+            new_index=sample_values_from_data_class(y=y_null, index_mat=index_mat,
+             method=method, value=y_value)
+            margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree_null,
+             y_null, x1, x2, new_index, pool, method=method)
     else:
         assert False, "provide method in ['by_x1', 'by_x2', 'by_x1_and_x2', 'by_node']"
     # calculate p-values for each margin score 
-    all_margin_scores_ranked = np.sort([el for df in margin_score_dict.values() for el in df.ix[:,'margin_score'].tolist()])
+    all_margin_scores_ranked = np.sort([el for df in margin_score_dict.values()
+     for el in df.ix[:,'margin_score'].tolist()])
     print all_margin_scores_ranked
-    pvalues = [float(sum(all_margin_scores_ranked>el))/len(all_margin_scores_ranked) for el in rank_score_df.ix[:,'margin_score'].tolist()]
+    pvalues = [float(sum(all_margin_scores_ranked>el))/len(all_margin_scores_ranked)
+     for el in rank_score_df.ix[:,'margin_score'].tolist()]
     rank_score_df['pvalue']=pvalues
     # qvalues = stats.p_adjust(FloatVector(pvalues), method = 'BH')
     return rank_score_df

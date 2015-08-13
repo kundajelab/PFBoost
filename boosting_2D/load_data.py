@@ -103,7 +103,7 @@ tree = pickle.load(open('/srv/persistent/pgreens/projects/boosting/results/saved
 
 # XXX MAKE CODE PRETTY
 # Calculate the margin score for each individual 
-# pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
+pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
 pool='serial'
 
 INDEX_PATH='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/'
@@ -141,11 +141,13 @@ margin_score.call_rank_by_margin_score(prefix='hema_CMP_v_Mono_1000iter_TFbindin
    x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_peaks.txt',
    x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_CMP_v_Mono_cells.txt')
 
+time.time()
 margin_score.call_rank_by_margin_score(prefix='hema_MPP_HSC_v_pHSC_1000iter_TFbindingonly',
-  methods=['by_x1', 'by_x2'],
-   y=y, x1=x1, x2=x2, tree=tree, pool=pool, num_perm=100,
+  methods=['by_x1'],
+   y=y, x1=x1, x2=x2, tree=tree, pool=pool, num_perm=10,
    x1_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_peaks.txt',
    x2_feat_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_cells.txt')
+time.time()
 
 # # Close pool
 # pool.close() # stop adding processes

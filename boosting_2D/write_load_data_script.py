@@ -3,7 +3,15 @@
 ### 8/10/15
 ################################################################################################
 
+import pickle
+import pdb
+
 from boosting_2D import config
+from boosting_2D import prior
+
+
+### Store only paths in load file
+################################################################################################
 
 def write_load_data_script(y, x1, x2, prior_params, tree_file_name):
 	file_name = '{0}{1}/load_data_script.py'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
@@ -36,6 +44,7 @@ from boosting_2D.data_class import *
 from boosting_2D.find_rule import *
 from boosting_2D import stabilize
 from boosting_2D import prior
+from boosting_2D import write_load_data_script
 
 
 ### LOAD DATA
@@ -137,4 +146,112 @@ tree = pickle.load(open('{37}', 'rb'))
 		tree_file_name
 		))
 	f.close()
+
+
+### Store and load data objects in pickle file
+################################################################################################
+
+### Store all model components in a dictionary and pickle that dictionary
+def save_complete_model_state(pickle_file, x1, x2, y, tree):
+    model_dict={}
+    model_dict['x1']=x1
+    model_dict['x2']=x2
+    model_dict['y']=y
+    model_dict['tree']=tree
+    config_dict=store_module_in_dict(config)
+    model_dict['config']=config_dict # also a module object
+    prior_dict=store_module_in_dict(prior)
+    model_dict['prior']=prior_dict # also a module object
+    with open(pickle_file,'wb') as f: pickle.dump(obj=model_dict, file=f)
+
+### In order to pickle a module object store the dictionary
+def store_module_in_dict(module_object):
+    module_dict={}
+    for key in module_object.__dict__.keys():
+        try: 
+            print pickle.dumps(module_object.__dict__[key])
+            module_dict[key]=module_object.__dict__[key]
+        except:
+            pass
+    return module_dict
+
+### Load dictionary from pickle file and re-create objects
+# def load_complete_model_state(pickle_file):
+#     with open(pickle_file,'rb') as f: 
+#         model_dict = pickle.load(f)
+#     x1 = model_dict['x1']
+#     x2 = model_dict['x2']
+#     y = model_dict['y']
+#     tree = model_dict['tree']
+#     config = model_dict['config']
+#     prior = model_dict['prior']
+
+
+### Write a script that loads the stuff
+def write_load_pickle_data_script(pickle_file):
+    file_name = '{0}{1}/load_pickle_data_script.py'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    f = open(file_name, 'w')
+    f.write(
+    """
+import sys
+import os
+os.chdir('/users/pgreens/git/boosting_2D')
+import random
+
+import numpy as np 
+from scipy.sparse import *
+
+import argparse
+import pandas as pd
+import multiprocessing
+import ctypes
+
+from functools import partial
+import time
+from collections import namedtuple
+import pdb
+import pickle
+
+from boosting_2D import config
+from boosting_2D import util
+from boosting_2D import plot
+from boosting_2D import margin_score
+from boosting_2D.data_class import *
+from boosting_2D.find_rule import *
+from boosting_2D import stabilize
+from boosting_2D import prior
+from boosting_2D import write_load_data_script
+
+### Open log files
+log = util.log
+
+### Set constant parameters
+TuningParams = namedtuple('TuningParams', [
+    'num_iter',
+    'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
+    'eta_1', 'eta_2', 'bundle_max', 'epsilon'
+])
+
+### LOAD DATA
+################################################################################################
+################################################################################################
+
+with open('{0}','rb') as f: 
+    model_dict = pickle.load(f)
+
+# Assign data structures
+x1 = model_dict['x1']
+x2 = model_dict['x2']
+y = model_dict['y']
+tree = model_dict['tree']
+
+# Unpack config and prior dictionaries
+for key in model_dict['config'].keys():
+    exec('config.%s=model_dict["config"]["%s"]'%(key, key))
+for key in model_dict['prior'].keys():
+    exec('prior.%s=model_dict["prior"]["%s"]'%(key, key))
+
+    """.format(pickle_file))
+    print 'load data from {0}'.format(file_name)
+    f.close()
 

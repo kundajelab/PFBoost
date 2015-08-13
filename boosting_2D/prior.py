@@ -16,6 +16,7 @@ import pdb
 
 from boosting_2D import util
 
+
 ### Keeps track of constants
 PriorParams = namedtuple('PriorParams', [
     'prior_constant', 'prior_decay_rate',
@@ -113,6 +114,6 @@ def update_loss_with_prior(loss_matrix, prior_params, prior_motifreg, prior_regr
 
 
 
-prior = pd.read_table('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/prior_data/motifTFpriors.txt',header=None)
-prior.index = np.genfromtxt('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/prior_data/motifTFpriors.rows.txt', delimiter="\n", dtype="str")
-prior.columns= np.genfromtxt('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/prior_data/motifTFpriors.columns.txt', delimiter="\n", dtype="str")
+# prior = pd.read_table('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/prior_data/motifTFpriors.txt',header=None)
+# prior.index = np.genfromtxt('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/prior_data/motifTFpriors.rows.txt', delimiter="\n", dtype="str")
+# prior.columns= np.genfromtxt('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/prior_data/motifTFpriors.columns.txt', delimiter="\n", dtype="str")

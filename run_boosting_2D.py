@@ -158,7 +158,8 @@ def parse_args():
 
     # Load holdout
     log('load holdout start')
-    holdout = Holdout(y, args.mult_format, args.holdout_file, args.holdout_format)
+    holdout = Holdout(y, args.mult_format,
+     args.holdout_file, args.holdout_format)
     log('load holdout stop')
 
     # Configure tuning tarameters
@@ -174,22 +175,26 @@ def parse_args():
     time_stamp = time.strftime("%Y_%m_%d")
     # Configure output directory - date-stamped directory in output path
     config.OUTPUT_PATH = args.output_path
-    config.OUTPUT_PREFIX = time_stamp+'_'+args.output_prefix+'_'+method_label+'_'+str(config.TUNING_PARAMS.num_iter)+'iter'
+    config.OUTPUT_PREFIX = time_stamp+'_'+args.output_prefix+'_'+method_label+ \
+        '_'+str(config.TUNING_PARAMS.num_iter)+'iter'
     if not os.path.exists(config.OUTPUT_PATH+config.OUTPUT_PREFIX):
         os.makedirs(config.OUTPUT_PATH+config.OUTPUT_PREFIX)
-
 
     # Configure prior matrix
     if config.TUNING_PARAMS.use_prior:
         prior.PRIOR_PARAMS=prior.PriorParams(
             50, 0.998,
             args.prior_input_format, 
-            args.motif_reg_file, args.motif_reg_row_labels, args.motif_reg_col_labels,
-            args.reg_reg_file, args.reg_reg_row_labels, args.reg_reg_col_labels)
-        prior.prior_motifreg, prior.prior_regreg = prior.parse_prior(prior.PRIOR_PARAMS, x1, x2)
+            args.motif_reg_file, 
+            args.motif_reg_row_labels, args.motif_reg_col_labels,
+            args.reg_reg_file, 
+            args.reg_reg_row_labels, args.reg_reg_col_labels)
+        prior.prior_motifreg, prior.prior_regreg = prior.parse_prior(
+            prior.PRIOR_PARAMS, x1, x2)
 
     config.NCPU = args.ncpu
     config.PLOT = args.plot
+    config.VERBOSE = False
 
     return (x1, x2, y, holdout)
 
@@ -204,7 +209,8 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
 
     log('update loss with prior', level=level)
     if config.TUNING_PARAMS.use_prior:
-        loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS, prior.prior_motifreg, prior.prior_regreg, iteration)
+        loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS,
+         prior.prior_motifreg, prior.prior_regreg, iteration)
 
     # Get rule weights for the best split
     log('find rule weights', level=level)
@@ -312,6 +318,9 @@ def main():
     tree = DecisionTree(holdout, y, x1, x2)
     log('make tree stop', level=level)
 
+    # from IPython import embed; embed()
+    # pdb.set_trace()
+
     ### Main Loop
     for i in xrange(1,config.TUNING_PARAMS.num_iter):
 
@@ -342,10 +351,16 @@ def main():
     ### Write out rules
     rule_file_name='{0}{1}/global_rules__{1}.txt'.format(
         config.OUTPUT_PATH, config.OUTPUT_PREFIX)
-    tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, out_file=rule_file_name)
+    tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS,
+     out_file=rule_file_name)
 
     ### Write out load data file
     write_load_data_script.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name)
+
+    ### Store model objects
+    pickle_file = '{0}{1}/saved_complete_model__{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    write_load_data_script.save_complete_model_state(pickle_file, x1, x2, y, tree)
+    write_load_data_script.write_load_pickle_data_script(pickle_file)
 
     ### Make plots
     if config.PLOT:

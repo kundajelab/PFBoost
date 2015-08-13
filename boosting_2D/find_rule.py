@@ -128,16 +128,21 @@ def find_rule_processes(tree, holdout, y, x1, x2):
 # Function - calc min loss with leaf training examples and current weights  
 def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2):
     # log('start find_rule_weights')
-    rule_weights = find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2)
+    rule_weights = find_rule_weights(leaf_training_examples, example_weights,
+     ones_mat, holdout, y, x1, x2)
     # log('end find_rule_weights')
     
     ## Calculate Loss
     if config.TUNING_PARAMS.use_corrected_loss==True:
-        loss_regup = util.corrected_loss(rule_weights.w_up_regup, rule_weights.w_down_regup, rule_weights.w_zero_regup)
-        loss_regdown = util.corrected_loss(rule_weights.w_up_regdown, rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
+        loss_regup = util.corrected_loss(rule_weights.w_up_regup,
+         rule_weights.w_down_regup, rule_weights.w_zero_regup)
+        loss_regdown = util.corrected_loss(rule_weights.w_up_regdown,
+         rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
     else:
-        loss_regup = util.calc_loss(rule_weights.w_up_regup, rule_weights.w_down_regup, rule_weights.w_zero_regup)
-        loss_regdown = util.calc_loss(rule_weights.w_up_regdown, rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
+        loss_regup = util.calc_loss(rule_weights.w_up_regup,
+         rule_weights.w_down_regup, rule_weights.w_zero_regup)
+        loss_regdown = util.calc_loss(rule_weights.w_up_regdown,
+         rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
 
     ## Get loss matrix and regulator status
     loss_best_s = np.min([loss_regup.min(), loss_regdown.min()])
