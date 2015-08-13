@@ -175,19 +175,7 @@ def store_module_in_dict(module_object):
             pass
     return module_dict
 
-### Load dictionary from pickle file and re-create objects
-# def load_complete_model_state(pickle_file):
-#     with open(pickle_file,'rb') as f: 
-#         model_dict = pickle.load(f)
-#     x1 = model_dict['x1']
-#     x2 = model_dict['x2']
-#     y = model_dict['y']
-#     tree = model_dict['tree']
-#     config = model_dict['config']
-#     prior = model_dict['prior']
-
-
-### Write a script that loads the stuff
+### Write a script that loads the pickled objects
 def write_load_pickle_data_script(pickle_file):
     file_name = '{0}{1}/load_pickle_data_script.py'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     f = open(file_name, 'w')

@@ -318,7 +318,7 @@ def main():
     tree = DecisionTree(holdout, y, x1, x2)
     log('make tree stop', level=level)
 
-    # from IPython import embed; embed()
+    from IPython import embed; embed()
     # pdb.set_trace()
 
     ### Main Loop

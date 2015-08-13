@@ -117,3 +117,55 @@ def shuffle_data_object(obj):
         random.seed(1)
         shuffle_obj.data = random.shuffle(shuffle_obj.data)
     return shuffle_obj
+
+### Cluster Regulators
+##########################################
+
+import scipy.cluster.hierarchy as hier
+import scipy.spatial.distance as dist
+
+# Get cluster assignments based on euclidean distance + complete linkage
+def get_data_clusters(data, max_distance=0):
+    d = dist.pdist(data, 'euclidean') 
+    l = hier.linkage(d, method='complete')
+    ordered_data = data[hier.leaves_list(l),:]
+    flat_clusters = hier.fcluster(l, t=max_distance, criterion='distance')
+    print 'reduced {0} entries to {1} based on max distance {2}'.format(
+        data.shape[0], len(np.unique(flat_clusters)), max_distance)
+    return(flat_clusters)
+
+# Compress data by taking average of elements in cluster
+def regroup_data_by_clusters(data, clusters):
+    new_data = np.zeros((len(np.unique(clusters)),data.shape[1]))
+    for clust in np.unique(clusters):
+        new_feat = np.apply_along_axis(np.mean, 0, data[clusters==clust,:])
+        # clusters are 1-based, allocate into 0-based array
+        new_data[clust-1,:]=new_feat
+    return(new_data)
+
+# Re-write labels by concatenating original labels
+def regroup_labels_by_clusters(labels, clusters):
+    new_labels = ['na']*len(np.unique(clusters))
+    for clust in np.unique(clusters):
+        new_label = '|'.join(labels[clusters==clust])
+        # clusters are 1-based, allocate into 0-based array
+        new_labels[clust-1]=new_label
+    return(new_labels)
+
+# Re=cast x2 object with compressed regulator data and labels
+def compress_regulators(x2_obj):
+    data = x2_obj.data.toarray().T if x2_obj.sparse else x2_obj.data.T
+    labels = x2_obj.col_labels
+    clusters = get_data_clusters(data, max_distance=0)
+    new_data = regroup_data_by_clusters(data, clusters)
+    new_labels = regroup_labels_by_clusters(labels, clusters)
+    x2_obj.data = csr_matrix(new_data.T) if x2_obj.sparse else new_data.T
+    x2_obj.col_labels = new_labels
+    return(x2_obj)
+
+
+# x2_obj = copy.deepcopy(x2)
+# new_x2_obj = util.compress_regulators(x2_obj)
+
+
+
