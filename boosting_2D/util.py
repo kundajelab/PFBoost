@@ -65,7 +65,7 @@ def save_tree_state(tree, pickle_file):
 
 def load_tree_state(pickle_file):
     with open(pickle_file,'rb') as f:
-        pickle.load(f)
+        tree = pickle.load(f)
 
 ### Calculation Functions
 ##########################################

@@ -83,15 +83,15 @@ def parse_args():
     parser.add_argument('--plot', 
                         action='store_true', help='Plot imbalanced & balanced loss and margins')
 
-    parser.add_argument('--use_prior', 
+    parser.add_argument('--use-prior', 
                         action='store_true', help='Use prior',)
-    parser.add_argument('--prior_input_format', 
+    parser.add_argument('--prior-input-format', 
                         help='options are: matrix, triplet',)
     parser.add_argument('--motif-reg-file', 
                         default=None, help='motif-regulator priors [0,1] real-valued',)
-    parser.add_argument('--motif-reg-row_labels', 
+    parser.add_argument('--motif-reg-row-labels', 
                         default=None, help='motif labels for motif-regulator prior',)
-    parser.add_argument('--motif-reg-col_labels', 
+    parser.add_argument('--motif-reg-col-labels', 
                         default=None, help='regulator labels for motif-regulator prior',)
     parser.add_argument('--reg-reg-file', 
                         default=None, help='regulator-regulator priors [0,1] real-valued',) 
@@ -112,7 +112,7 @@ def parse_args():
 
     parser.add_argument('--compress-regulators', 
                         help='combine regulators with same pattern across conditions', 
-                        action='store_true')
+                        action='store_true') #default
     parser.add_argument('--shuffle-y', 
                         help='flag to shuffle the contents of y matrix', 
                         action='store_true')
@@ -326,7 +326,7 @@ def main():
     log('make tree stop', level=level)
 
     # from IPython import embed; embed()
-    pdb.set_trace()
+    # pdb.set_trace()
 
     ### Main Loop
     for i in xrange(1,config.TUNING_PARAMS.num_iter):
@@ -365,7 +365,7 @@ def main():
     write_load_data_script.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name)
 
     ### Store model objects
-    pickle_file = '{0}{1}/saved_complete_model__{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    pickle_file = '{0}{1}/saved_complete_model__{1}.gz'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     write_load_data_script.save_complete_model_state(pickle_file, x1, x2, y, tree)
     write_load_data_script.write_load_pickle_data_script(pickle_file)
 

@@ -128,8 +128,9 @@ do
   rm $pval_file
 done
 
-### Multiple hypothesis corrections + PLOT in hema_fdr_and_plot.R
+### !! Multiple hypothesis corrections + PLOT in hema_fdr_and_plot.R
 
+# 
 NONRANK_PATH=/srv/persistent/pgreens/projects/hema_gwas/results/nonrank_enrich_results/
 for study in $(ls $NONRANK_PATH | grep up_peak | grep adjusted);
 do
@@ -142,6 +143,37 @@ do
     echo $study
     cat $NONRANK_PATH$study | awk -v FS="\t" '$11<0.05' | cut -f1,11
 done
+
+
+
+### Re-write the enrichments by disease
+##########################################################################################
+
+thresh="10e-5"
+NONRANK_PATH=/srv/persistent/pgreens/projects/hema_gwas/results/nonrank_enrich_results/
+template_file=$NONRANK_PATH"CLP_v_Bcell_down_peak_gwas_overlap_fisher_test_pvals_thresh10e-5_sorted_adjusted.txt"
+result_files=$(ls $NONRANK_PATH | grep adjusted | grep $thresh)
+
+for dis in $(cat $template_file  | sed '1d' | cut -f1);
+do
+  echo $dis
+  dis_file=$NONRANK_PATH"by_disease/"$dis"_cell_type_results.txt"
+  if [ -f $dis_file ]; then
+    rm $dis_file
+  fi
+  touch $dis_file
+  for file in $result_files;
+  do
+    cat $NONRANK_PATH$file | awk -v d=$dis -v f=$file -v OFS="\t" '{if ($1==d) print $0, f}' >> $dis_file
+  done
+done
+
+
+
+
+
+
+
 
 
 

@@ -28,7 +28,7 @@ for (file in use_files[grep("adjusted", use_files, invert=T)]){
 }
 
 
-### Plot
+### Plot p-value by effect size
 ########################################################################
 
 plot_path="/srv/persistent/pgreens/projects/hema_gwas/plots/nonrank_enrich_plots/"
@@ -78,4 +78,81 @@ for (file in use_files){
 	# text(pval_df$log2_fold_enrich[label_ind], pval_df$neg_log10_adj_pval[label_ind], labels=pval_df$study_abbrev[label_ind], pos=4, xlim=c(xmin, xmax), ylim=c(ymin, ymax), xlab="", ylab="")
 	dev.off()
 }
+
+### SPIDER PLOTS PER DISEASE
+########################################################################
+
+by_disease_path='/srv/persistent/pgreens/projects/hema_gwas/results/nonrank_enrich_results/by_disease/'
+plot_path='/srv/persistent/pgreens/projects/hema_gwas/plots/nonrank_enrich_plots/star_plots/'
+
+result_df1 = read.table(sprintf('%s%s', by_disease_path, list.files(by_disease_path)[1]), sep="\t", stringsAsFactors=FALSE)
+full_result_df = data.frame(matrix(nrow=length(list.files(by_disease_path)), ncol=nrow(result_df1))) # disease by cell type
+rownames(full_result_df) = sapply(list.files(by_disease_path), function(x) strsplit(x, "_cell_")[[1]][1])
+colnames(full_result_df) = sapply(result_df1[,12], function(x) strsplit(x, '_peak_')[[1]][1])
+
+for (file in list.files(by_disease_path)){
+	disease = strsplit(file, "_cell_")[[1]][1]
+	result_df = read.table(sprintf('%s%s', by_disease_path, file), sep="\t", stringsAsFactors=FALSE, quote="")
+	colnames(result_df)=c('study', 'pval', 'effect_size', 'conf05', 'conf95', 'sig_overlap', 'sig_no_overlap', 'nonsig_overlap', 'nonsig_no_overlap', 'study_abbrev', 'adj_pval', 'cell_file')
+	result_df['cell_abbrev']=sapply(result_df$cell_file, function(x) strsplit(x, '_peak_')[[1]][1])
+	result_df['neg_log10_adj_pval']=-log10(result_df$adj_pval)
+	full_result_df[disease,result_df[,'cell_abbrev']]=result_df[,'neg_log10_adj_pval']
+}
+full_result_df = full_result_df[,grep("up|down", colnames(full_result_df))]
+full_result_df = full_result_df[rownames(full_result_df)!="single_T1D_gwas_sorted_n500000",]
+
+
+### Heatmap
+my_palette <- colorRampPalette(c("green", "black", "red"))(n = 1000)
+
+library(gplots)
+pdf(sprintf('%sall_disease_by_cell_type_heatmap.pdf', plot_path))
+heatmap.2(as.matrix(full_result_df), rowsep=0, colsep=0, sepwidth=c(0,0), dendrogram='none', trace='none', Rowv=FALSE, Colv=FALSE, col=my_palette)
+dev.off()
+### Poor attempts at spider plots
+# for (dis in rownames(full_result_df)){
+# 	pdf(sprintf('%s%sspider_plots.pdf', plot_path, dis))
+# 	stars(full_result_df[dis,], full=TRUE, scale=TRUE, labels=result_df[,'cell_abbrev'])
+# 	dev.off()	
+# }
+# for (row in seq(1,nrow(full_result_df),2)){
+# 	pdf(sprintf('%s%sspider_plots.pdf', plot_path, row))
+# 	stars(full_result_df[1,], full=TRUE, scale=TRUE, locations = c(0, 0), radius = FALSE, key.loc = c(0, 0))
+# 	dev.off()
+# }
+
+### Plot effect size by p-value per disease
+for (file in list.files(by_disease_path)){
+	disease = strsplit(file, "_cell_")[[1]][1]
+	result_df = read.table(sprintf('%s%s', by_disease_path, file), sep="\t", stringsAsFactors=FALSE, quote="")
+	### Keep only up and down peaks
+	colnames(result_df)=c('study', 'pval', 'effect_size', 'conf05', 'conf95', 'sig_overlap', 'sig_no_overlap', 'nonsig_overlap', 'nonsig_no_overlap', 'study_abbrev', 'adj_pval', 'cell_file')
+	result_df['cell_abbrev']=sapply(result_df$cell_file, function(x) strsplit(x, '_peak_')[[1]][1])
+	result_df['neg_log10_adj_pval']=-log10(result_df$adj_pval)
+	result_df[,'log2_fold_enrich']=log2(result_df$effect_size)
+	result_df = result_df[grep("up|down", result_df$cell_abbrev),]
+	result_df=result_df[!is.infinite(result_df$log2_fold_enrich),]
+	log_pval_thresh=2
+	label_ind = which(result_df$neg_log10_adj_pval>log_pval_thresh)
+	no_label_ind =which(result_df$neg_log10_adj_pval<=log_pval_thresh)
+	xmin = min(result_df$log2_fold_enrich)-0.1
+	xmax = max(result_df$log2_fold_enrich)+1
+	ymin = min(result_df$neg_log10_adj_pval[!is.infinite(result_df$neg_log10_adj_pval)])-1
+	ymax = max(result_df$neg_log10_adj_pval[!is.infinite(result_df$neg_log10_adj_pval)])+1
+	pdf(sprintf('%s%s_pval_by_effect_size.pdf', plot_path, disease))
+	par(mar=c(6.1,6.1,6.1,4.1))
+	plot(result_df$log2_fold_enrich[label_ind], result_df$neg_log10_adj_pval[label_ind], pch=16, col='green', xlim=c(xmin, xmax), ylim=c(ymin, ymax), xlab="log2(odds ratio)", ylab="-log10(adj. p-value)", main=sprintf("%s", disease), cex=1.6, cex.lab=2.2, cex.axis=1.6) ## Illustrator version
+	par(new=T)
+	plot(result_df$log2_fold_enrich[no_label_ind], result_df$neg_log10_adj_pval[no_label_ind], pch=16, col='black', xlim=c(xmin, xmax), ylim=c(ymin, ymax),ylab="", xlab="", cex=1.6, cex.axis=1.6)
+	par(new=T)
+	if (length(label_ind)>0){
+		text(result_df$log2_fold_enrich[label_ind], result_df$neg_log10_adj_pval[label_ind], labels=result_df$cell_abbrev[label_ind], pos=4, xlim=c(xmin, xmax), ylim=c(ymin, ymax), xlab="", ylab="",srt=15, cex=0.75, offset=0.2)
+		par(new=T)	
+	}
+	dev.off()
+}
+
+
+
+
 

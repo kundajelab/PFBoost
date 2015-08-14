@@ -3,7 +3,9 @@
 ### 8/10/15
 ################################################################################################
 
-import pickle
+# import pickle
+import cPickle as pickle
+import gzip
 import pdb
 
 from boosting_2D import config
@@ -162,7 +164,7 @@ def save_complete_model_state(pickle_file, x1, x2, y, tree):
     model_dict['config']=config_dict # also a module object
     prior_dict=store_module_in_dict(prior)
     model_dict['prior']=prior_dict # also a module object
-    with open(pickle_file,'wb') as f: pickle.dump(obj=model_dict, file=f)
+    with gzip.open(pickle_file,'wb') as f: pickle.dump(obj=model_dict, file=f, protocol=2)
 
 ### In order to pickle a module object store the dictionary
 def store_module_in_dict(module_object):
@@ -185,6 +187,7 @@ import sys
 import os
 os.chdir('/users/pgreens/git/boosting_2D')
 import random
+import gzip
 
 import numpy as np 
 from scipy.sparse import *
@@ -198,7 +201,7 @@ from functools import partial
 import time
 from collections import namedtuple
 import pdb
-import pickle
+import cPickle as pickle
 
 from boosting_2D import config
 from boosting_2D import util
@@ -224,7 +227,7 @@ TuningParams = namedtuple('TuningParams', [
 ################################################################################################
 ################################################################################################
 
-with open('{0}','rb') as f: 
+with gzip.open('{0}','rb') as f: 
     model_dict = pickle.load(f)
 
 # Assign data structures
