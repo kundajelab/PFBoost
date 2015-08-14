@@ -24,7 +24,7 @@ from boosting_2D.data_class import *
 from boosting_2D.find_rule import *
 from boosting_2D import stabilize
 from boosting_2D import prior
-from boosting_2D import write_load_data_script
+from boosting_2D import save_model
 
 ### Open log files
 log = util.log
@@ -201,7 +201,6 @@ def parse_args():
 
     config.NCPU = args.ncpu
     config.PLOT = args.plot
-    config.VERBOSE = False
 
     return (x1, x2, y, holdout)
 
@@ -313,7 +312,7 @@ def main():
     if not os.path.exists('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)):
         os.makedirs('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX))
     f = open(logfile_name, 'w')
-    logfile = Logger(ofp=f)
+    logfile = Logger(ofp=f, verbose=True)
     logfile("Command run:\n {0} \n \n ".format(' '.join(sys.argv)), log_time=False)
 
     ### Print time to output
@@ -350,8 +349,13 @@ def main():
         ### Print progress
         util.log_progress(tree, i)
 
+    ### Print end time and close logfile pointer
+    t1 = time.time()
+    logfile('ending main loop: {0}'.format(t1), log_time=True)
+    logfile('total time: {0}'.format(t1-t0), log_time=True)
+
     # Save tree state
-    tree_file_name='{0}{1}/saved_tree_state__{1}'.format(
+    tree_file_name='{0}{1}/saved_tree_state__{1}.gz'.format(
         config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     save_tree_state(tree, pickle_file=tree_file_name)
 
@@ -362,12 +366,17 @@ def main():
      out_file=rule_file_name)
 
     ### Write out load data file
-    write_load_data_script.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name)
+    save_model.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name)
 
     ### Store model objects
     pickle_file = '{0}{1}/saved_complete_model__{1}.gz'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
-    write_load_data_script.save_complete_model_state(pickle_file, x1, x2, y, tree)
-    write_load_data_script.write_load_pickle_data_script(pickle_file)
+    save_model.save_complete_model_state(pickle_file, x1, x2, y, tree)
+    save_model.write_load_pickle_data_script(pickle_file)
+
+    ### Print pickling time and close logfile pointer
+    t2 = time.time()
+    logfile('pickling time: {0}'.format(t1-t2), log_time=True)
+    f.close()
 
     ### Make plots
     if config.PLOT:
@@ -376,11 +385,6 @@ def main():
         plot.plot_balanced_error(tree, config.TUNING_PARAMS.num_iter)
         plot.plot_imbalanced_error(tree, config.TUNING_PARAMS.num_iter)
 
-    ### Print end time and close logfile pointer
-    t = time.time()
-    logfile('ending main loop: {0}'.format(t), log_time=True)
-    logfile('total time: {0}'.format(t-t0), log_time=True)
-    f.close()
 
 ### Main
 if __name__ == "__main__":

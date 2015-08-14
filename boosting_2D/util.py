@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 import pickle
 import copy
+import gzip
 
 import numpy as np 
 import sklearn.utils
@@ -14,13 +15,14 @@ from scipy.sparse import *
 ##########################################
 
 class Logger():
-    def __init__(self, ofp=sys.stderr):
+    def __init__(self, ofp=sys.stderr, verbose=config.VERBOSE):
         self.ofp = ofp
+        self.verbose = verbose
     
     def __call__(self, msg, log_time=True, level=None):
         assert level in ('VERBOSE', 'QUIET', None)
         # if level == 'VERBOSE' or config.VERBOSE: 
-        if level == 'QUIET' or not config.VERBOSE: return
+        if level == 'QUIET' or not self.verbose: return
         if log_time:
             time_stamp = datetime.fromtimestamp(time.time()).strftime(
                 '%Y-%m-%d %H:%M:%S: ')
@@ -60,11 +62,11 @@ def get_method_label():
 ##########################################
 
 def save_tree_state(tree, pickle_file):
-    with open(pickle_file,'wb') as f:
+    with gzip.open(pickle_file,'wb') as f:
         pickle.dump(obj=tree, file=f)
 
 def load_tree_state(pickle_file):
-    with open(pickle_file,'rb') as f:
+    with gzip.open(pickle_file,'rb') as f:
         tree = pickle.load(f)
 
 ### Calculation Functions

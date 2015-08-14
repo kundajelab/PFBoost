@@ -6,7 +6,7 @@ OUTPUT_PREFIX = None
 TUNING_PARAMS = None
 NCPU = None
 
-VERBOSE = True
+VERBOSE = False
 LOG_TIME = True
 
 PLOT = True
