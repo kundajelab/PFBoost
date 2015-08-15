@@ -119,7 +119,7 @@ def shuffle_data_object(obj):
         shuffle_obj.data = sklearn.utils.shuffle(shuffle_obj.data, replace=False, random_state=1)
     else:
         random.seed(1)
-        random.shuffle(shuffle_obj.data)
+        shuffle_obj.data = np.random.permutation(shuffle_obj.data.ravel()).reshape(shuffle_obj.data.shape)
     return shuffle_obj
 
 ### Cluster Regulators

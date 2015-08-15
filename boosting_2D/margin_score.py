@@ -68,10 +68,6 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
     # time.time()
     # pred_adj -= np.sum([tree.scores[rule]*tree.ind_pred_train[rule] for rule in rules_w_x1_feat])
     # time.time()
-    if type(y.data) != type(index_mat):
-        pdb.set_trace()
-    if type(y.data) != type(tree.pred_train-pred_adj):
-        pdb.set_trace()
     margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
     margin_score_norm = margin_score/index_mat.sum()
 
