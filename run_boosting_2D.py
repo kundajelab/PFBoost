@@ -366,9 +366,9 @@ def main():
      out_file=rule_file_name)
 
     ### Write out load data file
-    save_model.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name)
+    # save_model.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name)
 
-    ### Store model objects
+    ### Store model objects and script to load iteration
     pickle_file = '{0}{1}/saved_complete_model__{1}.gz'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     save_model.save_complete_model_state(pickle_file, x1, x2, y, tree)
     save_model.write_load_pickle_data_script(pickle_file)

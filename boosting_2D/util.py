@@ -5,6 +5,8 @@ from datetime import datetime
 import pickle
 import copy
 import gzip
+import random
+import pdb
 
 import numpy as np 
 import sklearn.utils
@@ -113,11 +115,11 @@ def matrix_mult(matrix1, matrix2):
 ### Takes a data class object (y, x1, x2) and shuffle the data (in the same proportions)
 def shuffle_data_object(obj):
     shuffle_obj = copy.deepcopy(obj)
-    if obj.sparse:
-        shuffle_obj.data = sklearn.utils.shuffle(obj.data, replace=False, random_state=1)
+    if shuffle_obj.sparse:
+        shuffle_obj.data = sklearn.utils.shuffle(shuffle_obj.data, replace=False, random_state=1)
     else:
         random.seed(1)
-        shuffle_obj.data = random.shuffle(shuffle_obj.data)
+        random.shuffle(shuffle_obj.data)
     return shuffle_obj
 
 ### Cluster Regulators

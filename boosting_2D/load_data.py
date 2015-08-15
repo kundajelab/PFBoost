@@ -3,6 +3,7 @@
 ### 6/18/15
 ##############################################################################################
 
+### XXX Will be deprecated
 ### Future set up: 
 # will have a load_data file that is sourced and a separate calculate_margin_score.
 # have a post-processing folder with all post-processing code
