@@ -107,6 +107,7 @@ my_palette <- colorRampPalette(c("green", "black", "red"))(n = 1000)
 
 library(gplots)
 pdf(sprintf('%sall_disease_by_cell_type_heatmap.pdf', plot_path))
+par(mar=c(10.1,10.1,10.1,10.1))
 heatmap.2(as.matrix(full_result_df), rowsep=0, colsep=0, sepwidth=c(0,0), dendrogram='none', trace='none', Rowv=FALSE, Colv=FALSE, col=my_palette)
 dev.off()
 ### Poor attempts at spider plots

@@ -30,8 +30,10 @@ log = util.log
 
 def calc_margin_score_x1_wrapper(args):
     return calc_margin_score_x1(*args)
-# 
+
+# calc margin_score for x1 features
 def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
+    # from IPython import embed; embed()
     x1_feat_name = x1.row_labels[x1_feat_index]
     # All rules where x1 is in split or bundled
     x1_feat_nodes = [el for el in xrange(tree.nsplit) 
@@ -144,16 +146,6 @@ def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_in
     x1_feat_name = x1.row_labels[x1_feat_index]
     x2_feat_name = x2.col_labels[x2_feat_index]
 
-    # # All rules where the x1/x2 feat is not above it, used in the split, or bundled in the split
-    # rules_w_x1_feat = [el for el in xrange(tree.nsplit)
-    #      if x1_feat_index in tree.above_motifs[el]
-    #      +[tree.split_x1[el]]
-    #      +tree.bundle_x1[el]]
-    # rules_w_x2_feat = [el for el in xrange(tree.nsplit)
-    #      if x2_feat_index in tree.above_regs[el]
-    #      +[tree.split_x2[el]]
-    #      +tree.bundle_x2[el]]
-    # pair_rules = np.unique(rules_w_x1_feat+rules_w_x2_feat).tolist()
     # All the nodes that contain x1 and x2 in bundle
     pair_rules = [el for el in xrange(tree.nsplit) 
          if x1_feat_index in [tree.split_x1[el]]
@@ -217,9 +209,44 @@ def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
     # Prediction of more or less accessible
     direction = np.sign(tree.scores[node])
 
-    # All rules where the node is not above it or the node itself
+    # All rules where the chosen node is above it or the node itself
     subtract_rules = [el for el in xrange(tree.nsplit)
          if node in tree.above_nodes[el] if el!=node]+[node]
+
+    # Get Prediction Matrix
+    pred_adj = tree.pred_train
+    for rule in subtract_rules:
+        pred_adj = pred_adj - tree.scores[rule]*tree.ind_pred_train[rule]
+    margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+    margin_score_norm = margin_score/index_mat.sum()
+
+    ### Chosen node and all nodes added below 
+    rules_w_node = [el for el in xrange(tree.nsplit)
+         if node in tree.above_nodes[el] or el==node]
+    rule_index_mat = tree.ind_pred_train[rules_w_node[0]]
+    for r in rules_w_node:
+        rule_index_mat = rule_index_mat + tree.ind_pred_train[r]
+
+    # Index where rule  is used 
+    rule_index_mat = (rule_index_mat>0)
+    # Index where rules is used and examples of interest
+    rule_index_joint = util.element_mult(index_mat, rule_index_mat)
+    # Fraction of examples of interest where rule used
+    rule_index_fraction = float(rule_index_joint.sum())/index_mat.sum()
+
+    # print rule_index_fraction
+    return [node, x1_feat_name, x1_bundle_string, x2_feat_name, x2_bundle_string, margin_score, margin_score_norm, rule_index_fraction, direction]
+
+## Calculate margin score for each individual node
+def calc_margin_score_path(tree, y, x1, x2, index_mat, node):
+    # Label path string (can do better)
+    path_string='path_{0}'.format(node)
+
+    # Prediction of more or less accessible
+    direction = np.sign(tree.scores[node])
+
+    # All rules where the node is not above it or the node itself
+    subtract_rules = [node]+tree.above_nodes[node]
 
     # Get Prediction Matrix
     pred_adj = tree.pred_train
@@ -566,8 +593,7 @@ def split_index_mat_prom_enh(index_mat, y, tss_file):
 #     return 0
 
 ### Call rank by margin score
-def call_rank_by_margin_score(index_mat, key, method, prefix, y, x1, x2, tree, pool, num_perm=100,
- x1_feat_file=None, x2_feat_file=None, null_tree_file=None):
+def call_rank_by_margin_score(index_mat, key, method, prefix, y, x1, x2, tree, pool, num_perm=100, null_tree_file=None):
     # Make margin score directory in output directory
     margin_outdir = '{0}{1}/margin_scores/'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     if not os.path.exists(margin_outdir):

@@ -3,7 +3,8 @@
 ### 8/5/15
 
 GWAS_PATH=/srv/scratch/pgreens/data/gwas/
-SCRIPT_PATH=/users/pgreens/scripts/
+# SCRIPT_PATH=/users/pgreens/scripts/
+SCRIPT_PATH=/users/pgreens/git/gwas_util/
 PEAK_PATH=/srv/persistent/pgreens/projects/hema_gwas/data/peak_files/
 RESULT_PATH=/srv/persistent/pgreens/projects/hema_gwas/results/rank_enrich_results/
 
@@ -44,9 +45,10 @@ do
     #   if [ ! -d $ANALYSIS_PATH ]; then
     #     mkdir $ANALYSIS_PATH
     #   fi
-    #   echo Rscript $SCRIPT_PATH"gwas_enrichment_maurano_test_region_only.R" -t $gwas_pruned -l $gwas_expanded -n $analysis_name  -o $ANALYSIS_PATH -r $file -u 200 | qsub -N prune_hap -V -e $SCRIPT_PATH"script.err" -o $SCRIPT_PATH"script.out" -wd /srv/scratch # nandi 
+    # #   echo Rscript $SCRIPT_PATH"gwas_enrichment_maurano_test_region_only.R" -t $gwas_pruned -l $gwas_expanded -n $analysis_name  -o $ANALYSIS_PATH -r $file -u 200 | qsub -N prune_hap -V -e $SCRIPT_PATH"script.err" -o $SCRIPT_PATH"script.out" -wd /srv/scratch # nandi 
+    #   echo Rscript $SCRIPT_PATH"get_regions_overlapping_gwas.R" -g $gwas_pruned -l $gwas_expanded -n $analysis_name  -o $ANALYSIS_PATH  -r $file -t 1e-5 | qsub -N prune_hap -V -e $SCRIPT_PATH"script.err" -o $SCRIPT_PATH"script.out" -wd /srv/scratch # nandi 
     #   echo $cell_type
-    # done
+    #  done
     ### Enrichment for all peaks decreasing in accessibility
     for file in $(ls $PEAK_PATH*_peaks_down.bed);
     do
@@ -59,7 +61,8 @@ do
       if [ ! -d $ANALYSIS_PATH ]; then
         mkdir $ANALYSIS_PATH
       fi
-      echo Rscript $SCRIPT_PATH"gwas_enrichment_maurano_test_region_only.R" -t $gwas_pruned -l $gwas_expanded -n $analysis_name  -o $ANALYSIS_PATH -r $file -u 200 | qsub -N prune_hap -V -e $SCRIPT_PATH"script.err" -o $SCRIPT_PATH"script.out" -wd /srv/scratch # nandi 
+      # echo Rscript $SCRIPT_PATH"gwas_enrichment_maurano_test_region_only.R" -t $gwas_pruned -l $gwas_expanded -n $analysis_name  -o $ANALYSIS_PATH -r $file -u 200 | qsub -N prune_hap -V -e $SCRIPT_PATH"script.err" -o $SCRIPT_PATH"script.out" -wd /srv/scratch # nandi 
+      echo Rscript $SCRIPT_PATH"get_regions_overlapping_gwas.R" -g $gwas_pruned -l $gwas_expanded -n $analysis_name  -o $ANALYSIS_PATH  -r $file -t 1e-5 | qsub -N prune_hap -V -e $SCRIPT_PATH"script.err" -o $SCRIPT_PATH"script.out" -wd /srv/scratch # nandi 
       echo $cell_type
     done
   done
