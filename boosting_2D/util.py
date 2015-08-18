@@ -93,6 +93,7 @@ def calc_margin(y, pred_test):
 ### Matrix Operations
 ##########################################
 
+# Element-wise  multiplication
 def element_mult(matrix1, matrix2):
     if isinstance(matrix1, csr.csr_matrix) and isinstance(matrix2, csr.csr_matrix):
         return matrix1.multiply(matrix2)
@@ -101,6 +102,7 @@ def element_mult(matrix1, matrix2):
     else:
         assert False, "Inconsistent matrix formats '%s' '%s'" % (type(matrix1), type(matrix2))
 
+# Matrix multiplication
 def matrix_mult(matrix1, matrix2):
     if isinstance(matrix1, csr.csr_matrix) and isinstance(matrix2, csr.csr_matrix):
         return matrix1.dot(matrix2)
@@ -108,6 +110,16 @@ def matrix_mult(matrix1, matrix2):
         return np.dot(matrix1, matrix2)
     else:
         assert False, "Inconsistent matrix formats '%s' '%s'" % (type(matrix1), type(matrix2))
+
+# Convert type of matrix1 to match matrix2 if mismatch is between sparse and numpy array
+def convert_type_to_match(matrix1, matrix2):
+    if type(matrix1) == type(matrix2):
+        return matrix1
+    elif isinstance(matrix1,csr_matrix) and isinstance(matrix2, np.ndarray):
+        matrix1_new = matrix1.toarray()
+    elif isinstance(matrix1,np.ndarray) and isinstance(matrix2, csr_matrix):
+        matrix1_new = csr_matrix(matrix1)
+    return matrix1_new
 
 ### Randomization Functions
 ##########################################

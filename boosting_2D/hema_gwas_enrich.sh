@@ -34,21 +34,21 @@ do
     #   echo $cell_type
     # done
     ## Enrichment for all peaks increasing in accessibility
-    # for file in $(ls $PEAK_PATH*_peaks_up.bed);
-    # do
-    #   gwas_name0=$(basename $gwas_pruned)
-    #   gwas_name=${gwas_name0/_pruned_rsq_0.8.bed/}
-    #   cell_type0=$(basename $file)
-    #   cell_type=${cell_type0/_peaks_up.bed/} # If running variable regions
-    #   analysis_name=$database"_"$gwas_name"_"$cell_type"_peaks_up"
-    #   ANALYSIS_PATH=$RESULT_PATH$database"_"$gwas_name"/"
-    #   if [ ! -d $ANALYSIS_PATH ]; then
-    #     mkdir $ANALYSIS_PATH
-    #   fi
-    # #   echo Rscript $SCRIPT_PATH"gwas_enrichment_maurano_test_region_only.R" -t $gwas_pruned -l $gwas_expanded -n $analysis_name  -o $ANALYSIS_PATH -r $file -u 200 | qsub -N prune_hap -V -e $SCRIPT_PATH"script.err" -o $SCRIPT_PATH"script.out" -wd /srv/scratch # nandi 
-    #   echo Rscript $SCRIPT_PATH"get_regions_overlapping_gwas.R" -g $gwas_pruned -l $gwas_expanded -n $analysis_name  -o $ANALYSIS_PATH  -r $file -t 1e-5 | qsub -N prune_hap -V -e $SCRIPT_PATH"script.err" -o $SCRIPT_PATH"script.out" -wd /srv/scratch # nandi 
-    #   echo $cell_type
-    #  done
+    for file in $(ls $PEAK_PATH*_peaks_up.bed);
+    do
+      gwas_name0=$(basename $gwas_pruned)
+      gwas_name=${gwas_name0/_pruned_rsq_0.8.bed/}
+      cell_type0=$(basename $file)
+      cell_type=${cell_type0/_peaks_up.bed/} # If running variable regions
+      analysis_name=$database"_"$gwas_name"_"$cell_type"_peaks_up"
+      ANALYSIS_PATH=$RESULT_PATH$database"_"$gwas_name"/"
+      if [ ! -d $ANALYSIS_PATH ]; then
+        mkdir $ANALYSIS_PATH
+      fi
+    #   echo Rscript $SCRIPT_PATH"gwas_enrichment_maurano_test_region_only.R" -t $gwas_pruned -l $gwas_expanded -n $analysis_name  -o $ANALYSIS_PATH -r $file -u 200 | qsub -N prune_hap -V -e $SCRIPT_PATH"script.err" -o $SCRIPT_PATH"script.out" -wd /srv/scratch # nandi 
+      echo Rscript $SCRIPT_PATH"get_regions_overlapping_gwas.R" -g $gwas_pruned -l $gwas_expanded -n $analysis_name  -o $ANALYSIS_PATH  -r $file -t 1e-5 | qsub -N prune_hap -V -e $SCRIPT_PATH"script.err" -o $SCRIPT_PATH"script.out" -wd /srv/scratch # nandi 
+      echo $cell_type
+     done
     ### Enrichment for all peaks decreasing in accessibility
     for file in $(ls $PEAK_PATH*_peaks_down.bed);
     do
@@ -173,6 +173,23 @@ done
 
 
 
+### Giant matrix of peak by GWAS
+##########################################################################################
+
+
+# Make file
+intersect_file=$NONRANK_PATH"by_disease/"$dis"_cell_type_results.txt"
+if [ -f $intersect_file ]; then
+  rm $intersect_file
+fi
+
+# Get headers
+
+# 
+for gwas in all_gwas;
+do
+
+done
 
 
 
