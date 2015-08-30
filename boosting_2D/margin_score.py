@@ -239,7 +239,7 @@ def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
     # print rule_index_fraction
     return [node, x1_feat_name, x1_bundle_string, x2_feat_name, x2_bundle_string, margin_score, margin_score_norm, rule_index_fraction, direction]
 
-## Calculate margin score for each individual node
+## Calculate margin score for a given path
 def calc_margin_score_path(tree, y, x1, x2, index_mat, node):
     # Prediction of more or less accessible at the end of the path
     direction = np.sign(tree.scores[node])
@@ -247,14 +247,17 @@ def calc_margin_score_path(tree, y, x1, x2, index_mat, node):
     # All rules where the node is not above it or the node itself except root
     nodes_in_path = [el for el in [node]+tree.above_nodes[node] if el !=0]
 
-    # Get Prediction Matrix
+    # Index of examples going to end of path
+    path_index = tree.ind_pred_train[node]
+
+    # Get Prediction Matrix (remove score of all nodes in path for just the index of rules that get to end of path)
     pred_adj = tree.pred_train
     for rule in nodes_in_path:
-        pred_adj = pred_adj - tree.scores[rule]*tree.ind_pred_train[rule]
+        pred_adj = pred_adj - tree.scores[rule]*path_index
     margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
     margin_score_norm = margin_score/index_mat.sum()
 
-    ### Chosen node and all nodes added below 
+    ### Chosen node and all nodes above in path 
     rule_index_mat = tree.ind_pred_train[nodes_in_path[0]]
     for n in nodes_in_path:
         rule_index_mat = rule_index_mat + tree.ind_pred_train[n]
