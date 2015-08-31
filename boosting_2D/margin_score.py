@@ -32,7 +32,7 @@ def calc_margin_score_x1_wrapper(args):
     return calc_margin_score_x1(*args)
 
 # calc margin_score for x1 features
-def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
+def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index, by_example=False):
     # from IPython import embed; embed()
     x1_feat_name = x1.row_labels[x1_feat_index]
     # All rules where x1 is in split or bundled
@@ -70,7 +70,13 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index):
     # time.time()
     # pred_adj -= np.sum([tree.scores[rule]*tree.ind_pred_train[rule] for rule in rules_w_x1_feat])
     # time.time()
-    margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+    if by_example==True:
+        margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat)
+        margin_score_array = margin_score.toarray().flatten() if y.sparse else margin_score.flatten()
+        return margin_score_array
+    else:
+        margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+
     margin_score_norm = margin_score/index_mat.sum()
 
     # Get all rules where x1 feat is above or in rule or bundle
@@ -97,7 +103,7 @@ def calc_margin_score_x2_wrapper(args):
     return calc_margin_score_x2(*args)
 
 # calc_margin_score_x2(tree, y, x1, x2, csr_matrix(np.ones((y.num_row, y.num_col))), 'YDR085C')
-def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index):
+def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index, by_example=False):
     x2_feat_name = x2.col_labels[x2_feat_index]
     # All rules where x1 is in split or bundled
     x2_feat_nodes = [el for el in xrange(tree.nsplit) 
@@ -123,7 +129,13 @@ def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index):
     pred_adj = tree.pred_train
     for rule in rules_w_x2_feat:
         pred_adj = pred_adj - tree.scores[rule]*tree.ind_pred_train[rule]
-    margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+
+    if by_example==True:
+        margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat)
+        margin_score_array = margin_score.toarray().flatten() if y.sparse else margin_score.flatten()
+        return margin_score_array
+    else:
+        margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
     margin_score_norm = margin_score/index_mat.sum()
 
     # Get all rules where x1 feat is above or in rule or bundle
@@ -143,7 +155,7 @@ def calc_margin_score_rule_wrapper(args):
     return calc_margin_score_rule(*args)
 
 ### CALCULATE MARGIN SCORE BY ANY JOINT APPEARANCE OF MOTIF-REGULATOR (MULTIPLE NODES)
-def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_index):
+def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_index, by_example=False):
     # Feature names
     x1_feat_name = x1.row_labels[x1_feat_index]
     x2_feat_name = x2.col_labels[x2_feat_index]
@@ -166,7 +178,13 @@ def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_in
     pred_adj = tree.pred_train
     for rule in pair_rules:
         pred_adj = pred_adj - tree.scores[rule]*tree.ind_pred_train[rule]
-    margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+
+    if by_example==True:
+        margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat)
+        margin_score_array = margin_score.toarray().flatten() if y.sparse else margin_score.flatten()
+        return margin_score_array
+    else:
+        margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
     margin_score_norm = margin_score/index_mat.sum()
 
     ### If considering specific rule only (rule with both motif and reg, but any node that is it as first split or bundle)
@@ -198,7 +216,7 @@ def calc_margin_score_node_wrapper(args):
     return calc_margin_score_node(*args)
 
 ## Calculate margin score for each individual node
-def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
+def calc_margin_score_node(tree, y, x1, x2, index_mat, node, by_example=True):
     # Feature names
     x1_feat_index = tree.split_x1[node]
     x2_feat_index = tree.split_x2[node]
@@ -219,7 +237,13 @@ def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
     pred_adj = tree.pred_train
     for rule in subtract_rules:
         pred_adj = pred_adj - tree.scores[rule]*tree.ind_pred_train[rule]
-    margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+
+    if by_example==True:
+        margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat)
+        margin_score_array = margin_score.toarray().flatten() if y.sparse else margin_score.flatten()
+        return margin_score_array
+    else:
+        margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
     margin_score_norm = margin_score/index_mat.sum()
 
     ### Chosen node and all nodes added below 
@@ -240,7 +264,7 @@ def calc_margin_score_node(tree, y, x1, x2, index_mat, node):
     return [node, x1_feat_name, x1_bundle_string, x2_feat_name, x2_bundle_string, margin_score, margin_score_norm, rule_index_fraction, direction]
 
 ## Calculate margin score for a given path
-def calc_margin_score_path(tree, y, x1, x2, index_mat, node):
+def calc_margin_score_path(tree, y, x1, x2, index_mat, node, by_example=False):
     # Prediction of more or less accessible at the end of the path
     direction = np.sign(tree.scores[node])
 
@@ -254,7 +278,13 @@ def calc_margin_score_path(tree, y, x1, x2, index_mat, node):
     pred_adj = tree.pred_train
     for rule in nodes_in_path:
         pred_adj = pred_adj - tree.scores[rule]*path_index
-    margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
+ 
+    if by_example==True:
+        margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat)
+        margin_score_array = margin_score.toarray().flatten() if y.sparse else margin_score.flatten()
+        return margin_score_array
+    else:
+        margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
     margin_score_norm = margin_score/index_mat.sum()
 
     ### Chosen node and all nodes above in path 

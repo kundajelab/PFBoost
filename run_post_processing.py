@@ -108,6 +108,10 @@ def main():
     execfile(PARAMS.model_path, {}, locals_dict)
     globals().update(locals_dict)
 
+    # Stop
+    from IPython import embed; embed()
+    # pdb.set_trace()
+    
     ### Run margin score
     if PARAMS.run_margin_score:
 
