@@ -46,8 +46,8 @@ def parse_args():
                         help='path to write the results to', 
                         default='/users/pgreens/projects/boosting/results/')
 
-    parser.add_argument('--input-format', help='options are: matrix, triplet')
-    parser.add_argument('--mult-format', help='options are: dense, sparse')
+    parser.add_argument('--input-format', help='options are: matrix, triplet', default='matrix')
+    parser.add_argument('--mult-format', help='options are: dense, sparse', default='sparse')
 
     parser.add_argument('-y', '--target-file', 
                         help='target matrix - dimensionality GxE')
@@ -58,19 +58,19 @@ def parse_args():
 
     parser.add_argument('-x', '--motifs-file', 
                         help='x1 features - dimensionality MxG')
-    parser.add_argument('-m', '--m-col-labels', 
+    parser.add_argument('-m', '--m-row-labels', 
                         help='column labels for x1 matrix (dimension M)')
 
     parser.add_argument('-z', '--regulators-file', 
                         help='x2 features - dimensionality ExR')
-    parser.add_argument('-r', '--r-row-labels', 
+    parser.add_argument('-r', '--r-col-labels', 
                         help='row labels for x2 matrix (dimension R)')
 
     parser.add_argument('-n', '--num-iter', 
                         help='Number of iterations', default=500, type=int)
 
-    parser.add_argument('--eta1', help='stabilization threshold 1', type=float)
-    parser.add_argument('--eta2', help='stabilization threshold 2', type=float)
+    parser.add_argument('--eta1', help='stabilization threshold 1', type=float, default=0.05)
+    parser.add_argument('--eta2', help='stabilization threshold 2', type=float, default=0.01)
 
     parser.add_argument('--stumps', 
                         help='specify to do stumps instead of adt', 
@@ -102,13 +102,13 @@ def parse_args():
     
 
     parser.add_argument('--ncpu', 
-                        help='number of cores to run on', type=int)
+                        help='number of cores to run on', type=int, default=1)
 
     parser.add_argument('--holdout-file', 
                         help='Specify holdout matrix, same as y dimensions', default=None)
     parser.add_argument('--holdout-format', 
-                        help='format for holdout matrix', 
-                        default=None)
+                        help='(matrix or triplet) format for holdout matrix', 
+                        default='matrix')
 
     parser.add_argument('--compress-regulators', 
                         help='combine regulators with same pattern across conditions', 
@@ -137,7 +137,7 @@ def parse_args():
 
     log('load x1 start')
     x1 = Motifs(args.motifs_file, 
-                args.m_col_labels,
+                args.m_row_labels,
                 args.target_row_labels, 
                 args.input_format,
                 args.mult_format)
@@ -146,7 +146,7 @@ def parse_args():
     log('load x2 start')
     x2 = Regulators(args.regulators_file, 
                     args.target_col_labels,
-                    args.r_row_labels, 
+                    args.r_col_labels, 
                     args.input_format,
                     args.mult_format)
     log('load x2 stop')
