@@ -176,7 +176,9 @@ def compress_regulators(x2_obj):
     new_data = regroup_data_by_clusters(data, clusters)
     new_labels = regroup_labels_by_clusters(labels, clusters)
     x2_obj.data = csr_matrix(new_data.T) if x2_obj.sparse else new_data.T
-    x2_obj.col_labels = new_labels
+    x2_obj.col_labels = np.array(new_labels)
+    x2_obj.num_row = x2_obj.data.shape[0]
+    x2_obj.num_col = x2_obj.data.shape[1]
     return(x2_obj)
 
 # x2_obj = copy.deepcopy(x2)

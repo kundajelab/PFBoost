@@ -99,6 +99,29 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index, by_example=F
     # print rule_index_fraction
     return [x1_feat_name, x1_bundle_string, margin_score, margin_score_norm, rule_index_fraction]
 
+def calc_margin_score_x1_worker(tree, y, x1, x2, index_mat, (lock, index_cntr, motif_matrix)):
+
+    while True:
+        # get the motif index to work on
+        with index_cntr.get_lock():
+            index = index_cntr.value
+            index_cntr.value += 1
+        
+        # if this isn't a valid motif, then we are done
+        if index >= len(x1.row_labels): 
+            return
+
+        # calculate the loss for this leaf  
+        b = calc_margin_score_x1(
+            tree, y, x1, x2, index_mat,
+             x1_feat_index=index, by_example=True).reshape(
+             (1,  y.data.shape[0]*y.data.shape[1]))
+        
+        # add the margin score  (PROBLEM- ask natahn)
+        with lock:
+            motif_matrix[np.where(b!=0),index]=b[b!=0]    
+    return
+
 def calc_margin_score_x2_wrapper(args):
     return calc_margin_score_x2(*args)
 
