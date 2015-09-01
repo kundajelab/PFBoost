@@ -168,7 +168,7 @@ def regroup_labels_by_clusters(labels, clusters):
         new_labels[clust-1]=new_label
     return(new_labels)
 
-# Re=cast x2 object with compressed regulator data and labels
+# Re-cast x2 object with compressed regulator data and labels
 def compress_regulators(x2_obj):
     data = x2_obj.data.toarray().T if x2_obj.sparse else x2_obj.data.T
     labels = x2_obj.col_labels
@@ -180,6 +180,19 @@ def compress_regulators(x2_obj):
     x2_obj.num_row = x2_obj.data.shape[0]
     x2_obj.num_col = x2_obj.data.shape[1]
     return(x2_obj)
+
+# Re-cast x1 object with compressed regulator data and labels
+# def compress_motifs(x1_obj):
+#     data = x2_obj.data.toarray().T if x2_obj.sparse else x2_obj.data.T
+#     labels = x2_obj.col_labels
+#     clusters = get_data_clusters(data, max_distance=0)
+#     new_data = regroup_data_by_clusters(data, clusters)
+#     new_labels = regroup_labels_by_clusters(labels, clusters)
+#     x2_obj.data = csr_matrix(new_data.T) if x2_obj.sparse else new_data.T
+#     x2_obj.col_labels = np.array(new_labels)
+#     x2_obj.num_row = x2_obj.data.shape[0]
+#     x2_obj.num_col = x2_obj.data.shape[1]
+#     return(x2_obj)
 
 # x2_obj = copy.deepcopy(x2)
 # new_x2_obj = util.compress_regulators(x2_obj)

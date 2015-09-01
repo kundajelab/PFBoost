@@ -101,9 +101,6 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index, by_example=F
 
 def calc_margin_score_x1_worker(tree, y, x1, x2, index_mat, (lock, index_cntr, motif_matrix)):
 
-
-    pdb.set_trace()
-    
     while True:
         # get the motif index to work on
         with index_cntr.get_lock():
@@ -114,15 +111,21 @@ def calc_margin_score_x1_worker(tree, y, x1, x2, index_mat, (lock, index_cntr, m
         if index >= len(x1.row_labels): 
             return
 
-        # calculate the loss for this leaf  
+        # calculate the margin score for this node  
         b = calc_margin_score_x1(
             tree, y, x1, x2, index_mat,
              x1_feat_index=index, by_example=True).reshape(
              (1,  y.data.shape[0]*y.data.shape[1]))
         
-        # add the margin score  (PROBLEM- ask natahn)
+        # add the margin score
         with lock:
-            motif_matrix[np.where(b!=0),index]=b[b!=0]    
+            new_y = x1.num_row
+            new_x = len(motif_matrix)/new_y
+            new_matrix = np.frombuffer(motif_matrix.get_obj()).reshape(
+            (new_x, new_y)) # reshapes view of data, not true data object
+            new_matrix[np.where(b!=0),index]=b[b!=0]  
+            print index
+            # motif_matrix[np.where(b!=0),index]=b[b!=0]    
     return
 
 def calc_margin_score_x2_wrapper(args):
@@ -179,6 +182,35 @@ def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index, by_example=F
 
 def calc_margin_score_rule_wrapper(args):
     return calc_margin_score_rule(*args)
+
+### Multiprocessing worker
+def calc_margin_score_x2_worker(tree, y, x1, x2, index_mat, (lock, index_cntr, reg_matrix)):
+
+    while True:
+        # get the motif index to work on
+        with index_cntr.get_lock():
+            index = index_cntr.value
+            index_cntr.value += 1
+        
+        # if this isn't a valid motif, then we are done
+        if index >= len(x2.col_labels): 
+            return
+
+        # calculate the margin score for this node  
+        b = calc_margin_score_x2(
+            tree, y, x1, x2, index_mat,
+             x2_feat_index=index, by_example=True).reshape(
+             (1,  y.data.shape[0]*y.data.shape[1]))
+        
+        # add the margin score
+        with lock:
+            new_y = x2.num_col
+            new_x = len(reg_matrix)/new_y
+            new_matrix = np.frombuffer(reg_matrix.get_obj()).reshape(
+            (new_x, new_y)) # reshapes view of data, not true data object
+            new_matrix[np.where(b!=0),index]=b[b!=0]  
+            print index
+    return
 
 ### CALCULATE MARGIN SCORE BY ANY JOINT APPEARANCE OF MOTIF-REGULATOR (MULTIPLE NODES)
 def calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat_index, x2_feat_index, by_example=False):
@@ -289,6 +321,34 @@ def calc_margin_score_node(tree, y, x1, x2, index_mat, node, by_example=True):
     # print rule_index_fraction
     return [node, x1_feat_name, x1_bundle_string, x2_feat_name, x2_bundle_string, margin_score, margin_score_norm, rule_index_fraction, direction]
 
+### Multiprocessing worker
+def calc_margin_score_node_worker(tree, y, x1, x2, index_mat, (lock, index_cntr, node_matrix)):
+
+    while True:
+        # get the motif index to work on
+        with index_cntr.get_lock():
+            index = index_cntr.value
+            index_cntr.value += 1
+        # if this isn't a valid motif, then we are done
+        if index >= len(tree.nsplit): 
+            return
+
+        # calculate the margin score for this node  
+        b = calc_margin_score_node(
+            tree, y, x1, x2, index_mat,
+             node=index, by_example=True).reshape(
+             (1,  y.data.shape[0]*y.data.shape[1]))
+        
+        # add the margin score
+        with lock:
+            new_y = tree.nsplit
+            new_x = len(node_matrix)/new_y
+            new_matrix = np.frombuffer(node_matrix.get_obj()).reshape(
+            (new_x, new_y)) # reshapes view of data, not true data object
+            new_matrix[np.where(b!=0),index]=b[b!=0]  
+            print index
+    return
+
 ## Calculate margin score for a given path
 def calc_margin_score_path(tree, y, x1, x2, index_mat, node, by_example=False):
     # Prediction of more or less accessible at the end of the path
@@ -332,6 +392,35 @@ def calc_margin_score_path(tree, y, x1, x2, index_mat, node, by_example=False):
 
     # print rule_index_fraction
     return [node, path_string, len(nodes_in_path), margin_score, margin_score_norm, rule_index_fraction, direction]
+
+### Multiprocessing worker
+def calc_margin_score_path_worker(tree, y, x1, x2, index_mat, (lock, index_cntr, path_matrix)):
+
+    while True:
+        # get the motif index to work on
+        with index_cntr.get_lock():
+            index = index_cntr.value
+            index_cntr.value += 1
+        # if this isn't a valid motif, then we are done
+        if index >= len(tree.nsplit): 
+            return
+
+        # calculate the margin score for this node  
+        b = calc_margin_score_path(
+            tree, y, x1, x2, index_mat,
+             node=index, by_example=True).reshape(
+             (1,  y.data.shape[0]*y.data.shape[1]))
+        
+        # add the margin score
+        with lock:
+            new_y = tree.nsplit
+            new_x = len(path_matrix)/new_y
+            new_matrix = np.frombuffer(path_matrix.get_obj()).reshape(
+            (new_x, new_y)) # reshapes view of data, not true data object
+            new_matrix[np.where(b!=0),index]=b[b!=0]  
+            print index
+    return
+
 
 def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
     assert method in ('x1', 'x2', 'x1_and_x2', 'node', 'path')
