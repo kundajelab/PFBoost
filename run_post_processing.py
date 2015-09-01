@@ -109,7 +109,7 @@ def main():
     globals().update(locals_dict)
 
     # Stop
-    from IPython import embed; embed()
+    # from IPython import embed; embed()
     # pdb.set_trace()
     
     ### Run margin score

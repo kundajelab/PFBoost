@@ -101,6 +101,9 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index, by_example=F
 
 def calc_margin_score_x1_worker(tree, y, x1, x2, index_mat, (lock, index_cntr, motif_matrix)):
 
+
+    pdb.set_trace()
+    
     while True:
         # get the motif index to work on
         with index_cntr.get_lock():
