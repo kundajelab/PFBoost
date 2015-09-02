@@ -137,6 +137,13 @@ def main():
             index_mat_dict['enh_down'] = util.element_mult(index_mat_enh, y.data==-1)
             index_mat_dict['prom_up'] = util.element_mult(index_mat_prom, y.data==1)
             index_mat_dict['prom_down'] = util.element_mult(index_mat_prom, y.data==-1)
+            # Return error if enh matrix is empty
+            if index_mat_dict['enh_up'].sum()==0 or index_mat_dict['enh_down'].sum()==0:
+                print "No enhancers found - empty index matrix. Try without separating enh/prom."
+                return 0
+            if index_mat_dict['prom_up'].sum()==0 or index_mat_dict['prom_down'].sum()==0:
+                print "No promoters found - empty index matrix. Try without separating enh/prom."
+                return 0
 
         # Create a pool to calculate all margin scores efficiently
         # pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
