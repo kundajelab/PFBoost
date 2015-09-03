@@ -4,7 +4,7 @@ python /users/pgreens/git/boosting_2D/run_post_processing.py --model-path $RESUL
 
 ### Calculate margin score on whole matrix (1000iter model)
 RESULT_PATH=/srv/persistent/pgreens/projects/boosting/results/
-python /users/pgreens/git/boosting_2D/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --run-margin-score --num-perm 20 --split-prom-enh-dist 0 --margin-score-methods path
+python /users/pgreens/git/boosting_2D/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --run-margin-score --num-perm 20 --split-prom-enh-dist 0 --margin-score-methods x2
 
 ### Calculate margin score with subset of data
 RESULT_PATH=/srv/persistent/pgreens/projects/boosting/results/

@@ -146,8 +146,7 @@ def main():
                 return 0
 
         # Create a pool to calculate all margin scores efficiently
-        # pool = multiprocessing.Pool(processes=config.NCPU) # create pool of processes
-        pool='serial'
+        pool='serial' # REMOVE
 
         # Iterate through all methods and index matrices
         for method in PARAMS.margin_score_methods:
@@ -155,11 +154,6 @@ def main():
                 margin_score.call_rank_by_margin_score(index_mat_dict[key], key, method, PARAMS.margin_score_prefix,
                 y, x1, x2, tree, pool,
                 num_perm=PARAMS.num_perm, null_tree_file=PARAMS.null_tree_model)
-
-        # Close pool
-        if pool!='serial':
-            pool.join()
-            pool.close()
 
         print 'DONE: margin scores in {0}{1}/margin_scores/'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
 

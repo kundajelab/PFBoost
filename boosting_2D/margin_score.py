@@ -86,11 +86,10 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index, by_example=F
         rule_index_mat = (rule_index_mat>0)
         # Index where x1 feat is used and examples of interest
         if type(index_mat) != type(rule_index_mat):
+            print "index matrix and rule matrix are not the same type"
             pdb.set_trace()
         rule_index_joint = util.element_mult(index_mat, rule_index_mat)
         # Fraction of examples of interest where x1 feat used
-        if index_mat.sum()==0:
-            pdb.set_trace()
         rule_index_fraction = float(rule_index_joint.sum())/index_mat.sum()
     else:
         rule_index_fraction=0
@@ -128,9 +127,10 @@ def calc_margin_score_x1_worker(tree, y, x1, x2, index_mat, by_example, (lock, i
             b = calc_margin_score_x1(
                 tree, y, x1, x2, index_mat,
                  x1_feat_index=index, by_example=False)
-            print b
             with lock:
                 matrix_or_list.put(b)
+                if index == len(x1.row_labels)-1:
+                    time.sleep(1)
                 print index
     return
 
@@ -183,12 +183,11 @@ def calc_margin_score_x2(tree, y, x1, x2, index_mat, x2_feat_index, by_example=F
         # Index where x1 feat is used and examples of interest
         rule_index_joint = util.element_mult(index_mat, rule_index_mat)
         # Fraction of examples of interest where x1 feat used
-        if index_mat.sum()==0:
-            pdb.set_trace()
         rule_index_fraction = float(rule_index_joint.sum())/index_mat.sum()
     else:
         rule_index_fraction=0
     # print rule_index_fraction
+
     return [x2_feat_name, x2_bundle_string, margin_score, margin_score_norm, rule_index_fraction]
 
 def calc_margin_score_rule_wrapper(args):
@@ -228,6 +227,8 @@ def calc_margin_score_x2_worker(tree, y, x1, x2, index_mat, by_example, (lock, i
                  x2_feat_index=index, by_example=False)
             with lock:
                 matrix_or_list.put(b)
+                if index > len(x2.col_labels)-config.NCPU:
+                    time.sleep(1)
                 print index
     return
 
@@ -348,7 +349,8 @@ def calc_margin_score_node(tree, y, x1, x2, index_mat, node, by_example=True):
 
 
 ### Multiprocessing worker
-def calc_margin_score_node_worker(tree, y, x1, x2, index_mat, by_example, (lock, index_cntr, matrix_or_list)):
+def calc_margin_score_node_worker(tree, y, x1, x2, index_mat, by_example,
+     (lock, index_cntr, matrix_or_list)):
 
     while True:
         # get the motif index to work on
@@ -356,7 +358,7 @@ def calc_margin_score_node_worker(tree, y, x1, x2, index_mat, by_example, (lock,
             index = index_cntr.value
             index_cntr.value += 1
         # if this isn't a valid motif, then we are done
-        if index >= len(tree.nsplit): 
+        if index >= tree.nsplit: 
             return
 
         # calculate the margin score for this node  
@@ -381,6 +383,8 @@ def calc_margin_score_node_worker(tree, y, x1, x2, index_mat, by_example, (lock,
                  node=index, by_example=False)
             with lock:
                 matrix_or_list.put(b)
+                if index == tree.nsplit-config.NCPU:
+                    time.sleep(1)
                 print index
     return
 
@@ -429,7 +433,8 @@ def calc_margin_score_path(tree, y, x1, x2, index_mat, node, by_example=False):
     return [node, path_string, len(nodes_in_path), margin_score, margin_score_norm, rule_index_fraction, direction]
 
 ### Multiprocessing worker
-def calc_margin_score_path_worker(tree, y, x1, x2, index_mat, by_example, (lock, index_cntr, matrix_or_list)):
+def calc_margin_score_path_worker(tree, y, x1, x2, index_mat, by_example, 
+    (lock, index_cntr, matrix_or_list)):
 
     while True:
         # get the motif index to work on
@@ -437,7 +442,7 @@ def calc_margin_score_path_worker(tree, y, x1, x2, index_mat, by_example, (lock,
             index = index_cntr.value
             index_cntr.value += 1
         # if this isn't a valid motif, then we are done
-        if index >= len(tree.nsplit): 
+        if index >= tree.nsplit: 
             return
 
         # calculate the margin score for this node  
@@ -459,10 +464,11 @@ def calc_margin_score_path_worker(tree, y, x1, x2, index_mat, by_example, (lock,
         elif by_example==False:
             b = calc_margin_score_path(
                 tree, y, x1, x2, index_mat,
-                 node=index, by_example=True)
-            print b
+                 node=index, by_example=False)
             with lock:
                 matrix_or_list.put(b)
+                if index == tree.nsplit-1:
+                    time.sleep(1)
                 print index
     return
 
@@ -482,7 +488,8 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         #     rule_processes.append(result)
         ### PARALLEL version
         lock = multiprocessing.Lock()
-        rule_processes_mp = multiprocessing.queues.SimpleQueue()
+        # rule_processes_mp = multiprocessing.queues.Queue(x1.num_row)
+        rule_processes_mp = multiprocessing.Queue(x1.num_row)
         index_cntr = multiprocessing.Value('i', 0)
         args = [tree, y, x1, x2, index_mat, False, (lock, index_cntr, rule_processes_mp)]
         fork_and_wait(config.NCPU, calc_margin_score_x1_worker, args)
@@ -496,7 +503,6 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
             'margin_score_norm':[el[3] for el in rule_processes], \
             'rule_index_fraction':[el[4] for el in rule_processes]}).sort(
             columns=['margin_score'], ascending=False)
-        pdb.set_trace()
 
 
     # Rank x2 features only
@@ -511,8 +517,10 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         #     result=calc_margin_score_x2(tree, y, x1, x2, index_mat, feat)
         #     rule_processes.append(result)
         # PARALLEL VERSION
+        config.NCPU=4
         lock = multiprocessing.Lock()
-        rule_processes_mp = multiprocessing.queues.SimpleQueue()
+        # rule_processes_mp = multiprocessing.queues.Queue(x2.num_col)
+        rule_processes_mp = multiprocessing.Queue(x2.num_col)
         index_cntr = multiprocessing.Value('i', 0)
         args = [tree, y, x1, x2, index_mat, False, (lock, index_cntr, rule_processes_mp)]
         fork_and_wait(config.NCPU, calc_margin_score_x2_worker, args)
@@ -526,6 +534,7 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
             'margin_score_norm':[el[3] for el in rule_processes], \
             'rule_index_fraction':[el[4] for el in rule_processes]}).sort(
             columns=['margin_score'], ascending=False)
+
     # Rank by rules 
     if method=='x1_and_x2':
         print 'computing margin score for x1_and_x2 jointly'
@@ -536,6 +545,7 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
                 [el for listy in tree.bundle_x2 for el in listy if el != 'root']
         # Serial version
         uniq_x1_x2_pairs = {d[1:]:d for d in zip(used_x1_feats, used_x2_feats)}
+        rule_processes_mp.close()
         rule_processes = []    
         for (x1_feat,x2_feat) in uniq_x1_x2_pairs.values():
             result=calc_margin_score_rule(tree, y, x1, x2, index_mat, x1_feat, x2_feat)
@@ -557,9 +567,11 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         #     result=calc_margin_score_node(tree, y, x1, x2, index_mat, node)
         #     rule_processes.append(result)
         # PARALLEL VERSION
+        # config.NCPU=4
         lock = multiprocessing.Lock()
-        rule_processes_mp = multiprocessing.queues.SimpleQueue()
-        index_cntr = multiprocessing.Value('i', 0)
+        # rule_processes_mp = multiprocessing.queues.Queue(tree.nsplit)
+        rule_processes_mp = multiprocessing.Queue(tree.nsplit)
+        index_cntr = multiprocessing.Value('i', 1)
         args = [tree, y, x1, x2, index_mat, False, (lock, index_cntr, rule_processes_mp)]
         fork_and_wait(config.NCPU, calc_margin_score_node_worker, args)
         rule_processes = []
@@ -577,6 +589,8 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
             'direction':[el[8] for el in rule_processes]}).sort(
             columns=['margin_score'], ascending=False)
     if method=='path':
+        # if pool=='blah':
+        #     pdb.set_trace()
         print 'computing margin score for path'
         ### SERIAL VERSION
         # rule_processes = []    
@@ -584,9 +598,11 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         #     result=calc_margin_score_path(tree, y, x1, x2, index_mat, node)
         #     rule_processes.append(result)
         ### PARALLEL VERSION
+        config.NCPU=4
         lock = multiprocessing.Lock()
-        rule_processes_mp = multiprocessing.queues.SimpleQueue()
-        index_cntr = multiprocessing.Value('i', 0)
+        # rule_processes_mp = multiprocessing.queues.Queue(tree.nsplit)
+        rule_processes_mp = multiprocessing.Queue(tree.nsplit)
+        index_cntr = multiprocessing.Value('i', 1)
         args = [tree, y, x1, x2, index_mat, False, (lock, index_cntr, rule_processes_mp)]
         fork_and_wait(config.NCPU, calc_margin_score_path_worker, args)
         rule_processes = []
@@ -605,7 +621,7 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
     # Return matrix
     return ranked_score_df
 
-    return [node, path_string, len(nodes_in_path), margin_score, margin_score_norm, rule_index_fraction, direction]
+    # return [node, path_string, len(nodes_in_path), margin_score, margin_score_norm, rule_index_fraction, direction]
 
 
 ###  FUNCTIONS TO GET INDEX
@@ -788,6 +804,7 @@ def calculate_null_margin_score_dist_by_shuffling_target(rank_score_df, index_ma
         for i in xrange(num_perm):
             # Permute rows and columns
             new_index=sample_values_from_data_class(y=y_null, index_mat=index_mat, method=method, value=y_value)
+            pool = 'blah'
             margin_score_dict['perm{0}'.format(i)]=rank_by_margin_score(tree, y_null, x1, x2, new_index, pool, method=method)
     else:
         assert False, "provide method in ['x1', 'x2', 'x1_and_x2', 'node', 'path']"
@@ -845,6 +862,7 @@ def calculate_null_margin_score_dist_from_NULL_tree(rank_score_df, index_mat, me
     # calculate p-values for each margin score 
     all_margin_scores_ranked = np.sort([el for df in margin_score_dict.values()
      for el in df.ix[:,'margin_score'].tolist()])
+    pdb.set_trace()
     print all_margin_scores_ranked
     pvalues = [float(sum(all_margin_scores_ranked>el))/len(all_margin_scores_ranked)
      for el in rank_score_df.ix[:,'margin_score'].tolist()]
