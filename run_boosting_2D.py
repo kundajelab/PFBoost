@@ -24,7 +24,7 @@ from boosting_2D.data_class import *
 from boosting_2D.find_rule import *
 from boosting_2D import stabilize
 from boosting_2D import prior
-from boosting_2D import write_load_data_script
+#from boosting_2D import write_load_data_script
 
 ### Open log files
 log = util.log
@@ -120,6 +120,9 @@ def parse_args():
                         help='flag to shuffle the contents of y matrix', 
                         action='store_true')
 
+    parser.add_argument('--boost_mode', 
+                        default='ADABOOST', help='loss function used in learning')
+
     # Parse arguments
     args = parser.parse_args()
 
@@ -161,7 +164,7 @@ def parse_args():
     holdout = Holdout(y, args.mult_format, args.holdout_file, args.holdout_format)
     log('load holdout stop')
 
-    # Configure tuning tarameters
+    # Configure tuning parameters
     config.TUNING_PARAMS = TuningParams(
         args.num_iter, 
         args.stumps, args.stable, args.corrected_loss,
@@ -191,6 +194,10 @@ def parse_args():
     config.NCPU = args.ncpu
     config.PLOT = args.plot
 
+    # Choose boost mode
+    config.BOOSTMODE = args.boost_mode
+    print config.BOOSTMODE
+
     return (x1, x2, y, holdout)
 
 
@@ -198,6 +205,8 @@ def parse_args():
 def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
     level='QUIET'
     ## Calculate loss at all search nodes
+
+    # THIS IS WHERE TO CHANGE PROCESS FOR MULTIPLE FEATURE SPACES
     log('find rule process', level=level)
     best_split, regulator_sign, loss_best = find_rule_processes(
         tree, holdout, y, x1, x2) 
@@ -214,6 +223,7 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
 
     # Get current rule, no stabilization
     log('get current rule', level=level)
+    # NOTE: rule train index
     (motif, regulator, regulator_sign, rule_train_index, rule_test_index 
      ) = get_current_rule(
          tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
@@ -268,7 +278,7 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
         # rule score is the direction and magnitude of the prediciton update
         # for the rule given by rule_weights and rule_train_index
         log('updating rule without stabilization', level=level)
-        rule_score = calc_score(tree, rule_weights, rule_train_index)
+        rule_score = calc_score(tree, rule_weights, rule_train_index, y)
         motif_bundle = []
         regulator_bundle = []
 
@@ -309,7 +319,7 @@ def main():
 
     ### Create tree object
     log('make tree start', level=level)
-    tree = DecisionTree(holdout, y, x1, x2)
+    tree = DecisionTree(holdout, y, x1, x2, config.BOOSTMODE)
     log('make tree stop', level=level)
 
     ### Main Loop
@@ -317,6 +327,7 @@ def main():
 
         log('iteration {0}'.format(i))
         
+        ### Find the next decision node with best loss
         log('find next node', level=level)
         (motif, regulator, best_split, 
          motif_bundle, regulator_bundle, 
@@ -345,7 +356,7 @@ def main():
     tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS, out_file=rule_file_name)
 
     ### Write out load data file
-    write_load_data_script.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name)
+#    write_load_data_script.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name)
 
     ### Make plots
     if config.PLOT:

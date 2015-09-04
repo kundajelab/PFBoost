@@ -23,14 +23,14 @@ ObjectStore = namedtuple("ObjectStore", [
     'w_zero_regup', 'w_zero_regdown',
     'w_pos', 'w_neg'])
 
-# Calc min loss with leaf training examples and current weights 
+# Calc min loss with leaf training examples and current weights
 def find_min_loss(tree, leaf_training_examples, holdout, y, x1, x2):
     # log('start find_leaf_and_min_loss')
     example_weights=tree.weights
     ones_mat=tree.ones_mat
     # log('start calc_min_leaf_loss')
     (best_loss, regulator_sign) = calc_min_leaf_loss(
-        leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2)
+        leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2, tree.pred_train) # Changed to accomodate logitboost
     # log('end calc_min_leaf_loss')
     return best_loss, regulator_sign
 
@@ -109,6 +109,8 @@ def find_rule_processes(tree, holdout, y, x1, x2):
     # the workers know what leaf to work on
     leaf_index_cntr = multiprocessing.Value('i', 0)
 
+    # THIS MAY BE THE PLACE TO SPLIT UP 3D MATRICES??
+
     # pack arguments for the worker processes
     args = [tree, holdout, y, x1, x2, leaf_index_cntr, (
             lock, best_loss, best_leaf, shared_best_loss_mat, best_loss_reg)]
@@ -121,23 +123,29 @@ def find_rule_processes(tree, holdout, y, x1, x2):
     best_loss_reg = int(best_loss_reg.value)
     # we convert the raw array into a numpy array
     best_loss_mat = np.reshape(np.array(shared_best_loss_mat), (nrow, ncol))
-    
+
     # Return rule_processes
     return (best_leaf, best_loss_reg, best_loss_mat)
 
 # Function - calc min loss with leaf training examples and current weights  
-def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2):
+def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2, pred_train, boostMode=config.BOOSTMODE):
     # log('start find_rule_weights')
-    rule_weights = find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2)
+    rule_weights = find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2) # returns nothing for logitboost but consider updating weights here
     # log('end find_rule_weights')
     
     ## Calculate Loss
     if config.TUNING_PARAMS.use_corrected_loss==True:
         loss_regup = util.corrected_loss(rule_weights.w_up_regup, rule_weights.w_down_regup, rule_weights.w_zero_regup)
         loss_regdown = util.corrected_loss(rule_weights.w_up_regdown, rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
+    elif boostMode == 'ADABOOST':
+        loss_regup = util.calc_loss_adaboost(rule_weights.w_up_regup, rule_weights.w_down_regup, rule_weights.w_zero_regup)
+        loss_regdown = util.calc_loss_adaboost(rule_weights.w_up_regdown, rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
+    elif boostMode == 'LOGITBOOST':
+        loss_regup = util.calc_loss_logitboost(x1, x2, y, holdout, example_weights, leaf_training_examples, pred_train, "up")
+        loss_regdown = util.calc_loss_logitboost(x1, x2, y, holdout, example_weights, leaf_training_examples, pred_train, "down")
     else:
-        loss_regup = util.calc_loss(rule_weights.w_up_regup, rule_weights.w_down_regup, rule_weights.w_zero_regup)
-        loss_regdown = util.calc_loss(rule_weights.w_up_regdown, rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
+        loss_regup = None
+        loss_regdown = None
 
     ## Get loss matrix and regulator status
     loss_best_s = np.min([loss_regup.min(), loss_regdown.min()])
@@ -151,47 +159,63 @@ def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdou
     return (loss, reg_s)
 
 # Get rule weights of positive and negative examples
-def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2):
+# DK NOTE: need to change this for logitboost. But no RULE weights for logitboost, only
+# example weights - so just set to 0 for logitboost
+# OR really the 'rule weights' are the working responses - but don't want to calculate them over and over?
+def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2, boostMode=config.BOOSTMODE):
     """
     Find rule weights, and return an object store containing them. 
 
     """
-    # log('find_rule_weights start')
-    w_temp = util.element_mult(example_weights, leaf_training_examples)
-    # log('weights element-wise')
-    w_pos = util.element_mult(w_temp, holdout.ind_train_up)
-    # log('weights element-wise')
-    w_neg = util.element_mult(w_temp, holdout.ind_train_down) 
-    # log('weights element-wise')
-    x2_pos = x2.element_mult(x2.data>0)
-    # log('x2 element-wise')
-    x2_neg = abs(x2.element_mult(x2.data<0))
-    # log('x2 element-wise')
-    x1wpos = x1.matrix_mult(w_pos)
-    # log('x1 weights dot')
-    x1wneg = x1.matrix_mult(w_neg)
-    # log('x1 weights dot')
-    w_up_regup = util.matrix_mult(x1wpos, x2_pos)
-    # log('x1w x2 dot')
-    w_up_regdown = util.matrix_mult(x1wpos, x2_neg)
-    # log('x1w x2 dot')
-    w_down_regup = util.matrix_mult(x1wneg, x2_pos)
-    # log('x1w x2 dot')
-    w_down_regdown = util.matrix_mult(x1wneg, x2_neg)
-    # log('x1w x2 dot')
-    w_zero_regup = ones_mat - w_up_regup - w_down_regup
-    # log('weights subtraction')
-    w_zero_regdown = ones_mat - w_up_regdown - w_down_regdown
-    # log('weights subtraction')
-    return ObjectStore(w_up_regup, w_up_regdown, 
-                       w_down_regup, w_down_regdown, 
-                       w_zero_regup, w_zero_regdown, 
-                       w_pos, w_neg) 
+    if boostMode == 'ADABOOST':
+        # log('find_rule_weights start')
+        w_temp = util.element_mult(example_weights, leaf_training_examples)
+        # log('weights element-wise')
+        w_pos = util.element_mult(w_temp, holdout.ind_train_up)
+        # log('weights element-wise')
+        w_neg = util.element_mult(w_temp, holdout.ind_train_down) 
+        # log('weights element-wise')
+        x2_pos = x2.element_mult(x2.data>0)
+        # log('x2 element-wise')
+        x2_neg = abs(x2.element_mult(x2.data<0))
+        # log('x2 element-wise')
+        x1wpos = x1.matrix_mult(w_pos)
+        # log('x1 weights dot')
+        x1wneg = x1.matrix_mult(w_neg)
+        # log('x1 weights dot')
+        w_up_regup = util.matrix_mult(x1wpos, x2_pos)
+        # log('x1w x2 dot')
+        w_up_regdown = util.matrix_mult(x1wpos, x2_neg)
+        # log('x1w x2 dot')
+        w_down_regup = util.matrix_mult(x1wneg, x2_pos)
+        # log('x1w x2 dot')
+        w_down_regdown = util.matrix_mult(x1wneg, x2_neg)
+        # log('x1w x2 dot')
+        w_zero_regup = ones_mat - w_up_regup - w_down_regup
+        # log('weights subtraction')
+        w_zero_regdown = ones_mat - w_up_regdown - w_down_regdown
+        # log('weights subtraction')
+        return ObjectStore(w_up_regup, w_up_regdown, 
+                           w_down_regup, w_down_regdown, 
+                           w_zero_regup, w_zero_regdown, 
+                           w_pos, w_neg) 
+    elif boostMode == 'LOGITBOOST':
+        # Consider calculating rule weights here
+        
+        # Calculate example probs
+        
+        # Calculate example weights
 
+        # Calculate rule weights
+
+
+        return None
+        
 
 # From the best split, get the current rule (motif, regulator, regulator sign and test/train indices)
 def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2):
     motif,regulator = np.where(loss_best == loss_best.min())
+
     # If multiple rules have the same loss, randomly select one
     if len(motif)>1:
         choice = random.sample(range(len(motif)), 1)
@@ -211,7 +235,7 @@ def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout, y, x1
     else:
         valid_m = np.nonzero(x1.data[motif,:])[0]
         valid_r = np.where(x2.data[:,regulator]==regulator_sign)[0]
- 
+
     ### Get joint motif-regulator index - training and testing
     if y.sparse:
         valid_mat = csr_matrix((y.num_row,y.num_col), dtype=np.bool)
@@ -220,6 +244,6 @@ def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout, y, x1
     valid_mat[np.ix_(valid_m, valid_r)]=1 # XX not efficient
     rule_train_index = util.element_mult(valid_mat, tree.ind_pred_train[best_split])
     rule_test_index = util.element_mult(valid_mat, tree.ind_pred_test[best_split])
-
+    
     return motif, regulator, regulator_sign, rule_train_index, rule_test_index
 

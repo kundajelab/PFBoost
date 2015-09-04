@@ -16,3 +16,5 @@ TuningParams = namedtuple('TuningParams', [
     'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
     'eta_1', 'eta_2', 'bundle_max', 'epsilon'
 ])
+
+BOOSTMODE = 'ADABOOST'

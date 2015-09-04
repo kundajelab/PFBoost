@@ -132,7 +132,7 @@ class Holdout(object):
         log('end holdout')
 
 class DecisionTree(object):
-    def __init__(self, holdout, y, x1, x2):
+    def __init__(self, holdout, y, x1, x2, boostMode='ADABOOST'):
         ## Base model parameters
         # the number of nodes in the tree
         self.nsplit = 0
@@ -200,13 +200,18 @@ class DecisionTree(object):
         else:
             self.sparse=False
         # put in the root node
-        self.init_root_node(holdout, y)
+        self.init_root_node(holdout, y, boostMode)
     
-    def init_root_node(self, holdout, y):
-        ## initialize the root node
-        score_root = 0.5*np.log(
-            element_mult(self.weights, holdout.ind_train_up).sum()/element_mult(
-                self.weights, holdout.ind_train_down).sum())
+    def init_root_node(self, holdout, y, boostMode):
+        ## initialize the root node 
+        if boostMode == 'ADABOOST':
+            score_root = 0.5*np.log(
+                element_mult(self.weights, holdout.ind_train_up).sum()/element_mult(
+                    self.weights, holdout.ind_train_down).sum())
+        elif boostMode == 'LOGITBOOST': # Score represents the summed working response Z
+            score_root = 0.00000001
+        else:
+            score_root = 0
         self.scores.append(score_root)
         # Add root node to first split
         self.split_x1.append(np.array(['root']))
@@ -251,8 +256,8 @@ class DecisionTree(object):
         self.above_regs.append(above_regs)
         self.above_nodes.append([best_split]+self.above_nodes[best_split])
 
-        self._update_prediction(rule_score, rule_train_index, rule_test_index)
-        self._update_weights(holdout,y)
+        self._update_prediction(rule_score, rule_train_index, rule_test_index) 
+        self._update_weights(holdout,y) # May want to use weights
         self._update_error(holdout, y)
         self._update_margin(y)
 
@@ -261,18 +266,29 @@ class DecisionTree(object):
         self.pred_train = self.pred_train + score*train_index
         self.pred_test = self.pred_test + score*test_index
 
-    def _update_weights(self, holdout, y):
-        # Update weights
-        if self.sparse:
-            exp_term = np.negative(y.element_mult(self.pred_train))
-            exp_term.data = np.exp(exp_term.data)
+    def _update_weights(self, holdout, y, boostMode='ADABOOST'): 
+        # Update example weights
+        if boostMode == 'ADABOOST':
+            if self.sparse:
+                exp_term = np.negative(y.element_mult(self.pred_train))
+                exp_term.data = np.exp(exp_term.data)
+            else:
+                exp_term = np.negative(y.element_mult(self.pred_train))
+                exp_term[exp_term.nonzero()]=np.exp(exp_term[exp_term.nonzero()])
+            new_weights = element_mult(exp_term, holdout.ind_train_all)
+            # print (new_weights/new_weights.sum())[new_weights.nonzero()]
+            self.weights = new_weights/new_weights.sum() # Change this for LOGITBOOST
+        elif boostMode == 'LOGITBOOST':
+            # Calculate p(x_i)
+            example_probs = csr_matrix((1/(1+np.exp(-2*pred_train.data)), # Prob                                        
+                                        pred_train.indices,
+                                        pred_train.indptr),
+                                       shape=pred_train.shape, dtype='float64')
+            # Calculate the example weights, w_i = p(x_i) * ( 1 - p(x_i) )
+            self.weights = element_mult(example_probs, csr_matrix(np.ones(example_probs.shape)) - example_probs) # W
         else:
-            exp_term = np.negative(y.element_mult(self.pred_train))
-            exp_term[exp_term.nonzero()]=np.exp(exp_term[exp_term.nonzero()])
-        new_weights = element_mult(exp_term, holdout.ind_train_all)
-        # print (new_weights/new_weights.sum())[new_weights.nonzero()]
-        self.weights = new_weights/new_weights.sum()
-
+            self.weights = None
+            
     def _update_error(self, holdout, y):
         # Identify incorrect processesedictions
         incorr_train = (y.element_mult(self.pred_train)<0)
