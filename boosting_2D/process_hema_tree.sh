@@ -47,7 +47,7 @@ all_cells=/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/cell
 peak_labels=/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/peak_headers_full.txt
 INDEX_PATH=/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/
 PEAK_PATH=/srv/persistent/pgreens/projects/hema_gwas/data/peak_files/
-y_matrix=/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/accessibilityMatrix_full.txt
+y_matrix=/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/accessibilityMatrix_full_subset_CD34.txt
 
 ### Process peaks - UP AND DOWN TOGETHER
 cat $comp_file | while read comp

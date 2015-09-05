@@ -131,7 +131,6 @@ def calc_margin_score_x1_worker(tree, y, x1, x2, index_mat, by_example, (lock, i
                 matrix_or_list.put(b)
                 if index == len(x1.row_labels)-1:
                     time.sleep(1)
-                print index
     return
 
 def calc_margin_score_x2_wrapper(args):
@@ -229,7 +228,7 @@ def calc_margin_score_x2_worker(tree, y, x1, x2, index_mat, by_example, (lock, i
                 matrix_or_list.put(b)
                 if index > len(x2.col_labels)-config.NCPU:
                     time.sleep(1)
-                print index
+                # print index
     return
 
 ### CALCULATE MARGIN SCORE BY ANY JOINT APPEARANCE OF MOTIF-REGULATOR (MULTIPLE NODES)
@@ -385,7 +384,7 @@ def calc_margin_score_node_worker(tree, y, x1, x2, index_mat, by_example,
                 matrix_or_list.put(b)
                 if index == tree.nsplit-config.NCPU:
                     time.sleep(1)
-                print index
+                # print index
     return
 
 ## Calculate margin score for a given path
@@ -918,22 +917,22 @@ def plot_norm_margin_score_across_conditions(conditions, method, plot_label, num
 ### Find discriminative motifs and enhancers between conditions
 ###############################################################
 
-method='x1_feat'
-label = 'hema_MPP_v_LMPP_against_MPP_v_CMP_1000iter_TFbindingonly_ENH_DOWN'
-conditions = ['/srv/persistent/pgreens/projects/boosting/results/margin_scores/hema_MPP_v_LMPP_1000iter_TFbindingonly/hema_MPP_v_LMPP_1000iter_TFbindingonly_ENH_DOWN_top_x1_feat.txt',
- '/srv/persistent/pgreens/projects/boosting/results/margin_scores/hema_MPP_v_CMP_1000iter_TFbindingonly/hema_MPP_v_CMP_1000iter_TFbindingonly_ENH_DOWN_top_x1_feat.txt']
-def find_discrimative_features(conditions, method, out_file):
-    ### For each feature calculate the difference in normalized margin score
-    df1 = pd.read_table(conditions[0], header=0)
-    df2 = pd.read_table(conditions[1], header=0)
-    joint_feat = list(set(df1[method]) & set(df2[method]))
-    discrim_df = pd.DataFrame(index=range(len(joint_feat)), columns=['norm_margin_score_diff', method])
-    for i in discrim_df.index.tolist():
-        diff = df1.ix[df1[method]==joint_feat[i],'margin_score_norm'].tolist()[0]-df2.ix[df2[method]==joint_feat[i],'margin_score_norm'].tolist()[0]
-        discrim_df.ix[i,:]=[diff, joint_feat[i]]
-    discrim_df['sort'] = discrim_df['norm_margin_score_diff'].abs()
-    discrim_df = discrim_df.sort(columns='sort', ascending=False).drop('sort', axis=1)
-    discrim_df.to_csv(out_file, header=True, index=False, sep="\t")
+# method='x1_feat'
+# label = 'hema_MPP_v_LMPP_against_MPP_v_CMP_1000iter_TFbindingonly_ENH_DOWN'
+# conditions = ['/srv/persistent/pgreens/projects/boosting/results/margin_scores/hema_MPP_v_LMPP_1000iter_TFbindingonly/hema_MPP_v_LMPP_1000iter_TFbindingonly_ENH_DOWN_top_x1_feat.txt',
+#  '/srv/persistent/pgreens/projects/boosting/results/margin_scores/hema_MPP_v_CMP_1000iter_TFbindingonly/hema_MPP_v_CMP_1000iter_TFbindingonly_ENH_DOWN_top_x1_feat.txt']
+# def find_discrimative_features(conditions, method, out_file):
+#     ### For each feature calculate the difference in normalized margin score
+#     df1 = pd.read_table(conditions[0], header=0)
+#     df2 = pd.read_table(conditions[1], header=0)
+#     joint_feat = list(set(df1[method]) & set(df2[method]))
+#     discrim_df = pd.DataFrame(index=range(len(joint_feat)), columns=['norm_margin_score_diff', method])
+#     for i in discrim_df.index.tolist():
+#         diff = df1.ix[df1[method]==joint_feat[i],'margin_score_norm'].tolist()[0]-df2.ix[df2[method]==joint_feat[i],'margin_score_norm'].tolist()[0]
+#         discrim_df.ix[i,:]=[diff, joint_feat[i]]
+#     discrim_df['sort'] = discrim_df['norm_margin_score_diff'].abs()
+#     discrim_df = discrim_df.sort(columns='sort', ascending=False).drop('sort', axis=1)
+#     discrim_df.to_csv(out_file, header=True, index=False, sep="\t")
 
 
 

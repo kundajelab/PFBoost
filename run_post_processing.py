@@ -107,6 +107,7 @@ def main():
     locals_dict = {}
     execfile(PARAMS.model_path, {}, locals_dict)
     globals().update(locals_dict)
+    config.NCPU=8
 
     # Stop
     # from IPython import embed; embed()
