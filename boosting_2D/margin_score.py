@@ -129,8 +129,7 @@ def calc_margin_score_x1_worker(tree, y, x1, x2, index_mat, by_example, (lock, i
                  x1_feat_index=index, by_example=False)
             with lock:
                 matrix_or_list.put(b)
-                if index == len(x1.row_labels)-1:
-                    time.sleep(1)
+                time.sleep(0.01)
     return
 
 def calc_margin_score_x2_wrapper(args):
@@ -226,8 +225,9 @@ def calc_margin_score_x2_worker(tree, y, x1, x2, index_mat, by_example, (lock, i
                  x2_feat_index=index, by_example=False)
             with lock:
                 matrix_or_list.put(b)
-                if index > len(x2.col_labels)-config.NCPU:
-                    time.sleep(1)
+                time.sleep(0.01)
+                # if index > len(x2.col_labels)-config.NCPU:
+                #     time.sleep(1)
                 # print index
     return
 
@@ -382,8 +382,9 @@ def calc_margin_score_node_worker(tree, y, x1, x2, index_mat, by_example,
                  node=index, by_example=False)
             with lock:
                 matrix_or_list.put(b)
-                if index == tree.nsplit-config.NCPU:
-                    time.sleep(1)
+                time.sleep(0.01)
+                # if index == tree.nsplit-config.NCPU:
+                #     time.sleep(1)
                 # print index
     return
 
@@ -466,8 +467,9 @@ def calc_margin_score_path_worker(tree, y, x1, x2, index_mat, by_example,
                  node=index, by_example=False)
             with lock:
                 matrix_or_list.put(b)
-                if index == tree.nsplit-1:
-                    time.sleep(1)
+                time.sleep(0.01)
+                # if index == tree.nsplit-1:
+                #     time.sleep(1)
                 print index
     return
 
@@ -496,6 +498,7 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         while rule_processes_mp.empty()==False: 
             rule_processes.append(rule_processes_mp.get())
         # Report data frame with feature 
+        # pdb.set_trace()
         ranked_score_df = pd.DataFrame({'x1_feat':[el[0] for el in rule_processes], \
             'x1_feat_bundles':[el[1] for el in rule_processes], \
             'margin_score':[el[2] for el in rule_processes], \
