@@ -20,3 +20,5 @@ python /users/pgreens/git/boosting_2D/run_boosting_2D.py --num-iter 1000 --outpu
 
 
 
+python kernprof.py -l /users/pgreens/git/boosting_2D/run_boosting_2D.py --num-iter 50 --output-prefix hematopoeisis_23K_bindingTFsonly --input-format triplet --mult-format sparse  -x $DATA_PATH"annotationMatrix_full_subset_CD34.txt" -z $DATA_PATH"regulatorExpression_bindingTFsonly.txt" -y $DATA_PATH"accessibilityMatrix_full_subset_CD34.txt" -g $DATA_PATH"peak_headers_full_subset_CD34.txt" -e $DATA_PATH"cell_types_pairwise.txt" -m $DATA_PATH"annotationMatrix_headers_full.txt" -r $DATA_PATH"regulator_names_bindingTFsonly.txt" --eta1 0.05 --eta2 0.01 --ncpu 1 --output-path /srv/persistent/pgreens/projects/boosting/results/ --stable --use-prior --prior-input-format matrix --motif-reg-file $DATA_PATH"prior_data/motifTFpriors.txt" --motif-reg-row-labels $DATA_PATH"prior_data/motifTFpriors.rows.txt" --motif-reg-col-labels $DATA_PATH"prior_data/motifTFpriors.columns_gene_only.txt"
+

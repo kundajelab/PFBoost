@@ -201,7 +201,7 @@ def calc_margin_score_x2_worker(tree, y, x1, x2, index_mat, by_example, (lock, i
             index_cntr.value += 1
         
         # if this isn't a valid motif, then we are done
-        if index >= len(x2.col_labels): 
+        if index >= x2.num_col: 
             return
 
         # calculate the margin score for this node  
@@ -224,8 +224,9 @@ def calc_margin_score_x2_worker(tree, y, x1, x2, index_mat, by_example, (lock, i
                 tree, y, x1, x2, index_mat,
                  x2_feat_index=index, by_example=False)
             with lock:
-                matrix_or_list.put(b)
-                time.sleep(0.01)
+                # matrix_or_list.put(b)
+                matrix_or_list.append(b)
+                # time.sleep(0.01)
                 # if index > len(x2.col_labels)-config.NCPU:
                 #     time.sleep(1)
                 # print index
@@ -381,8 +382,9 @@ def calc_margin_score_node_worker(tree, y, x1, x2, index_mat, by_example,
                 tree, y, x1, x2, index_mat,
                  node=index, by_example=False)
             with lock:
-                matrix_or_list.put(b)
-                time.sleep(0.01)
+                matrix_or_list.append(b)
+                # matrix_or_list.put(b)
+                # time.sleep(0.01)
                 # if index == tree.nsplit-config.NCPU:
                 #     time.sleep(1)
                 # print index
@@ -466,8 +468,9 @@ def calc_margin_score_path_worker(tree, y, x1, x2, index_mat, by_example,
                 tree, y, x1, x2, index_mat,
                  node=index, by_example=False)
             with lock:
-                matrix_or_list.put(b)
-                time.sleep(0.01)
+                matrix_or_list.append(b)
+                # matrix_or_list.put(b)
+                # time.sleep(0.01)
                 # if index == tree.nsplit-1:
                 #     time.sleep(1)
                 print index
@@ -475,6 +478,7 @@ def calc_margin_score_path_worker(tree, y, x1, x2, index_mat, by_example,
 
 
 def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
+    config.NCPU=8
     assert method in ('x1', 'x2', 'x1_and_x2', 'node', 'path')
     # Rank x1 features only
     if method=='x1':
@@ -498,7 +502,6 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         while rule_processes_mp.empty()==False: 
             rule_processes.append(rule_processes_mp.get())
         # Report data frame with feature 
-        # pdb.set_trace()
         ranked_score_df = pd.DataFrame({'x1_feat':[el[0] for el in rule_processes], \
             'x1_feat_bundles':[el[1] for el in rule_processes], \
             'margin_score':[el[2] for el in rule_processes], \
@@ -519,16 +522,20 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         #     result=calc_margin_score_x2(tree, y, x1, x2, index_mat, feat)
         #     rule_processes.append(result)
         # PARALLEL VERSION
-        config.NCPU=4
         lock = multiprocessing.Lock()
         # rule_processes_mp = multiprocessing.queues.Queue(x2.num_col)
-        rule_processes_mp = multiprocessing.Queue(x2.num_col)
+        # rule_processes_mp = multiprocessing.Queue(x2.num_col)
+        # rule_processes_mp.cancel_join_thread() # Queue forks a new process (and that process manages the running queue. if parent exits before eueue is empty . otherwise queueu will stay active until its empty)
+        manager = multiprocessing.Manager() # starts a server/process that listens on port/can run across machines
+        rule_processes_mp = manager.list() # get list object of manager
         index_cntr = multiprocessing.Value('i', 0)
         args = [tree, y, x1, x2, index_mat, False, (lock, index_cntr, rule_processes_mp)]
         fork_and_wait(config.NCPU, calc_margin_score_x2_worker, args)
         rule_processes = []
-        while rule_processes_mp.empty()==False: 
-            rule_processes.append(rule_processes_mp.get())
+        while len(rule_processes_mp) > 0:
+            rule_processes.append(rule_processes_mp.pop())
+        # while rule_processes_mp.empty()==False: 
+            # rule_processes.append(rule_processes_mp.get())
         # Report data frame with feature 
         ranked_score_df = pd.DataFrame({'x2_feat':[el[0] for el in rule_processes], \
             'x2_feat_bundles':[el[1] for el in rule_processes], \
@@ -572,13 +579,15 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         # config.NCPU=4
         lock = multiprocessing.Lock()
         # rule_processes_mp = multiprocessing.queues.Queue(tree.nsplit)
-        rule_processes_mp = multiprocessing.Queue(tree.nsplit)
+        # rule_processes_mp = multiprocessing.Queue(tree.nsplit)
+        manager = multiprocessing.Manager() # starts a server/process that listens on port/can run across machines
+        rule_processes_mp = manager.list() # get list object of manager
         index_cntr = multiprocessing.Value('i', 1)
         args = [tree, y, x1, x2, index_mat, False, (lock, index_cntr, rule_processes_mp)]
         fork_and_wait(config.NCPU, calc_margin_score_node_worker, args)
         rule_processes = []
-        while rule_processes_mp.empty()==False: 
-            rule_processes.append(rule_processes_mp.get())
+        while len(rule_processes_mp) > 0:
+            rule_processes.append(rule_processes_mp.pop())
         # Report data frame with feature 
         ranked_score_df = pd.DataFrame({'node':[el[0] for el in rule_processes], \
             'x1_feat':[el[1] for el in rule_processes], \
@@ -603,13 +612,15 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method):
         config.NCPU=4
         lock = multiprocessing.Lock()
         # rule_processes_mp = multiprocessing.queues.Queue(tree.nsplit)
-        rule_processes_mp = multiprocessing.Queue(tree.nsplit)
+        # rule_processes_mp = multiprocessing.Queue(tree.nsplit)
+        manager = multiprocessing.Manager() # starts a server/process that listens on port/can run across machines
+        rule_processes_mp = manager.list() # get list object of manager
         index_cntr = multiprocessing.Value('i', 1)
         args = [tree, y, x1, x2, index_mat, False, (lock, index_cntr, rule_processes_mp)]
         fork_and_wait(config.NCPU, calc_margin_score_path_worker, args)
         rule_processes = []
-        while rule_processes_mp.empty()==False: 
-            rule_processes.append(rule_processes_mp.get())
+        while len(rule_processes_mp) > 0:
+            rule_processes.append(rule_processes_mp.pop())
         # Report data frame with feature 
         ranked_score_df = pd.DataFrame({'node':[el[0] for el in rule_processes], \
             'path_name':[el[1] for el in rule_processes], \
@@ -706,7 +717,8 @@ def split_index_mat_prom_enh(index_mat, y, tss_file):
 #######################################################################################
 
 ### Call rank by margin score
-def call_rank_by_margin_score(index_mat, key, method, prefix, y, x1, x2, tree, pool, num_perm=100, null_tree_file=None):
+def call_rank_by_margin_score(index_mat, key, method, prefix, y, x1, x2, tree,
+ pool, num_perm=100, null_tree_file=None):
     # Make margin score directory in output directory
     margin_outdir = '{0}{1}/margin_scores/'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     if not os.path.exists(margin_outdir):
