@@ -171,7 +171,7 @@ def store_module_in_dict(module_object):
     module_dict={}
     for key in module_object.__dict__.keys():
         try: 
-            print pickle.dumps(module_object.__dict__[key])
+            tmp=pickle.dumps(module_object.__dict__[key])
             module_dict[key]=module_object.__dict__[key]
         except:
             pass

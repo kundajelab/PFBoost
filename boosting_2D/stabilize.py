@@ -15,6 +15,10 @@ from boosting_2D import util
 from boosting_2D import config
 from boosting_2D import find_rule
 
+import pyximport; pyximport.install()
+import util_functions
+
+
 log = util.log
 
 ### Define bundle class - store  bundled motifs+regulators with min loss rule
@@ -193,6 +197,7 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
     
 
 # Get rules to average (give motif, regulator and index)
+# @profile
 def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
     level='VERBOSE'
     print 'starting bundle rules'
@@ -231,6 +236,7 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
         x1_best = vstack([x1.data[m,:] for el in range(x1.num_row)])
         reg_vec = (x2.data[:,r]==reg)
         x2_best = hstack([reg_vec for el in range(x2.num_col)], format='csr') 
+        # Stop the stacking, multiplication in a for loop
     else:
         x1_best = np.vstack([x1.data[m,:] for el in range(x1.num_row)])
         reg_vec = np.reshape((x2.data[:,r]==reg), (x2.num_row,1))
@@ -260,9 +266,11 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
 
     ## Calculate threshold for stabilization
     log('get threshold', level=level)
-    bundle_thresh = np.sqrt(sum(np.square(
-        np.frombuffer(weights_i[weights_i.nonzero()]))
-        )/np.square(sum(np.frombuffer(weights_i[weights_i.nonzero()]))))
+    # bundle_thresh = np.sqrt(sum(np.square(
+    #     np.frombuffer(weights_i[weights_i.nonzero()]))
+    #     )/np.square(sum(np.frombuffer(weights_i[weights_i.nonzero()]))))
+    bundle_thresh = util_functions.calc_sqrt_sum_sqr_sqr_sums(weights_i.data)
+    
     ## If large bundle, but hard cap on number of rules in bundle:
     log('test bundle size', level=level)
     test_big_bundle = (symm_diff_w_regup < \

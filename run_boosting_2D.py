@@ -206,6 +206,7 @@ def parse_args():
 
 
 ### Find next decision node given current state of tree
+# @profile
 def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
     level='VERBOSE'
     ## Calculate loss at all search nodes

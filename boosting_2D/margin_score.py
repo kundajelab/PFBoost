@@ -71,6 +71,12 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat, x1_feat_index, by_example=F
     if by_example==True:
         margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat)
         margin_score_array = margin_score.toarray().flatten() if y.sparse else margin_score.flatten()
+        # print 'index {0}'.format(x1_feat_index)
+        # print 'margin score non-zero {0}'.format((margin_score_array!=0).sum())
+        # print 'y non-zero {0}'.format((y.data[:,x1_feat_index]).sum())
+        # print set(np.where(margin_score_array!=0)[0].tolist()).intersection(
+        #     np.where(y.data.toarray().flatten()!=0)[0].tolist())
+        # print 'sum {0}'.format(util.element_mult(y.data==0, margin_score!=0).sum())
         return margin_score_array
     else:
         margin_score = util.element_mult(y.element_mult(tree.pred_train-pred_adj), index_mat).sum()
@@ -114,6 +120,7 @@ def calc_margin_score_x1_worker(tree, y, x1, x2, index_mat, by_example, (lock, i
                 tree, y, x1, x2, index_mat,
                  x1_feat_index=index, by_example=True).reshape(
                  (1,  y.data.shape[0]*y.data.shape[1]))
+            # pdb.set_trace()
             
             # add the margin score
             with lock:
@@ -121,7 +128,8 @@ def calc_margin_score_x1_worker(tree, y, x1, x2, index_mat, by_example, (lock, i
                 new_x = len(matrix_or_list)/new_y
                 new_matrix = np.frombuffer(matrix_or_list.get_obj()).reshape(
                 (new_x, new_y)) # reshapes view of data, not true data object
-                new_matrix[np.where(b!=0),index]=b[b!=0]  
+                new_matrix[np.where(b.flatten()!=0),index]=b[b!=0]  
+                # print 'y/obj sum {0}'.format(new_matrix[y.data.toarray().flatten()==0,index].sum())
                 print index
         elif by_example==False:
             b = calc_margin_score_x1(
