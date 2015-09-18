@@ -4,6 +4,9 @@
 ###############################################################
 
 from matplotlib import pyplot as plt
+from sklearn.datasets import dump_svmlight_file
+import scipy.cluster.hierarchy as hier
+import scipy.spatial.distance as dist
 
 ### Load data
 ###############################################################
@@ -11,223 +14,180 @@ RESULT_PATH='/srv/persistent/pgreens/projects/boosting/results/'
 # execfile('{0}2015_08_14_hematopoeisis_23K_bindingTFsonly_adt_stable_5iter/load_pickle_data_script.py'.format(RESULT_PATH))
 execfile('{0}2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py'.format(RESULT_PATH))
 
-### Generate matrix of peaks-by-conditions by regulatory programs
-###############################################################
-ex_by_feat_mat = gen_ex_by_feature_matrix(y, x1, x2, tree, feat=['motif', 'reg'])
 
+def cluster_examples_kmeans( y, x1, x2, tree, n_clusters_start=5000,
+    mat_features=['motif']):
+
+    ### Set up output folder
+    cluster_outdir = '{0}{1}/clustering/'.format(
+        config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    if not os.path.exists(cluster_outdir):
+        os.makedirs(cluster_outdir)
+
+    # Generate matrix of peaks-by-conditions by regulatory programs
+    # mat_features = ['motif', 'reg']
+    ex_by_feat_mat = gen_ex_by_feature_matrix(y, x1, x2, tree, feat=mat_features)
+    # Return only peaks that are non-zero in y
+    ex_by_feat_mat = ex_by_feat_mat[y.data.toarray().ravel()!=0,]
+
+    # Dump marix in SVM Light format
+    sofiaml_file = convert_matrix_to_svmlight_for_sofiaml(ex_by_feat_mat,
+     label=config.OUTPUT_PREFIX, out_dir=cluster_outdir)
+
+    # Initial Kmeans clustering
+    (cluster_file, assignment_file) = cluster_matrix_w_sofiaml_kmeans(
+        sofiaml_file=sofiaml_file, out_dir=cluster_outdir,
+         n_clusters_start=n_clusters_start)
+
+    # Join  Kmeans clusters that are too similar using hierarchical Clustering
+    new_clusters = join_similar_kmeans_cluster(cluster_file, assignment_file,
+     n_clusters_start)
+    
+    return (cluster_file, new_clusters)
 
 ### Post clustering with SofiaML
 ###############################################################
-from sklearn.datasets import dump_svmlight_file
 
-SCRIPT_PATH='/users/pgreens/svn/sofia-ml-read-only/'
-SOFIAML_PATH='/srv/persistent/pgreens/projects/boosting/results/sofiaml_files/'
-sofiaml_file=SOFIAML_PATH+'sofia_input.txt'
-dump_svmlight_file(X=ex_by_feat_mat, y=[0]*ex_by_feat_mat.shape[0], f=sofiaml_file)
+def convert_matrix_to_svmlight_for_sofiaml(ex_by_feat_mat, label, out_dir):
+    sofiaml_file='{0}sofiaml_input_{1}.txt'.format(out_dir,
+        '_'.join(mat_features))
+    dump_svmlight_file(X=ex_by_feat_mat, y=[0]*ex_by_feat_mat.shape[0],
+     f=sofiaml_file)
+    return sofiaml_file
 
-### Run SOFIA
+def cluster_matrix_w_sofiaml_kmeans(sofiaml_file, out_dir, n_clusters_start):
+    ### !! how to put on path?
+    SCRIPT_PATH='/users/pgreens/svn/sofia-ml-read-only/'
 
-sofia_train_command="""
-{0}/sofia-kmeans --k 5000 --init_type random
- --opt_type mini_batch_kmeans --mini_batch_size 100
- --dimensionality {1}
-  --iterations 500 --objective_after_init --objective_after_training
-   --training_file {2}/sofia_input.txt --model_out {2}/clusters2.txt
-""".format(SCRIPT_PATH, ex_by_feat_mat.shape[1], SOFIAML_PATH).replace('\n', '')
+    ### Run SOFIA ML Kmeans
+    cluster_file = '{0}/sofiaml_clusters_n{1}.txt'.format(
+        out_dir, n_clusters_start)
+    assignment_file = '{0}/sofiaml_assignments_n{1}.txt'.format(
+        out_dir, n_clusters_start)
 
-os.system(sofia_train_command)
+    Get cluster centers
+    sofia_train_command="""
+    {0}/sofia-kmeans --k {1} --init_type random
+     --opt_type mini_batch_kmeans --mini_batch_size 1000
+     --dimensionality {2}
+      --iterations 500 --objective_after_init --objective_after_training
+       --training_file {3} --model_out {4}
+    """.format(SCRIPT_PATH, n_clusters_start, ex_by_feat_mat.shape[1],
+     sofiaml_file, cluster_file).replace('\n', '')
 
+    os.system(sofia_train_command)
 
-sofia_test_command="""
-{0}/sofia-kmeans --model_in {1}/clusters2.txt
- --test_file {1}/sofia_input.txt --objective_on_test
-  --cluster_assignments_out {1}/assignments.txt
-""".format(SCRIPT_PATH, SOFIAML_PATH).replace('\n', '')
+    # Assign clusters
+    sofia_test_command="""
+    {0}/sofia-kmeans --model_in {1}
+     --test_file {2} --objective_on_test
+      --cluster_assignments_out {3}
+    """.format(SCRIPT_PATH, cluster_file, sofiaml_file,
+     assignment_file).replace('\n', '')
 
-os.system(sofia_test_command)
+    os.system(sofia_test_command)
 
-### Read in results
+    return (cluster_file, assignment_file)
 
-clusters = pd.read_table('{0}/clusters2.txt'.format(SOFIAML_PATH),
- sep=" ", header=None)
-assigns = pd.read_table('{0}/assignments.txt'.format(SOFIAML_PATH),
-    header=None)
+def join_similar_kmeans_cluster(cluster_file, assignment_file, max_distance=0.5):
 
-### Get column labels for GREAT analysis
-clust=3
-clust_ex=[i for i in xrange(assigns.shape[0]) if assigns.ix[i,0]==clust]
+    # Read in clusters and assignments from assignment
+    clusters=np.loadtxt(cluster_file)
+    assigns=np.loadtxt(assignment_file)
 
-# Flatten concatenates rows [row1, row2, etc.]
-conditions = [val%y.num_col for val in clust_ex]
-peaks = [np.floor(np.divide(val, y.num_col)) for val in clust_ex]
-peak_coords = [y.row_labels[i].split(';')[0].replace(':', '\t').replace('-', '\t')
- for i in np.unique(peaks)]
+    # Do hierarchical clustering on the clusters and group similar clusters
+    d = dist.pdist(clusters, 'euclidean')  
+    l = hier.linkage(d, method='average')
+    ordered_data = clusters[hier.leaves_list(l),:]
+    max_distance=0.5
+    flat_clusters = hier.fcluster(l, t=max_distance, criterion='distance')
 
-# Write to bed file for great
-bed_file='{0}/bed_file_clust{1}.txt'.format(SOFIAML_PATH, clust)
-with open(bed_file, 'w') as f:
-    for item in peak_coords:
-        f.write("{0}\n".format(item))
+    # Reassign clusters by collapsing similar clusters
+    new_clusters = [flat_clusters[assigns[i,0]] for i in range(assigns.shape[0])]
 
-### Randomly sample coordinates to compare enrichment
-# rand_ind = random.sample(range(ex_by_feat_mat.shape[0]), len(clust_ex))
-rand_ind = random.sample(range(2179548), len(clust_ex))
-
-conditions = [val%y.num_col for val in rand_ind]
-peaks = [np.floor(np.divide(val, y.num_col)) for val in rand_ind]
-peak_coords = [y.row_labels[i].split(';')[0].replace(':', '\t').replace('-', '\t')
- for i in np.unique(peaks)]
-
-# Write to bed file for great
-bed_file='{0}/bed_file_clust{1}_RAND.txt'.format(SOFIAML_PATH, clust)
-with open(bed_file, 'w') as f:
-    for item in peak_coords:
-        f.write("{0}\n".format(item))
+    return new_clusters
 
 
+write_out_cluster(y, cluster_file, new_clusters, out_dir,
+     clusters_to_write=[1,2,3,4], create_match_null=True)
+
+def write_out_cluster(y, cluster_file, new_clusters,
+     clusters_to_write='all', create_match_null=True):
+
+    ### Set up output folder
+    cluster_bed_dir = '{0}{1}/clustering/cluster_bed_files/'.format(
+        config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    if not os.path.exists(cluster_outdir):
+        os.makedirs(cluster_outdir)
+
+    # Write background out once
+    bkgrd_coords = [y.row_labels[i].split(';')[0].replace(':', '\t').replace('-', '\t')
+     for i in xrange(y.num_row)]
+    bed_file='{0}BACKGROUND.bed'.format(cluster_bed_dir)
+    with open(bed_file, 'w') as f:
+        for item in bkgrd_coords:
+            f.write("{0}\n".format(item))
+
+    ### Get column labels for GREAT analysis
+    if clusters_to_write=='all':
+        clusters_for_iter=np.unique(new_clusters)
+    else:
+        clusters_for_iter=clusters_to_write
+
+    # Iterate over all clusters and write out bed files of coordinates
+    # !! Current assumes labels are the coordinates
+    for clust in clusters_to_write:
+        # clust=3
+        print clust
+        clust_ex=[i for i in xrange(len(new_clusters)) if new_clusters[i]==clust]
+
+        # Flatten concatenates rows [row1, row2, etc.]
+        conditions = [val%y.num_col for val in clust_ex]
+        peaks = [np.floor(np.divide(val, y.num_col)) for val in clust_ex]
+        peak_coords = [y.row_labels[i].split(';')[0].replace(':', '\t').replace('-', '\t')
+         for i in np.unique(peaks)]
+        print 'number of peaks {0}'.format(len(np.unique(peaks)))
+
+        # Write to bed file for great
+        bed_file='{0}clust{1}.bed'.format(cluster_bed_dir, clust)
+        with open(bed_file, 'w') as f:
+            for item in peak_coords:
+                f.write("{0}\n".format(item))
+
+        # If we want to create matched sets to compare GREAT enrichments
+        if create_match_null==True:
+            ### Randomly sample coordinates to compare enrichment
+            print 'getting random of same size'
+            rand_ind = random.sample(range(ex_by_feat_mat.shape[0]), len(clust_ex))
+            # rand_ind = random.sample(range(2179548), len(clust_ex))
+
+            conditions = [val%y.num_col for val in rand_ind]
+            peaks = [np.floor(np.divide(val, y.num_col)) for val in rand_ind]
+            peak_coords = [y.row_labels[i].split(';')[0].replace(':', '\t').replace('-', '\t')
+             for i in np.unique(peaks)]
+            bkgrd_coords = [y.row_labels[i].split(';')[0].replace(':', '\t').replace('-', '\t')
+             for i in xrange(y.num_row) if i not in np.unique(peaks)]
+
+            # Write to bed file for great
+            bed_file='{0}clust{1}_RAND.bed'.format(cluster_bed_dir, clust)
+            with open(bed_file, 'w') as f:
+                for item in peak_coords:
+                    f.write("{0}\n".format(item))
+
+    print 'DONE: Find clusters in: {0}'.format(cluster_bed_dir)
+
+
+
+# np.max([len([i for i in new_clusters if i==clust]) for clust in xrange(max(new_clusters))])
 
 ### Find coordinated elements
-def find_module_by_peak_and_condition(peak, condition):
+def find_module_by_peak_and_condition(peak_condition_file):
 
 
-### Read in clusters 
 
-### Clustering methods
+
+### Plot margin scores across conditions
 ###############################################################
-# NMF
-# Biclustering
-# PCA/SVD
-# LDA
-
-# from sklearn.decomposition import ProjectedGradientNMF
-# model = ProjectedGradientNMF(n_components=50, init='random', random_state=0)
-from sklearn.decomposition import FactorAnalysis
-model = FactorAnalysis(n_components=50, random_state=0)
-model.fit(ex_by_feat_mat.toarray())
-
-from sklearn.decomposition import RandomizedPCA
-pca = RandomizedPCA(n_components=50)
-pca.fit(ex_by_feat_mat)                 
-RandomizedPCA(copy=True, iterated_power=3, n_components=2,
-       random_state=None, whiten=False)
-
-### PCA
-from sklearn.decomposition import TruncatedSVD
-pca = TruncatedSVD(n_components=150)
-pca.fit(ex_by_feat_mat)       
-# DATA = SCORES x LOADINGS
-scores = pca.transform(ex_by_feat_mat)    
-loadings = pca.components_
-
-# Divide examples into components
-# Just assign the component max score (very biased toward first component)
-ex_cluster_assign = np.apply_along_axis(np.argmax, 0, loadings)
-feat_cluster_assign = np.apply_along_axis(np.argmax, 1, scores)
-# K-means clustering based on components
-
-### Biclustering (MEMORY ERROR)
-from sklearn.cluster.bicluster import SpectralCoclustering
-test_mat = ex_by_feat_mat[0:5000,:].toarray()
-test_mat = ex_by_feat_mat[0:1000,:].toarray()
-# model = SpectralCoclustering(n_clusters=50)
-model = SpectralCoclustering(n_clusters=50)
-model.fit(test_mat) # fits for 50K
-fit_data = test_mat[np.argsort(model.row_labels_)]
-fit_data = fit_data[:, np.argsort(model.column_labels_)]
-
-plt.figure()
-plt.matshow(fit_data, cmap=plt.cm.Blues)
-plt.savefig('/users/pgreens/cluster.png')
-
-
-### LDA
-test_mat = ex_by_feat_mat.toarray()[0:500,:]
-test_mat = ex_by_feat_mat[0:10000,:].toarray()
-import lda
-model = lda.LDA(n_topics=20, n_iter=500, random_state=1)
-model.fit(test_mat)
-
-### Hierarchical Clustering (MEMORY ERROR)
-import scipy.cluster.hierarchy as hier
-import scipy.spatial.distance as dist
-
-# Convert to nujmpy array
-data = ex_by_feat_mat.toarray()
-# Get read of zero entries
-data = data[np.apply_along_axis(sum, 1, data)!=0,]
-# Get cluster assignments based on euclidean distance + complete linkage
-d = dist.pdist(data[1:50000,], 'euclidean') 
-l = hier.linkage(d, method='average')
-ordered_data = data[hier.leaves_list(l),:]
-flat_clusters = hier.fcluster(l, t=max_distance, criterion='distance')
-
-### K-means with sparse matrices (takes forever)
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_samples, silhouette_score
-
-labeler = KMeans(n_clusters=200) 
-labeler.fit(ex_by_feat_mat[1:50000,])  
-for (row, label) in enumerate(labeler.labels_):   
-  print "row %d has label %d"%(row, label)
-
-data = ex_by_feat_mat[np.array(ex_by_feat_mat.sum(axis=1)!=0).reshape(-1,),:]
-data = ex_by_feat_mat[1:20000,]
-range_n_clusters=[50,100,150,200,250,300,350,400,450,500,600,700,800,900,1000]
-sil_avgs={}
-for n_clusters in range_n_clusters:
-
-    # Initialize the clusterer with n_clusters value and a random generator
-    # seed of 10 for reproducibility.
-    clusterer = KMeans(n_clusters=n_clusters, random_state=10)
-    cluster_labels = clusterer.fit_predict(data)
-
-    # The silhouette_score gives the average value for all the samples.
-    # This gives a perspective into the density and separation of the formed
-    # clusters
-    silhouette_avg = silhouette_score(data, cluster_labels)
-    sil_avgs[n_clusters]=silhouette_avg
-    print("For n_clusters =", n_clusters,
-          "The average silhouette_score is :", silhouette_avg)
-
-    # Compute the silhouette scores for each sample
-    sample_silhouette_values = silhouette_samples(data, cluster_labels)
-
-
-
-### Fast cluster (MEMORY ERROR with full data set)
-data = ex_by_feat_mat[0:20000,:].toarray()
-import fastcluster
-from scipy import spatial
-
-distance = spatial.distance.pdist(data)
-c = fastcluster.linkage(distance, method='single', metric='euclidean', preserve_input=False)
-ordered_data = data[hier.leaves_list(c),:]
-max_distance=0.3
-flat_clusters = hier.fcluster(c, t=max_distance, criterion='distance')
-max([len(np.where(flat_clusters==i)[0]) for i in xrange(len(np.unique(flat_clusters)))])
-
-### Try SOFIA ML
-
-# ### Evaluate clusters through GO term enrichments
-# gwas_path = '/srv/gsfs0/projects/kundaje/users/pgreens/projects/enh_gene_link_gwas/results/'
-# out_path = '/srv/gsfs0/projects/kundaje/users/pgreens/projects/enh_gene_link_gwas/DAVID_output/'
-# plot_path = '/srv/gsfs0/projects/kundaje/users/pgreens/projects/enh_gene_link_gwas/plots/'
-
-# ### Run DAVID QUERY for every GWAS (takes a while)
-# gwas=list.files(gwas_path)
-# for (g in gwas){
-#     # Run for links
-#     input = sprintf('%s%s/%s_best_linked_genes.txt', gwas_path, g, strsplit(g, 'roadmap_')[[1]][2])
-#     output = sprintf('%s%s_linked_GO_enrichment.txt', out_path, strsplit(g, 'roadmap_')[[1]][2])
-#     system(sprintf('/srv/gs1/software/R/R-3.0.1/bin/Rscript /srv/gsfs0/projects/kundaje/users/pgreens/scripts/DAVID_R_access.R -f %s -c 5 -o %s', input, output), intern=TRUE)
-#     # Run for nearest
-#     input = sprintf('%s%s/%s_nearest_genes.txt', gwas_path, g, strsplit(g, 'roadmap_')[[1]][2])
-#     output = sprintf('%s%s_nearest_GO_enrichment.txt', out_path, strsplit(g, 'roadmap_')[[1]][2])
-#     system(sprintf('/srv/gs1/software/R/R-3.0.1/bin/Rscript /srv/gsfs0/projects/kundaje/users/pgreens/scripts/DAVID_R_access.R -f %s -c 6 -o %s', input, output), intern=TRUE)
-# }
-
-
-### Plot
 ###############################################################
 
 # get contradictory motifs and regulators
@@ -438,61 +398,7 @@ def gen_ex_by_feature_matrix(y, x1, x2, tree, feat=[
     ex_by_feat_mat = csr_matrix(ex_by_feat_mat)[:,1::]
     ############### MULTIPROCESS ###############
 
-    # Return only peaks that are non-zero in y
-    ex_by_feat_mat = ex_by_feat_mat[y.data.toarray().ravel()!=0,]
-
     return ex_by_feat_mat
-
-    ############### SERIAL ###############
-    ### MOTIF MATRIX
- #    if 'motif' in feat:
- #        motif_matrix = csr_matrix((len(example_labels), len(motif_labels)))
- #        # Fill in matrix with index of where motif applies
- #        # for ind in range(len(motif_labels)):
- #        #     motif_matrix.ix[:,ind]=tree.ind_pred_train[1].toarray().flatten()
- #        # Fill in matrix with margin score of motif - SERIAL
- #        for motif in range(len(motif_labels)):
- #            b=margin_score.calc_margin_score_x1(
- #                tree, y, x1, x2, index_mat,
- #                 x1_feat_index=motif, by_example=True).reshape(
- #                 (1, motif_matrix.shape[0]))
- #            motif_matrix[np.where(b!=0),motif]=b[b!=0]
- #    ### REG MATRIX
- #    if 'reg' in feat:
- #        reg_matrix = csr_matrix((len(example_labels), len(regulator_labels)))
- #        # Fill in matrix with margin score of motif - SERIAL
- #        for reg in range(len(regulator_labels)):
- #            b=margin_score.calc_margin_score_x2(
- #                tree, y, x1, x2, index_mat,
- #                 x2_feat_index=reg, by_example=True).reshape(
- #                  (1, reg_matrix.shape[0]))
- #            reg_matrix[np.where(b!=0),reg]=b[b!=0]
- #    ### NODE MATRIX
- #    node_matrix = csr_matrix((len(example_labels), len(node_labels)))
-    # # Fill in matrix with margin score of motif - SERIAL
- #    if 'node' in feat:
- #      for node in range(len(node_labels)):
- #          b=margin_score.calc_margin_score_node(
- #              tree, y, x1, x2, index_mat,
- #               node=node, by_example=True).reshape(
- #               (1, node_matrix.shape[0]))
- #          node_matrix[np.where(b!=0),reg]=b[b!=0]
-    # ### PATH MATRIX
- #    if 'path' in feat:
- #      path_matrix = csr_matrix((len(example_labels), len(path_labels)))
- #      # Fill in matrix with margin score of motif - SERIAL
- #      for node in range(len(node_labels)):
- #          b=margin_score.calc_margin_score_node(
- #              tree, y, x1, x2, index_mat,
- #               node=node, by_example=True).reshape(
- #               (1, node_matrix.shape[0]))
- #          path_matrix[np.where(b!=0),reg]=b[b!=0]
-    ############### SERIAL ###############
-
-
-# Create matrix of peaks by peaks
-###############################################################
-def gen_ex_by_ex_matrix():
 
 
 # Enumerate paths for a tree by listing all nodes in path
@@ -505,35 +411,269 @@ def enumerate_paths(tree):
 	return path_dict
 
 
+### Track certain examples through k-nearest neighbors clustering
+################################################################
+
+### K-nearest neighbors - take in set of examples, find indices
+### and return a dictionary of elements 
+ex_file='/srv/persistent/pgreens/projects/boosting/results/clustering_files/hema_examples_to_track.txt'
+def knn(ex_file, y, x1, x2, tree, ex_by_feat_mat):
+    ### Read in examples and get indices
+    ex_df = pd.read_table(ex_file, header=None)
+    peaks = ex_df.ix[:,0].tolist()
+    conditions = ex_df.ix[:,1].tolist()
+    # if providing index numbers, subtract 1, else get index of labels
+    # if peaks.applymap(lambda x: isinstance(x, (int, float))).sum().tolist()[0]==len(peaks):
+    if np.sum([isinstance(el, (int, float)) for el in peaks])==len(peaks):
+        # ASSUMING INPUT IS 1 BASED
+        peak_index_list = [el-1 for el in peaks]
+    else:
+        # peak_index_list = [el for el in xrange(y.data.shape[0]) if y.row_labels[el] in peaks]
+        peak_index_list = [np.where(y.row_labels==el)[0][0] for el in peaks]
+    # if providing index numbers, subtract 1, else get index of labels
+    # if conditions.applymap(lambda x: isinstance(x, (int, float))).sum().tolist()[0]==len(conditions):
+    if np.sum([isinstance(el, (int, float)) for el in conditions])==len(conditions):
+        # ASSUMING INPUT IS 1 BASED
+        condition_index_list = [el-1 for el in peaks]
+    else:
+        # condition_index_list = [el for el in xrange(y.data.shape[1]) if y.col_labels[el] in conditions]
+        condition_index_list = [np.where(y.col_labels==el)[0][0] for el in conditions]
+    # Get dictionary of all features applying to each example
+    feat_dict = {}
+    for ind in xrange(len(peak_index_list)):
+        if y.data[peak_index_list[ind],condition_index_list[ind]]==0:
+            print 'There is no change at this feature in this condition.'
+            continue
+        feat_dict[ind]=extract_ex_affected_by_same_feat(
+            peak_index_list[ind], condition_index_list[ind], ex_by_feat_mat)
+    # Get examples to search over for each the 
+    ex_dict = {}
+    for ind in xrange(len(peak_index_list)):
+        if len(feat_dict[ind])==0:
+            ex_dict[ind]=[]
+        else:
+            ex_dict[ind]= find_examples_affected_by_same_features(
+            feat_dict[ind])
+    # get k nearest neighbors based on example_index and other examples
+    knn_dict = {}
+    for ind in xrange(len(peak_index_list)):
+        knn_dict[ind]= get_k_nearest_neighbors(
+            peak_index_list[ind], condition_index_list[ind],
+            ex_dict[ind], ex_by_feat_mat)
+    # return the KNN dictionary of nearest neighbors
+    return knn_dict
+
+
+
+# Find the indices of the features affecting example index given
+def extract_ex_affected_by_same_feat(peak_index, condition_index, ex_by_feat_mat):
+    # ! check
+    example_index=peak_index*y.num_col+condition_index
+    if y.data[peak_index,condition_index]==0:
+        print 'There is no change at this feature in this condition. STOP.'
+        return None
+    # Find the features that have non-zero margin score
+    # feat_list = (ex_by_feat_mat[example_index,:]!=0).nonzero()[1].tolist()
+    # Find the features where the index actually overlaps the place
+    df = csr_matrix(y.data.shape)
+    # Make one TRUE entry at yo
+    df[peak_index, condition_index]=True
+    feat_list=[]
+    for ind in xrange(tree.nsplit):
+        if util.element_mult(tree.ind_pred_test[ind]+tree.ind_pred_train[ind], df).sum()!=0:
+            feat_list.append(ind)
+    return feat_list
+
+# Get all examples affected by any of the same feature sets
+def find_examples_affected_by_same_features(feat_list):
+    # Concatenate the index of 
+    index_vec = np.sum([tree.ind_pred_train[node]+tree.ind_pred_test[node]
+     for node in feat_list if node != 0]).toarray().flatten()
+    expanded_example_list = np.where(index_vec!=0)[0].tolist()
+    return expanded_example_list
+
+# Give an example index, the neighbor list and feature matrix, get KNN
+def get_k_nearest_neighbors(peak_index, condition_index, 
+    expanded_example_list, ex_by_feat_mat, num_neighbors=100):
+    # Subset example by feature matrix
+    if len(expanded_example_list)==0:
+        print 'no examples are affectd by the same features'
+        return []
+    else:
+        example_mat = ex_by_feat_mat[expanded_example_list,:]
+        example_index=peak_index*y.num_col+condition_index
+        # Run KNN with closest examples
+        from sklearn.neighbors import NearestNeighbors
+        nbrs = NearestNeighbors(n_neighbors=num_neighbors,
+         algorithm='ball_tree').fit(example_mat)
+        distances, indices = nbrs.kneighbors(ex_by_feat_mat[example_index,])
+        # Return the indices of the number of neighbors - reconvert into peaks/conditions
+        neighbor_index=indices[0]
+        return neighbor_index
+
+# Write out KNN as columns
+# Format: peak|condition peak|condition peak|condition (as original examples)
+# k+1 rows, first row is the original example and then the k lines after are the 
+# k nearest neighbors found
+def write_knn(ex_file, knn_dict, output_path):
+    file_name=output_path+os.path.basename(ex_file).split('.')[0]+ \
+        '_with_knneighbors.txt'
+    ex_df = pd.read_table(ex_file, header=None)
+    peaks = ex_df.ix[:,0].tolist()
+    conditions = ex_df.ix[:,1].tolist()
+    # Write out headers as the examples provided
+    headers = ['|'.join([peaks[ind], conditions[ind]]) for ind in len(peaks)]
+    # Below each one add in 
+    rows = []
+    for ind in knn_dict.keys():
+        # write out the peak and condition names based on the indices 
+        examples = knn_dict[ind]
+        peak_names = []
+        cond_names = 
+    # Write out each example
+    f.open(file_name)
+    f.writelines()
+
+
+    print 'DONE: wrote KNN out to this'
+    return 0
 
 
 
 
-### TEMP LOCATION (make GWAS DF for hema project) 
-#################################################################################
+# ### Clustering methods
+# ###############################################################
+# ###############################################################
+# # NMF
+# # Biclustering
+# # PCA/SVD
+# # LDA
 
-peak_file='/srv/persistent/pgreens/projects/hema_gwas/data/hema_peaks_full_n590650.bed'
-gwas_dir='/mnt/lab_data/kundaje/users/pgreens/gwas/expanded_LD_geno/rsq_0.8'
-out_path='/srv/persistent/pgreens/projects/hema_gwas/results/gwas_matrices/'
+# # from sklearn.decomposition import ProjectedGradientNMF
+# # model = ProjectedGradientNMF(n_components=50, init='random', random_state=0)
+# from sklearn.decomposition import FactorAnalysis
+# model = FactorAnalysis(n_components=50, random_state=0)
+# model.fit(ex_by_feat_mat.toarray())
 
-thresh = 1e-5
-num_peaks = int(os.popen('cat {0} | wc -l'.format(peak_file)).read().split('\n')[0])
-all_gwas = os.popen('find {0} -type f'.format(gwas_dir)).read().split('\n')
-all_gwas.pop()
-num_gwas =  int(os.popen('find {0} -type f | wc -l'.format(gwas_dir)).read().split('\n')[0])
+# from sklearn.decomposition import RandomizedPCA
+# pca = RandomizedPCA(n_components=50)
+# pca.fit(ex_by_feat_mat)                 
+# RandomizedPCA(copy=True, iterated_power=3, n_components=2,
+#        random_state=None, whiten=False)
+
+# ### PCA
+# from sklearn.decomposition import TruncatedSVD
+# pca = TruncatedSVD(n_components=150)
+# pca.fit(ex_by_feat_mat)       
+# # DATA = SCORES x LOADINGS
+# scores = pca.transform(ex_by_feat_mat)    
+# loadings = pca.components_
+
+# # Divide examples into components
+# # Just assign the component max score (very biased toward first component)
+# ex_cluster_assign = np.apply_along_axis(np.argmax, 0, loadings)
+# feat_cluster_assign = np.apply_along_axis(np.argmax, 1, scores)
+# # K-means clustering based on components
+
+# ### Biclustering (MEMORY ERROR)
+# from sklearn.cluster.bicluster import SpectralCoclustering
+# test_mat = ex_by_feat_mat[0:5000,:].toarray()
+# test_mat = ex_by_feat_mat[0:1000,:].toarray()
+# # model = SpectralCoclustering(n_clusters=50)
+# model = SpectralCoclustering(n_clusters=50)
+# model.fit(test_mat) # fits for 50K
+# fit_data = test_mat[np.argsort(model.row_labels_)]
+# fit_data = fit_data[:, np.argsort(model.column_labels_)]
+
+# plt.figure()
+# plt.matshow(fit_data, cmap=plt.cm.Blues)
+# plt.savefig('/users/pgreens/cluster.png')
 
 
-gwas_df = pd.DataFrame(index=range(num_peaks), columns=range(num_gwas))
-for ind in xrange(len(all_gwas)):
-	gwas_expanded = all_gwas[ind]
-	gwas_pruned = '/mnt/lab_data/kundaje/users/pgreens/gwas/pruned_LD_geno/rsq_0.8/'+gwas_expanded.split('_expanded')[0].split('rsq_0.8/')[1]+'.bed'
-	col = os.popen("cat {0} | awk '$5>{1}' | cut -f4 | sort | uniq | grep -w -F -f /dev/stdin {2} |bedtools intersect -a {3} -b - -c | cut -f4".format(gwas_pruned, thresh, gwas_expanded, peak_file)).read().split('\n')
-	col.pop()
-	entry = [int(el) for el in col]
-	gwas_df.ix[:,ind]=entry
-	print ind
+# ### LDA
+# test_mat = ex_by_feat_mat.toarray()[0:500,:]
+# test_mat = ex_by_feat_mat[0:10000,:].toarray()
+# import lda
+# model = lda.LDA(n_topics=20, n_iter=500, random_state=1)
+# model.fit(test_mat)
 
-gwas_df.columns=[el.split('/')[-1].split('_pruned')[0] for el in all_gwas]
-# gwas_df.to_csv('{0}hema_peaks_w_SIG_gwas_hits_below_thresh{1}.txt'.format(out_path, thresh), sep="\t", header=True, index=False)
-gwas_df.to_csv('{0}hema_peaks_w_NONSIG_gwas_hits_above_thresh{1}.txt'.format(out_path, thresh), sep="\t", header=True, index=False)
+# ### Hierarchical Clustering (MEMORY ERROR)
+# import scipy.cluster.hierarchy as hier
+# import scipy.spatial.distance as dist
+
+# # Convert to nujmpy array
+# data = ex_by_feat_mat.toarray()
+# # Get read of zero entries
+# data = data[np.apply_along_axis(sum, 1, data)!=0,]
+# # Get cluster assignments based on euclidean distance + complete linkage
+# d = dist.pdist(data[1:50000,], 'euclidean') 
+# l = hier.linkage(d, method='average')
+# ordered_data = data[hier.leaves_list(l),:]
+# flat_clusters = hier.fcluster(l, t=max_distance, criterion='distance')
+
+# ### K-means with sparse matrices (takes forever)
+# from sklearn.cluster import KMeans
+# from sklearn.metrics import silhouette_samples, silhouette_score
+
+# labeler = KMeans(n_clusters=200) 
+# labeler.fit(ex_by_feat_mat[1:50000,])  
+# for (row, label) in enumerate(labeler.labels_):   
+#   print "row %d has label %d"%(row, label)
+
+# data = ex_by_feat_mat[np.array(ex_by_feat_mat.sum(axis=1)!=0).reshape(-1,),:]
+# data = ex_by_feat_mat[1:20000,]
+# range_n_clusters=[50,100,150,200,250,300,350,400,450,500,600,700,800,900,1000]
+# sil_avgs={}
+# for n_clusters in range_n_clusters:
+
+#     # Initialize the clusterer with n_clusters value and a random generator
+#     # seed of 10 for reproducibility.
+#     clusterer = KMeans(n_clusters=n_clusters, random_state=10)
+#     cluster_labels = clusterer.fit_predict(data)
+
+#     # The silhouette_score gives the average value for all the samples.
+#     # This gives a perspective into the density and separation of the formed
+#     # clusters
+#     silhouette_avg = silhouette_score(data, cluster_labels)
+#     sil_avgs[n_clusters]=silhouette_avg
+#     print("For n_clusters =", n_clusters,
+#           "The average silhouette_score is :", silhouette_avg)
+
+#     # Compute the silhouette scores for each sample
+#     sample_silhouette_values = silhouette_samples(data, cluster_labels)
+
+
+
+# ### Fast cluster (MEMORY ERROR with full data set)
+# data = ex_by_feat_mat[0:20000,:].toarray()
+# import fastcluster
+# from scipy import spatial
+
+# distance = spatial.distance.pdist(data)
+# c = fastcluster.linkage(distance, method='single', metric='euclidean', preserve_input=False)
+# ordered_data = data[hier.leaves_list(c),:]
+# max_distance=0.3
+# flat_clusters = hier.fcluster(c, t=max_distance, criterion='distance')
+# max([len(np.where(flat_clusters==i)[0]) for i in xrange(len(np.unique(flat_clusters)))])
+
+# ### Try SOFIA ML
+
+# # ### Evaluate clusters through GO term enrichments
+# # gwas_path = '/srv/gsfs0/projects/kundaje/users/pgreens/projects/enh_gene_link_gwas/results/'
+# # out_path = '/srv/gsfs0/projects/kundaje/users/pgreens/projects/enh_gene_link_gwas/DAVID_output/'
+# # plot_path = '/srv/gsfs0/projects/kundaje/users/pgreens/projects/enh_gene_link_gwas/plots/'
+
+# # ### Run DAVID QUERY for every GWAS (takes a while)
+# # gwas=list.files(gwas_path)
+# # for (g in gwas){
+# #     # Run for links
+# #     input = sprintf('%s%s/%s_best_linked_genes.txt', gwas_path, g, strsplit(g, 'roadmap_')[[1]][2])
+# #     output = sprintf('%s%s_linked_GO_enrichment.txt', out_path, strsplit(g, 'roadmap_')[[1]][2])
+# #     system(sprintf('/srv/gs1/software/R/R-3.0.1/bin/Rscript /srv/gsfs0/projects/kundaje/users/pgreens/scripts/DAVID_R_access.R -f %s -c 5 -o %s', input, output), intern=TRUE)
+# #     # Run for nearest
+# #     input = sprintf('%s%s/%s_nearest_genes.txt', gwas_path, g, strsplit(g, 'roadmap_')[[1]][2])
+# #     output = sprintf('%s%s_nearest_GO_enrichment.txt', out_path, strsplit(g, 'roadmap_')[[1]][2])
+# #     system(sprintf('/srv/gs1/software/R/R-3.0.1/bin/Rscript /srv/gsfs0/projects/kundaje/users/pgreens/scripts/DAVID_R_access.R -f %s -c 6 -o %s', input, output), intern=TRUE)
+# # }
+
 

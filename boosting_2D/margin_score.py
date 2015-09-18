@@ -728,28 +728,32 @@ def split_index_mat_prom_enh(index_mat, y, tss_file):
 def call_rank_by_margin_score(index_mat, key, method, prefix, y, x1, x2, tree,
  pool, num_perm=100, null_tree_file=None):
     # Make margin score directory in output directory
-    margin_outdir = '{0}{1}/margin_scores/'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    margin_outdir = '{0}{1}/margin_scores/'.format(config.OUTPUT_PATH,
+     config.OUTPUT_PREFIX)
     if not os.path.exists(margin_outdir):
         os.makedirs(margin_outdir)
     # Assign y-value
     y_value = +1 if 'up' in key else -1
     # Calculate real margin score
-    rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool, method=method)
+    rank_score_df = rank_by_margin_score(tree, y, x1, x2, index_mat, pool,
+     method=method)
     # If getting p-value, compute permutations
     if num_perm>0:
         if null_tree_file==None:
         # Compute p-value by shuffling y values
-            rank_score_df = calculate_null_margin_score_dist_by_shuffling_target(rank_score_df, 
-                index_mat, method, pool, num_perm, tree, y, x1, x2, y_value)
+            rank_score_df = calculate_null_margin_score_dist_by_shuffling_target(
+                rank_score_df,  index_mat, method, pool, num_perm, 
+                tree, y, x1, x2, y_value)
         # Compute p-value based on separate NULL model
         else:
-            rank_score_df = calculate_null_margin_score_dist_from_NULL_tree(rank_score_df, 
-                index_mat, method, pool, num_perm, tree, y, x1, x2, y_value, null_tree_file)                        
+            rank_score_df = calculate_null_margin_score_dist_from_NULL_tree(
+                rank_score_df, index_mat, method, pool, num_perm, 
+                tree, y, x1, x2, y_value, null_tree_file)                        
     # Write margin score to output_file 
-    rank_score_df.to_csv('{0}{1}_{2}_{3}_margin_score.txt'.format(margin_outdir, prefix, method, key), 
+    rank_score_df.to_csv('{0}{1}_{2}_{3}_margin_score.txt'.format(
+        margin_outdir, prefix, method, key), 
             sep="\t", index=None, header=True)
     return 0
-
 
 
 ### MARGIN SCORE NULL MODEL 

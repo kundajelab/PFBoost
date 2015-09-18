@@ -29,6 +29,7 @@ from boosting_2D.find_rule import *
 from boosting_2D import stabilize
 from boosting_2D import prior
 from boosting_2D import save_model
+from boosting_2D import post_processing_unsupervised
 
 log = util.log
 
@@ -59,7 +60,7 @@ def parse_args():
 
     # Margin score arguments
     parser.add_argument('--run-margin-score', 
-                        help='Flag to run margin sccore', action='store_true')
+                        help='Flag to run margin score', action='store_true')
     parser.add_argument('--condition-feat-file', 
                         help='set of conditions to calculate margin score over', default=None)
     parser.add_argument('--region-feat-file', 
@@ -75,6 +76,22 @@ def parse_args():
     # parser.add_argument('--tss_file', 
     #                     help='file containing promoter start sites for splitting index matrix', default=None) #ADD
 
+    # Unsupervised Learning Arguments
+    parser.add_argument('--run-unsupervised-clustering', 
+                        help='Flag to run unsupervised clustering', action='store_true')
+    parser.add_argument('--n-clusters-start', 
+                        help='Number of k-means clusters to start with sofiaML', default=5000, type=int)
+    parser.add_argument('--features-for-kmeans', 
+                        help='comma separated list with options: motif,reg,node,path', default='motif')
+    parser.add_argument('--run-knn-with-examples', 
+                        help='Flag to run unsupervised clustering', action='store_true')
+    parser.add_argument('--examples-to-track', 
+                        help='comma separated text files with 2 columns tab-separated \
+                         files contain sets of peaks and conditions expected to functionally relate \
+                         col1: feature label or index, col2: condition label or index', default=None)
+    parser.add_argument('--number-knneighbors', 
+                        help='number of k-nearest neighbors to return for every example', default=None)
+
 
     # Parse arguments
     args = parser.parse_args()
@@ -88,7 +105,11 @@ def parse_args():
         args.run_margin_score, args.margin_score_methods.split(','),
         args.condition_feat_file, args.region_feat_file,
         args.num_perm, args.split_prom_enh_dist,
-        args.null_tree_model
+        args.null_tree_model,
+        args.run_unsupervised_clustering, args.n_clusters_start,
+        args.features_for_kmeans.split(','),
+        args.run_knn_with_examples,
+        args.examples_to_track.split(','), args.number_knneighbors 
         )
 
     return PARAMS
@@ -109,7 +130,6 @@ def main():
     globals().update(locals_dict)
     config.NCPU=8
 
-    # Stop
     # from IPython import embed; embed()
     # pdb.set_trace()
     
@@ -152,12 +172,49 @@ def main():
         # Iterate through all methods and index matrices
         for method in PARAMS.margin_score_methods:
             for key in index_mat_dict.keys():
-                margin_score.call_rank_by_margin_score(index_mat_dict[key], key, method, PARAMS.margin_score_prefix,
-                y, x1, x2, tree, pool,
-                num_perm=PARAMS.num_perm, null_tree_file=PARAMS.null_tree_model)
+                margin_score.call_rank_by_margin_score(index_mat_dict[key], 
+                    key, method, PARAMS.margin_score_prefix,
+                    y, x1, x2, tree, pool, 
+                    num_perm=PARAMS.num_perm, 
+                    null_tree_file=PARAMS.null_tree_model)
 
-        print 'DONE: margin scores in {0}{1}/margin_scores/'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+        print 'DONE: margin scores in {0}{1}/margin_scores/'.format(
+            config.OUTPUT_PATH, config.OUTPUT_PREFIX)
 
+
+    ### Run unsupervised clustering
+    if PARAMS.run_unsupervised_clustering:
+        # Get clusters
+        print ('Beginning clustering, this may take up to several hours '
+        'depending on the size of the matrix')
+        (cluster_file, new_clusters) = post_processing_unsupervised.cluster_examples_kmeans(
+         y, x1, x2, tree, n_clusters_start=PARAMS.n_clusters_start,
+          mat_features=PARAMS.features_for_kmeans)
+        # Write out bed files with each cluster
+        write_out_cluster(y, cluster_file, new_clusters,
+         clusters_to_write='all', create_match_null=True)
+        # Track examples
+        for f in PARAMS.examples_to_track:
+            post_processing_unsupervised.knn(f)
+        
+        print 'DONE: clusters in {0}{1}/clustering/'.format(
+            config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+
+    ### Run KNN with the provided example
+    if PARAMS.run_knn_with_examples:
+        # get KNN for every example provided by users
+        knn_dict = post_processing_unsupervised.knn(
+            ex_file, y, x1, x2, tree, ex_by_feat_mat)
+        # Write out KNN to file
+        knn_path='{0}{1}/knn/'.format(
+            config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+        if not os.path.exists(knn_path):
+            os.makedirs(knn_path)
+        post_processing_unsupervised.write_knn(ex_file=ex_file, 
+            knn_dict=knn_dict, output_path=knn_path)
+
+        print 'DONE: k-nearest neighbors in {0}{1}/knn/'.format(
+            config.OUTPUT_PATH, config.OUTPUT_PREFIX)        
 
 
 ### Main
