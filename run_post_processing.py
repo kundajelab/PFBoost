@@ -29,7 +29,7 @@ from boosting_2D.find_rule import *
 from boosting_2D import stabilize
 from boosting_2D import prior
 from boosting_2D import save_model
-from boosting_2D import post_processing_unsupervised
+from boosting_2D import post_process_unsupervised
 
 log = util.log
 
@@ -44,7 +44,11 @@ PostProcess_Params = namedtuple('PostProcess_Params', [
     'run_margin_score', 'margin_score_methods',
     'condition_feat_file', 'region_feat_file', 
     'num_perm', 'split_prom_enh_dist',
-    'null_tree_model'
+    'null_tree_model',
+    'run_unsupervised_clustering', 'n_clusters_start',
+    'features_for_kmeans',
+    'run_knn_with_examples', 'examples_to_track',
+    'number_knneighbors'
 ])
 
 
@@ -99,17 +103,21 @@ def parse_args():
     # If no subset files, name consistently for generating unsupervised learning
     prefix = 'full_model' if args.condition_feat_file==None and args.region_feat_file==None else args.margin_score_prefix 
 
+    margin_score_methods = args.margin_score_methods.split(',') if args.margin_score_methods != None else None
+    features_for_kmeans = args.features_for_kmeans.split(',') if args.features_for_kmeans != None else None
+    examples_to_track = args.examples_to_track.split(',') if args.examples_to_track != None else None
+
     # Store arguments in a named tuple
     PARAMS = PostProcess_Params(
         args.model_path, prefix,
-        args.run_margin_score, args.margin_score_methods.split(','),
+        args.run_margin_score, margin_score_methods,
         args.condition_feat_file, args.region_feat_file,
         args.num_perm, args.split_prom_enh_dist,
         args.null_tree_model,
         args.run_unsupervised_clustering, args.n_clusters_start,
-        args.features_for_kmeans.split(','),
+        features_for_kmeans,
         args.run_knn_with_examples,
-        args.examples_to_track.split(','), args.number_knneighbors 
+        examples_to_track, args.number_knneighbors 
         )
 
     return PARAMS
@@ -187,7 +195,7 @@ def main():
         # Get clusters
         print ('Beginning clustering, this may take up to several hours '
         'depending on the size of the matrix')
-        (cluster_file, new_clusters) = post_processing_unsupervised.cluster_examples_kmeans(
+        (cluster_file, new_clusters) = post_process_unsupervised.cluster_examples_kmeans(
          y, x1, x2, tree, n_clusters_start=PARAMS.n_clusters_start,
           mat_features=PARAMS.features_for_kmeans)
         # Write out bed files with each cluster
@@ -195,7 +203,7 @@ def main():
          clusters_to_write='all', create_match_null=True)
         # Track examples
         for f in PARAMS.examples_to_track:
-            post_processing_unsupervised.knn(f)
+            post_process_unsupervised.knn(f)
         
         print 'DONE: clusters in {0}{1}/clustering/'.format(
             config.OUTPUT_PATH, config.OUTPUT_PREFIX)
@@ -203,15 +211,17 @@ def main():
     ### Run KNN with the provided example
     if PARAMS.run_knn_with_examples:
         # get KNN for every example provided by users
-        knn_dict = post_processing_unsupervised.knn(
-            ex_file, y, x1, x2, tree, ex_by_feat_mat)
-        # Write out KNN to file
-        knn_path='{0}{1}/knn/'.format(
-            config.OUTPUT_PATH, config.OUTPUT_PREFIX)
-        if not os.path.exists(knn_path):
-            os.makedirs(knn_path)
-        post_processing_unsupervised.write_knn(ex_file=ex_file, 
-            knn_dict=knn_dict, output_path=knn_path)
+        for ex_file in PARAMS.examples_to_track:
+            knn_dict = post_process_unsupervised.knn(
+                ex_file, y, x1, x2, tree)
+            # Write out KNN to file
+            knn_path='{0}{1}/knn/'.format(
+                config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+            if not os.path.exists(knn_path):
+                os.makedirs(knn_path)
+            post_process_unsupervised.write_knn(y=y, ex_file=ex_file, 
+                knn_dict=knn_dict, output_path=knn_path)
+            print 'Finished file {0}'.format(ex_file)
 
         print 'DONE: k-nearest neighbors in {0}{1}/knn/'.format(
             config.OUTPUT_PATH, config.OUTPUT_PREFIX)        

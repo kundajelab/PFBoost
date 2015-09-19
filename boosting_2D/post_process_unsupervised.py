@@ -3,17 +3,36 @@
 ### Script to find unsupervised modules 
 ###############################################################
 
+import os
+import sys
+
 from matplotlib import pyplot as plt
 from sklearn.datasets import dump_svmlight_file
 import scipy.cluster.hierarchy as hier
 import scipy.spatial.distance as dist
 
+import pandas as pd
+import numpy as np
+from scipy.sparse import *
+
+import multiprocessing
+import ctypes
+from grit.lib.multiprocessing_utils import fork_and_wait
+
+from boosting_2D import margin_score
+from boosting_2D import util
+from boosting_2D import config
+
 ### Load data
 ###############################################################
-RESULT_PATH='/srv/persistent/pgreens/projects/boosting/results/'
-# execfile('{0}2015_08_14_hematopoeisis_23K_bindingTFsonly_adt_stable_5iter/load_pickle_data_script.py'.format(RESULT_PATH))
-execfile('{0}2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py'.format(RESULT_PATH))
 
+# RESULT_PATH='/srv/persistent/pgreens/projects/boosting/results/'
+# execfile('{0}2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py'.format(RESULT_PATH))
+
+
+### K-Means Clustering
+###############################################################
+###############################################################
 
 def cluster_examples_kmeans( y, x1, x2, tree, n_clusters_start=5000,
     mat_features=['motif']):
@@ -65,7 +84,7 @@ def cluster_matrix_w_sofiaml_kmeans(sofiaml_file, out_dir, n_clusters_start):
     assignment_file = '{0}/sofiaml_assignments_n{1}.txt'.format(
         out_dir, n_clusters_start)
 
-    Get cluster centers
+    # Get cluster centers
     sofia_train_command="""
     {0}/sofia-kmeans --k {1} --init_type random
      --opt_type mini_batch_kmeans --mini_batch_size 1000
@@ -108,8 +127,8 @@ def join_similar_kmeans_cluster(cluster_file, assignment_file, max_distance=0.5)
     return new_clusters
 
 
-write_out_cluster(y, cluster_file, new_clusters, out_dir,
-     clusters_to_write=[1,2,3,4], create_match_null=True)
+# write_out_cluster(y, cluster_file, new_clusters, out_dir,
+#      clusters_to_write=[1,2,3,4], create_match_null=True)
 
 def write_out_cluster(y, cluster_file, new_clusters,
      clusters_to_write='all', create_match_null=True):
@@ -180,9 +199,6 @@ def write_out_cluster(y, cluster_file, new_clusters,
 
 # np.max([len([i for i in new_clusters if i==clust]) for clust in xrange(max(new_clusters))])
 
-### Find coordinated elements
-def find_module_by_peak_and_condition(peak_condition_file):
-
 
 
 
@@ -243,62 +259,197 @@ def get_order_vec(cond_margin_scores, order_file):
       if order_labels[el] in cond_margin_scores.keys()[key]]
     return order_vec
 
-
-
-feat_name='CEBPA-MA0102.3'
-feat_name='Spi1-MA0080.3'
-list_of_margin_scores=('/srv/persistent/pgreens/projects/boosting/results/'
-    'margin_score_files/hema_margin_score_files_x1_all_down.txt')
+# feat_name='CEBPA-MA0102.3'
+# feat_name='Spi1-MA0080.3'
 # list_of_margin_scores=('/srv/persistent/pgreens/projects/boosting/results/'
+#     'margin_score_files/hema_margin_score_files_x1_all_down.txt')
+# # list_of_margin_scores=('/srv/persistent/pgreens/projects/boosting/results/'
+# #     'margin_score_files/hema_margin_score_files_x1_all_up.txt')
+# cond_margin_scores = get_margin_score_across_conditions(list_of_margin_scores,
+#  MARGIN_SCORE_PATH, feat_name, feat_col, margin_score_col)
+# feat_list=['CEBPA-MA0102.3', 'Gata1-MA0035.3', 'CEBPB-MA0466.1',
+#  'EBF1-MA0154.2', 'FOXP1-MA0481.1', 'Hoxc9-MA0485.1', 
+# 'Hoxa9-MA0594.1', 'Spi1-MA0080.3', 'TAL1-GATA1-MA0140.2']
+
+# feat_col=4
+# margin_score_col=2
+# MARGIN_SCORE_PATH=('/srv/persistent/pgreens/projects/boosting/results/2015_'
+#     '08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/margin_scores/')
+
+# ### Iterate over motif/reg/node up/down to make all trajectories
+# list_dict = {}
+# list_dict['motif_down']=('/srv/persistent/pgreens/projects/boosting/results/'
+#     'margin_score_files/hema_margin_score_files_x1_all_down.txt')
+# list_dict['motif_up']=('/srv/persistent/pgreens/projects/boosting/results/'
 #     'margin_score_files/hema_margin_score_files_x1_all_up.txt')
-cond_margin_scores = get_margin_score_across_conditions(list_of_margin_scores,
- MARGIN_SCORE_PATH, feat_name, feat_col, margin_score_col)
-feat_list=['CEBPA-MA0102.3', 'Gata1-MA0035.3', 'CEBPB-MA0466.1',
- 'EBF1-MA0154.2', 'FOXP1-MA0481.1', 'Hoxc9-MA0485.1', 
-'Hoxa9-MA0594.1', 'Spi1-MA0080.3', 'TAL1-GATA1-MA0140.2']
+# list_dict['reg_down']=('/srv/persistent/pgreens/projects/boosting/results/'
+#     'margin_score_files/hema_margin_score_files_x2_all_down.txt')
+# list_dict['reg_up']=('/srv/persistent/pgreens/projects/boosting/results/'
+#     'margin_score_files/hema_margin_score_files_x2_all_up.txt')
+# list_dict['node_down']=('/srv/persistent/pgreens/projects/boosting/results/'
+#     'margin_score_files/hema_margin_score_files_node_all_down.txt')
+# list_dict['node_up']=('/srv/persistent/pgreens/projects/boosting/results/'
+#     'margin_score_files/hema_margin_score_files_node_all_up.txt')
+# feat_dict = {}
+# feat_dict['motif_down']=x1.row_labels
+# feat_dict['motif_up']=x1.row_labels
+# feat_dict['reg_down']=x2.col_labels
+# feat_dict['reg_up']=x2.col_labels
+# feat_dict['node_down']=range(1,tree.nsplit)
+# feat_dict['node_up']=range(1,tree.nsplit)
 
-feat_col=4
-margin_score_col=2
-MARGIN_SCORE_PATH=('/srv/persistent/pgreens/projects/boosting/results/2015_'
-    '08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/margin_scores/')
+# for key in list_dict.keys():
+#     if 'node' in key:
+#         continue
+#     for feat in feat_dict[key]:
+#         cond_margin_scores = get_margin_score_across_conditions(
+#             list_of_margin_scores=list_dict[key], 
+#             margin_score_path=MARGIN_SCORE_PATH, feat_name=feat,
+#              feat_col=feat_col, margin_score_col=margin_score_col)
+#         if len(cond_margin_scores)==14:
+#             print feat
+#             plot_margin_score_across_conditions(
+#             cond_margin_scores=cond_margin_scores, feat_name=feat, label=key)
 
-### Iterate over motif/reg/node up/down to make all trajectories
-list_dict = {}
-list_dict['motif_down']=('/srv/persistent/pgreens/projects/boosting/results/'
-    'margin_score_files/hema_margin_score_files_x1_all_down.txt')
-list_dict['motif_up']=('/srv/persistent/pgreens/projects/boosting/results/'
-    'margin_score_files/hema_margin_score_files_x1_all_up.txt')
-list_dict['reg_down']=('/srv/persistent/pgreens/projects/boosting/results/'
-    'margin_score_files/hema_margin_score_files_x2_all_down.txt')
-list_dict['reg_up']=('/srv/persistent/pgreens/projects/boosting/results/'
-    'margin_score_files/hema_margin_score_files_x2_all_up.txt')
-list_dict['node_down']=('/srv/persistent/pgreens/projects/boosting/results/'
-    'margin_score_files/hema_margin_score_files_node_all_down.txt')
-list_dict['node_up']=('/srv/persistent/pgreens/projects/boosting/results/'
-    'margin_score_files/hema_margin_score_files_node_all_up.txt')
-feat_dict = {}
-feat_dict['motif_down']=x1.row_labels
-feat_dict['motif_up']=x1.row_labels
-feat_dict['reg_down']=x2.col_labels
-feat_dict['reg_up']=x2.col_labels
-feat_dict['node_down']=range(1,tree.nsplit)
-feat_dict['node_up']=range(1,tree.nsplit)
 
-for key in list_dict.keys():
-    if 'node' in key:
-        continue
-    for feat in feat_dict[key]:
-        cond_margin_scores = get_margin_score_across_conditions(
-            list_of_margin_scores=list_dict[key], 
-            margin_score_path=MARGIN_SCORE_PATH, feat_name=feat,
-             feat_col=feat_col, margin_score_col=margin_score_col)
-        if len(cond_margin_scores)==14:
-            print feat
-            plot_margin_score_across_conditions(
-            cond_margin_scores=cond_margin_scores, feat_name=feat, label=key)
+
+### K-NN Clustering to track examples
+###############################################################
+###############################################################
+
+### K-nearest neighbors - take in set of examples, find indices
+### and return a dictionary of elements 
+# ex_file='/srv/persistent/pgreens/projects/boosting/results/clustering_files/hema_examples_to_track.txt'
+def knn(ex_file, y, x1, x2, tree):
+    ### Read in examples and get indices
+    ex_df = pd.read_table(ex_file, header=None)
+    peaks = ex_df.ix[:,0].tolist()
+    conditions = ex_df.ix[:,1].tolist()
+    ### Generate feature matrix
+    ex_by_feat_mat = gen_ex_by_feature_matrix(y, x1, x2, tree, feat=['motif'])
+    # if providing index numbers, subtract 1, else get index of labels
+    # if peaks.applymap(lambda x: isinstance(x, (int, float))).sum().tolist()[0]==len(peaks):
+    if np.sum([isinstance(el, (int, float)) for el in peaks])==len(peaks):
+        # ASSUMING INPUT IS 1 BASED
+        peak_index_list = [el-1 for el in peaks]
+    else:
+        # peak_index_list = [el for el in xrange(y.data.shape[0]) if y.row_labels[el] in peaks]
+        peak_index_list = [np.where(y.row_labels==el)[0][0] for el in peaks]
+    # if providing index numbers, subtract 1, else get index of labels
+    # if conditions.applymap(lambda x: isinstance(x, (int, float))).sum().tolist()[0]==len(conditions):
+    if np.sum([isinstance(el, (int, float)) for el in conditions])==len(conditions):
+        # ASSUMING INPUT IS 1 BASED
+        condition_index_list = [el-1 for el in peaks]
+    else:
+        # condition_index_list = [el for el in xrange(y.data.shape[1]) if y.col_labels[el] in conditions]
+        condition_index_list = [np.where(y.col_labels==el)[0][0] for el in conditions]
+    # Get dictionary of all features applying to each example
+    feat_dict = {}
+    for ind in xrange(len(peak_index_list)):
+        if y.data[peak_index_list[ind],condition_index_list[ind]]==0:
+            print 'There is no change at this feature in this condition.'
+            continue
+        feat_dict[ind]=extract_ex_affected_by_same_feat(y, tree, 
+            peak_index_list[ind], condition_index_list[ind], ex_by_feat_mat)
+    # Get examples to search over for each the 
+    ex_dict = {}
+    for ind in feat_dict.keys():
+        if len(feat_dict[ind])==0:
+            ex_dict[ind]=[]
+        else:
+            ex_dict[ind]= find_examples_affected_by_same_features(tree, 
+            feat_dict[ind])
+    # get k nearest neighbors based on example_index and other examples
+    knn_dict = {}
+    for ind in feat_dict.keys():
+        knn_dict[ind]= get_k_nearest_neighbors(y, 
+            peak_index_list[ind], condition_index_list[ind],
+            ex_dict[ind], ex_by_feat_mat)
+    # return the KNN dictionary of nearest neighbors
+    return knn_dict
+
+
+
+# Find the indices of the features affecting example index given
+def extract_ex_affected_by_same_feat(y, tree, peak_index, condition_index, ex_by_feat_mat):
+    # ! check
+    example_index=peak_index*y.num_col+condition_index
+    if y.data[peak_index,condition_index]==0:
+        print 'There is no change at this feature in this condition. STOP.'
+        return None
+    # Find the features that have non-zero margin score
+    # feat_list = (ex_by_feat_mat[example_index,:]!=0).nonzero()[1].tolist()
+    # Find the features where the index actually overlaps the place
+    df = csr_matrix(y.data.shape)
+    # Make one TRUE entry at yo
+    df[peak_index, condition_index]=True
+    feat_list=[]
+    for ind in xrange(tree.nsplit):
+        if util.element_mult(tree.ind_pred_test[ind]+tree.ind_pred_train[ind], df).sum()!=0:
+            feat_list.append(ind)
+    return feat_list
+
+# Get all examples affected by any of the same feature sets
+def find_examples_affected_by_same_features(tree, feat_list):
+    # Concatenate the index of 
+    index_vec = np.sum([tree.ind_pred_train[node]+tree.ind_pred_test[node]
+     for node in feat_list if node != 0]).toarray().flatten()
+    expanded_example_list = np.where(index_vec!=0)[0].tolist()
+    return expanded_example_list
+
+# Give an example index, the neighbor list and feature matrix, get KNN
+def get_k_nearest_neighbors(y, peak_index, condition_index, 
+    expanded_example_list, ex_by_feat_mat, num_neighbors=100):
+    # Subset example by feature matrix
+    if len(expanded_example_list)==0:
+        print 'no examples are affectd by the same features'
+        return []
+    else:
+        example_mat = ex_by_feat_mat[expanded_example_list,:]
+        example_index=peak_index*y.num_col+condition_index
+        # Run KNN with closest examples
+        from sklearn.neighbors import NearestNeighbors
+        nbrs = NearestNeighbors(n_neighbors=num_neighbors,
+         algorithm='ball_tree').fit(example_mat)
+        distances, indices = nbrs.kneighbors(ex_by_feat_mat[example_index,])
+        # Return the indices of the number of neighbors - reconvert into peaks/conditions
+        neighbor_index=indices[0]
+        return neighbor_index
+
+# Write out KNN as columns
+# Format: peak|condition peak|condition peak|condition (as original examples)
+# k+1 rows, first row is the original example and then the k lines after are the 
+# k nearest neighbors found
+def write_knn(y, ex_file, knn_dict, output_path):
+    file_name=output_path+os.path.basename(ex_file).split('.')[0]+ \
+        '_with_knneighbors.txt'
+    ex_df = pd.read_table(ex_file, header=None)
+    peaks = ex_df.ix[:,0].tolist()
+    conditions = ex_df.ix[:,1].tolist()
+    # Write out headers as the examples provided
+    headers = ['|'.join([peaks[ind], conditions[ind]]) for ind in knn_dict.keys()]
+    # Below each one add in 
+    rows = {}
+    for ind in knn_dict.keys():
+        # write out the peak and condition names based on the indices 
+        examples = knn_dict[ind]
+        peak_names = [y.row_labels[np.floor(np.divide(val, y.num_col))] for val in examples]
+        cond_names = [y.col_labels[val%y.num_col] for val in examples]
+        row = ['|'.join([peak_names[i], cond_names[i]]) \
+         for i in xrange(len(examples))]
+        rows[ind] = row 
+    # Write out each example
+    knn_file = open(file_name, 'w')
+    knn_file.write("%s\n" % '\t'.join(headers))
+    for ind in range(len(row)):
+        knn_file.write("%s\n" % '\t'.join(
+            [rows[col][ind] for col in rows.keys()]))
+    knn_file.close()
+    return 0
 
 
 ### Function to generate ex by feature matrix
+###############################################################
 ###############################################################
 
 def gen_ex_by_feature_matrix(y, x1, x2, tree, feat=[
@@ -404,144 +555,14 @@ def gen_ex_by_feature_matrix(y, x1, x2, tree, feat=[
 # Enumerate paths for a tree by listing all nodes in path
 ###############################################################
 def enumerate_paths(tree):
-	path_dict = {}
-	for node in range(1,tree.nsplit):
-		path_dict[node]='|'.join([str(node)]+[
-			str(el) for el in tree.above_nodes[node] if el!=0])
-	return path_dict
+    path_dict = {}
+    for node in range(1,tree.nsplit):
+        path_dict[node]='|'.join([str(node)]+[
+            str(el) for el in tree.above_nodes[node] if el!=0])
+    return path_dict
 
 
-### Track certain examples through k-nearest neighbors clustering
-################################################################
-
-### K-nearest neighbors - take in set of examples, find indices
-### and return a dictionary of elements 
-ex_file='/srv/persistent/pgreens/projects/boosting/results/clustering_files/hema_examples_to_track.txt'
-def knn(ex_file, y, x1, x2, tree, ex_by_feat_mat):
-    ### Read in examples and get indices
-    ex_df = pd.read_table(ex_file, header=None)
-    peaks = ex_df.ix[:,0].tolist()
-    conditions = ex_df.ix[:,1].tolist()
-    # if providing index numbers, subtract 1, else get index of labels
-    # if peaks.applymap(lambda x: isinstance(x, (int, float))).sum().tolist()[0]==len(peaks):
-    if np.sum([isinstance(el, (int, float)) for el in peaks])==len(peaks):
-        # ASSUMING INPUT IS 1 BASED
-        peak_index_list = [el-1 for el in peaks]
-    else:
-        # peak_index_list = [el for el in xrange(y.data.shape[0]) if y.row_labels[el] in peaks]
-        peak_index_list = [np.where(y.row_labels==el)[0][0] for el in peaks]
-    # if providing index numbers, subtract 1, else get index of labels
-    # if conditions.applymap(lambda x: isinstance(x, (int, float))).sum().tolist()[0]==len(conditions):
-    if np.sum([isinstance(el, (int, float)) for el in conditions])==len(conditions):
-        # ASSUMING INPUT IS 1 BASED
-        condition_index_list = [el-1 for el in peaks]
-    else:
-        # condition_index_list = [el for el in xrange(y.data.shape[1]) if y.col_labels[el] in conditions]
-        condition_index_list = [np.where(y.col_labels==el)[0][0] for el in conditions]
-    # Get dictionary of all features applying to each example
-    feat_dict = {}
-    for ind in xrange(len(peak_index_list)):
-        if y.data[peak_index_list[ind],condition_index_list[ind]]==0:
-            print 'There is no change at this feature in this condition.'
-            continue
-        feat_dict[ind]=extract_ex_affected_by_same_feat(
-            peak_index_list[ind], condition_index_list[ind], ex_by_feat_mat)
-    # Get examples to search over for each the 
-    ex_dict = {}
-    for ind in xrange(len(peak_index_list)):
-        if len(feat_dict[ind])==0:
-            ex_dict[ind]=[]
-        else:
-            ex_dict[ind]= find_examples_affected_by_same_features(
-            feat_dict[ind])
-    # get k nearest neighbors based on example_index and other examples
-    knn_dict = {}
-    for ind in xrange(len(peak_index_list)):
-        knn_dict[ind]= get_k_nearest_neighbors(
-            peak_index_list[ind], condition_index_list[ind],
-            ex_dict[ind], ex_by_feat_mat)
-    # return the KNN dictionary of nearest neighbors
-    return knn_dict
-
-
-
-# Find the indices of the features affecting example index given
-def extract_ex_affected_by_same_feat(peak_index, condition_index, ex_by_feat_mat):
-    # ! check
-    example_index=peak_index*y.num_col+condition_index
-    if y.data[peak_index,condition_index]==0:
-        print 'There is no change at this feature in this condition. STOP.'
-        return None
-    # Find the features that have non-zero margin score
-    # feat_list = (ex_by_feat_mat[example_index,:]!=0).nonzero()[1].tolist()
-    # Find the features where the index actually overlaps the place
-    df = csr_matrix(y.data.shape)
-    # Make one TRUE entry at yo
-    df[peak_index, condition_index]=True
-    feat_list=[]
-    for ind in xrange(tree.nsplit):
-        if util.element_mult(tree.ind_pred_test[ind]+tree.ind_pred_train[ind], df).sum()!=0:
-            feat_list.append(ind)
-    return feat_list
-
-# Get all examples affected by any of the same feature sets
-def find_examples_affected_by_same_features(feat_list):
-    # Concatenate the index of 
-    index_vec = np.sum([tree.ind_pred_train[node]+tree.ind_pred_test[node]
-     for node in feat_list if node != 0]).toarray().flatten()
-    expanded_example_list = np.where(index_vec!=0)[0].tolist()
-    return expanded_example_list
-
-# Give an example index, the neighbor list and feature matrix, get KNN
-def get_k_nearest_neighbors(peak_index, condition_index, 
-    expanded_example_list, ex_by_feat_mat, num_neighbors=100):
-    # Subset example by feature matrix
-    if len(expanded_example_list)==0:
-        print 'no examples are affectd by the same features'
-        return []
-    else:
-        example_mat = ex_by_feat_mat[expanded_example_list,:]
-        example_index=peak_index*y.num_col+condition_index
-        # Run KNN with closest examples
-        from sklearn.neighbors import NearestNeighbors
-        nbrs = NearestNeighbors(n_neighbors=num_neighbors,
-         algorithm='ball_tree').fit(example_mat)
-        distances, indices = nbrs.kneighbors(ex_by_feat_mat[example_index,])
-        # Return the indices of the number of neighbors - reconvert into peaks/conditions
-        neighbor_index=indices[0]
-        return neighbor_index
-
-# Write out KNN as columns
-# Format: peak|condition peak|condition peak|condition (as original examples)
-# k+1 rows, first row is the original example and then the k lines after are the 
-# k nearest neighbors found
-def write_knn(ex_file, knn_dict, output_path):
-    file_name=output_path+os.path.basename(ex_file).split('.')[0]+ \
-        '_with_knneighbors.txt'
-    ex_df = pd.read_table(ex_file, header=None)
-    peaks = ex_df.ix[:,0].tolist()
-    conditions = ex_df.ix[:,1].tolist()
-    # Write out headers as the examples provided
-    headers = ['|'.join([peaks[ind], conditions[ind]]) for ind in len(peaks)]
-    # Below each one add in 
-    rows = []
-    for ind in knn_dict.keys():
-        # write out the peak and condition names based on the indices 
-        examples = knn_dict[ind]
-        peak_names = []
-        cond_names = 
-    # Write out each example
-    f.open(file_name)
-    f.writelines()
-
-
-    print 'DONE: wrote KNN out to this'
-    return 0
-
-
-
-
-# ### Clustering methods
+# ### Clustering methods - OLD
 # ###############################################################
 # ###############################################################
 # # NMF

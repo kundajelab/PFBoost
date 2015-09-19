@@ -1,3 +1,6 @@
+### MARGIN SCORES
+###############################################################
+
 ### Calculate margin score on whole matrix (5iter test)
 RESULT_PATH=/srv/persistent/pgreens/projects/boosting/results/
 python /users/pgreens/git/boosting_2D/run_post_processing.py --model-path $RESULT_PATH"2015_08_14_hematopoeisis_23K_bindingTFsonly_adt_stable_5iter/load_pickle_data_script.py" --run-margin-score --num-perm 100 --split-prom-enh-dist 0 --margin-score-methods node,path
@@ -42,12 +45,15 @@ done
 # Run pHSC v normal
 cell_file=$INDEX_PATH"hema_pHSC_v_normal_cells.txt"
 peak_file=$INDEX_PATH"hema_pHSC_v_normal_peaks.txt"
-python /users/pgreens/git/boosting_2D/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --margin-score-prefix hema_pHSC_v_normal --run-margin-score --num-perm 1000 --margin-score-methods x2,node --region-feat-file $peak_file --condition-feat-file $cell_file
+python /users/pgreens/git/boosting_2D/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --margin-score-prefix hema_pHSC_v_normal --run-margin-score --num-perm 100 --margin-score-methods x2,node --region-feat-file $peak_file --condition-feat-file $cell_file
 
 # Run Blast v normal
 cell_file=$INDEX_PATH"hema_LSC_Blast_v_normal_cells.txt"
 peak_file=$INDEX_PATH"hema_LSC_Blast_v_normal_peaks.txt"
-python /users/pgreens/git/boosting_2D/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --margin-score-prefix hema_LSC_Blast_v_normal --run-margin-score --num-perm 2 --margin-score-methods x2,node --region-feat-file $peak_file --condition-feat-file $cell_file
+python /users/pgreens/git/boosting_2D/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --margin-score-prefix hema_LSC_Blast_v_normal --run-margin-score --num-perm 100 --margin-score-methods x2,node --region-feat-file $peak_file --condition-feat-file $cell_file
 
-### Grep 
+### KNN
+###############################################################
+RESULT_PATH=/srv/persistent/pgreens/projects/boosting/results/
+python /users/pgreens/git/boosting_2D/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --margin-score-prefix hema_CMP_v_Mono_NULL_model --run-knn-with-examples --examples-to-track /srv/persistent/pgreens/projects/boosting/results/clustering_files/hema_examples_to_track.txt --number-knneighbors 100
 
