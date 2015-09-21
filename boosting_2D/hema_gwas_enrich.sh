@@ -176,25 +176,31 @@ done
 ### Giant matrix of peak by GWAS
 ##########################################################################################
 
+### IN PYTHON ELSE WHERE I BELIEVE FIND
 
-# Make file
-intersect_file=$NONRANK_PATH"by_disease/"$dis"_cell_type_results.txt"
-if [ -f $intersect_file ]; then
-  rm $intersect_file
-fi
+### Get enrichment of all GWAS in roadmap cell types
+##########################################################################################
 
-# Get headers
+RESULT_PATH=/srv/persistent/pgreens/projects/hema_gwas/results/roadmap_enrich_results/
+GWAS_PATH=/srv/scratch/pgreens/data/gwas/
+SCRIPT_PATH=/users/pgreens/git/gwas_util/
 
-# 
-for gwas in all_gwas;
+for database in single grasp roadmap;
 do
-
+  for gwas_pruned in $(ls $GWAS_PATH"pruned_LD_geno/rsq_0.8/"$database"/"*_pruned_rsq_0.8.bed);
+  do
+    echo $gwas_pruned
+    out_dir=$GWAS_PATH"expanded_LD_geno/rsq_0.8/"$database"/"
+    gwas_expanded=$out_dir$(basename $gwas_pruned .bed)"_expanded_rsq_0.8.bed"
+    gwas_name0=$(basename $gwas_pruned)
+    gwas_name=${gwas_name0/_pruned_rsq_0.8.bed/}
+    analysis_name=$database"_"$gwas_name"_roadmap_enrich"
+    ANALYSIS_PATH=$RESULT_PATH$database"_"$gwas_name"/"
+    if [ ! -d $ANALYSIS_PATH ]; then
+      mkdir $ANALYSIS_PATH
+    fi
+    # echo Rscript $SCRIPT_PATH"gwas_enrichment_maurano.R" -t $gwas_pruned -l $gwas_expanded -n $analysis_name  -o $ANALYSIS_PATH | qsub -N $gwas_pruned -V -e $SCRIPT_PATH"script.err" -o $SCRIPT_PATH"script.out" -wd /srv/scratch # nandi 
+    Rscript $SCRIPT_PATH"gwas_enrichment_maurano.R" -t $gwas_pruned -l $gwas_expanded -n $analysis_name  -o $ANALYSIS_PATH 
+  done
 done
-
-
-
-
-
-
-
 

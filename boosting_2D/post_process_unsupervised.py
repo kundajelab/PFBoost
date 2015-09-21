@@ -562,6 +562,75 @@ def enumerate_paths(tree):
     return path_dict
 
 
+
+### Track ChIP-Seq peaks
+###############################################################
+###############################################################
+
+# OUT_PATH='{0}{1}/chip_seq/'.format(
+#             config.OUTPUT_PATH, config.OUTPUT_PREFIX) 
+# if not os.path.exists(OUT_PATH):
+#     os.makedirs(OUT_PATH)
+# CHIP_PATH='/mnt/data/ENCODE/peaks_spp/mar2012/distinct/idrOptimalBlackListFilt/'
+
+# # chip_label='K562_Gata1'
+# # chip_file=CHIP_PATH+('wgEncodeSydhTfbsK562Gata1UcdAlnRep0.bam_VS_wgEncodeSydhTfbsK562' \
+# #     'InputUcdAlnRep1.bam.regionPeak.gz')
+
+# def intersect_peaks_with_chip(row_labels, chip_file, chip_label):
+#     # Write labels to temporary bed
+#     temp_bed = OUT_PATH+os.path.basename(row_labels).split('.')[0]+'_temp.bed'
+#     intersect_file = OUT_PATH+os.path.basename(row_labels).split('.')[0]+ \
+#         '_{0}_intersect.txt'.format(chip_label)
+#     command = "cat {0} | tr ';' '\t' | cut -f1 | tr ':' '\t' | tr '-' '\t' > {1}".format(
+#         row_labels, temp_bed)
+#     os.system(command)
+#     # Bedtools intersect  to get bed
+#     command = "zcat {0} | cut -f1-3 | bedtools intersect -a {1} -b - -wb > {2}".format(
+#         chip_file, temp_bed, intersect_file)
+#     os.system(command)
+#     # Bedtools intersect  to get peak _labels
+#     command = "zcat %s | cut -f1-3 | bedtools intersect -a %s -b - -wa |  \
+#         awk '{print $1\":\"$2\"-\"$3}' | grep -w -F -f /dev/stdin %s > %s" % (
+#         chip_file, temp_bed, row_labels, intersect_file)
+#     os.system(command)
+#     return intersect_file
+
+# # Iterate through all available K562 chip seqs
+# K562_chips = [el for el in os.listdir(CHIP_PATH) if 'K562' in el]
+# metadata=pd.read_table('/users/pgreens/data/global/ENCODE.hg19.TFBS.QC.metadata' \
+#     '.jun2012_TFs_SPP_pooled.txt')
+# K562_chips=metadata.ix[metadata.CELLTYPE=='K562','FILENAME'].tolist()
+# K562_tfs=metadata.ix[metadata.CELLTYPE=='K562','HGNC TARGET NAME'].tolist()
+# row_labels=('/srv/persistent/pgreens/projects/boosting/data/' \
+#     'hematopoeisis_data/peak_headers_full_subset_CD34.txt')
+# regs = pd.read_table('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt').ix[:,0].tolist()
+# for chip_file in K562_chips:
+#     # get metadata
+#     tf = metadata.ix[metadata.FILENAME==chip_file,'HGNC TARGET NAME'].tolist()[0]
+#     if tf not in regs:
+#         continue    
+#     cell = metadata.ix[metadata.FILENAME==chip_file,'CELLTYPE'].tolist()[0]
+#     chip_label = '{0}_{1}'.format(cell, tf)
+#     chip_file_full = CHIP_PATH+[el for el in os.listdir(CHIP_PATH) if chip_file in el][0]
+#     # get the bed file of intersections
+#     intersect_file = intersect_peaks_with_chip(row_labels, chip_file_full, chip_label)
+#     # run margin score
+#     RESULT_PATH='/srv/persistent/pgreens/projects/boosting/results/'
+#     command = ('python /users/pgreens/git/boosting_2D/run_post_processing.py' \
+#     ' --model-path {0}2015_08_15_hematopoeisis_23K_bindingTFsonly_' \
+#     'adt_stable_1000iter/load_pickle_data_script.py --margin-score-prefix ' \
+#     'hema_MPP_HSC_v_pHSC_{1}_ChipSeq_peaks --run-margin-score --num-perm 10 ' \
+#     '--margin-score-methods x1,x2 --region-feat-file /srv/persistent/pgreens/'
+#     'projects/boosting/results/2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_' \
+#     'stable_1000iter/chip_seq/peak_headers_full_subset_CD34_{1}_intersect.txt ' \
+#     '--condition-feat-file /srv/persistent/pgreens/projects/boosting/data/' \
+#     'hematopoeisis_data/index_files/hema_MPP_HSC_v_pHSC_cells.txt').format(
+#     RESULT_PATH, chip_label)
+#     os.system(command)
+#     print tf
+
+
 # ### Clustering methods - OLD
 # ###############################################################
 # ###############################################################
