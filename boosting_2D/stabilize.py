@@ -245,13 +245,12 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
     x2_intersect_regdown = util.element_mult(reg_vec, x2_down)
 
     # Get weights for intersection
+    x1_intersect_weights = util.matrix_mult(x1_intersect, weights_i)
     log('intersection weights', level=level)
     ab_weights_regup = util.matrix_mult(
-        util.matrix_mult(x1_intersect, weights_i),
-         x2_intersect_regup) # PRE-FILTER weights
+        x1_intersect_weights, x2_intersect_regup) # PRE-FILTER weights
     ab_weights_regdown = util.matrix_mult(
-        util.matrix_mult(x1_intersect, weights_i),
-         x2_intersect_regdown) # PRE-FILTER weights
+        x1_intersect_weights, x2_intersect_regdown) # PRE-FILTER weights
 
     # Get symmetric difference in weights
     log('symmetric diff', level=level)
