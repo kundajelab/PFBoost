@@ -197,7 +197,7 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
     
 
 # Get rules to average (give motif, regulator and index)
-@profile
+# @profile
 def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
     level='VERBOSE'
     print 'starting bundle rules'
