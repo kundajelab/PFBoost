@@ -197,7 +197,7 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
     
 
 # Get rules to average (give motif, regulator and index)
-# @profile
+@profile
 def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
     level='VERBOSE'
     print 'starting bundle rules'
@@ -233,22 +233,16 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
     # Allocate matrix with best rule in repeated m matrix, and best rule in repeated r matrix
     log('calculate A+B', level=level)
     if y.sparse:
-        x1_best = vstack([x1.data[m,:] for el in range(x1.num_row)])
         reg_vec = (x2.data[:,r]==reg)
-        x2_best = hstack([reg_vec for el in range(x2.num_col)], format='csr') 
-        # Stop the stacking, multiplication in a for loop
     else:
-        x1_best = np.vstack([x1.data[m,:] for el in range(x1.num_row)])
         reg_vec = np.reshape((x2.data[:,r]==reg), (x2.num_row,1))
-        x2_best = np.hstack([reg_vec for el in range(x2.num_col)]) 
-
     # Multiply best rule times all other rules
     log('best rule times others', level=level)
-    x1_intersect = util.element_mult(x1_best, x1.data)
+    x1_intersect = util.element_mult(x1.data[m,:], x1.data)
     x2_up = x2.element_mult(x2.data>0)
     x2_down = abs(x2.element_mult(x2.data<0))
-    x2_intersect_regup = util.element_mult(x2_best, x2_up)
-    x2_intersect_regdown = util.element_mult(x2_best, x2_down)
+    x2_intersect_regup = util.element_mult(reg_vec, x2_up)
+    x2_intersect_regdown = util.element_mult(reg_vec, x2_down)
 
     # Get weights for intersection
     log('intersection weights', level=level)

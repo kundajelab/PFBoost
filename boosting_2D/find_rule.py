@@ -77,7 +77,7 @@ def find_rule_process_worker(
     
     return
 
-# @profile
+@profile
 def find_rule_processes(tree, holdout, y, x1, x2):
     if config.TUNING_PARAMS.use_stumps:
         # since we aren't building a tree, we use all of the
@@ -157,7 +157,7 @@ def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdou
     return (loss, reg_s)
 
 # Get rule weights of positive and negative examples
-# @profile
+@profile
 def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2):
     """
     Find rule weights, and return an object store containing them. 
