@@ -132,8 +132,8 @@ for (file in list.files(by_disease_path)){
 	result_df['neg_log10_adj_pval']=-log10(result_df$adj_pval)
 	result_df[,'log2_fold_enrich']=log2(result_df$effect_size)
 	result_df = result_df[grep("up|down", result_df$cell_abbrev),]
-	result_df=result_df[!is.infinite(result_df$log2_fold_enrich),]
-	log_pval_thresh=2
+	result_df = result_df[!is.infinite(result_df$log2_fold_enrich),]
+	log_pval_thresh = 2
 	label_ind = which(result_df$neg_log10_adj_pval>log_pval_thresh)
 	no_label_ind =which(result_df$neg_log10_adj_pval<=log_pval_thresh)
 	xmin = min(result_df$log2_fold_enrich)-0.1
@@ -154,6 +154,24 @@ for (file in list.files(by_disease_path)){
 }
 
 
+### Read in tables for each gwas 
+########################################################################
 
+blood_cells=c('E062', 'E034', 'E045', 'E033', 'E044', 'E043', 'E039', 'E041', 'E042', 'E040', 'E037', 'E048', 'E038', 'E047', 
+'E029', 'E031', 'E035', 'E051', 'E050', 'E036', 'E032', 'E046', 'E030')
+result_path='/srv/persistent/pgreens/projects/hema_gwas/results/roadmap_enrich_results/*/'
+result_files=system('ls /srv/persistent/pgreens/projects/hema_gwas/results/roadmap_enrich_results/*/*roadmap_tissue_enrichment_table.txt', intern=TRUE)
+rank_df = data.frame(matrix(nrow=length(result_files), ncol=3))
+colnames(rank_df)=c('max', 'mean', 'mean_top5')
+rownames(rank_df)=sapply(result_files, function(x) tail(strsplit(x, '/')[[1]], n=2)[1])
+for (file in result_files){
+	row_label=tail(strsplit(file, '/')[[1]], n=2)[1]
+	table=read.table(file, header=TRUE)
+	blood_table = table[,blood_cells]
+	rank_df[row_label, 'max'] = max(blood_table[nrow(blood_table),])
+	rank_df[row_label, 'mean'] = mean(unlist(blood_table[nrow(blood_table),]))
+	rank_df[row_label, 'mean_top5'] = mean(sort(unlist(blood_table[nrow(blood_table),]), decreasing=TRUE)[1:5])
+}
 
+sort_df = rank_df[order(rank_df$mean_top5, decreasing=TRUE),c(1,3)]
 

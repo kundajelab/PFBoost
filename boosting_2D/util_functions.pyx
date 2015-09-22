@@ -4,6 +4,7 @@
 
 import numpy as np
 cimport numpy as np
+import cython
 cimport cython
 
 # x is weights_i

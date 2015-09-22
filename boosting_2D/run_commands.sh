@@ -16,6 +16,10 @@ python /users/pgreens/git/boosting_2D/run_boosting_2D.py --num-iter 1000 --outpu
 DATA_PATH=/srv/persistent/pgreens/projects/boosting/data/tadpole_tail_data/
 python /users/pgreens/git/boosting_2D/run_boosting_2D.py --num-iter 1000 --output-prefix tadpole_tail_3K --input-format matrix --mult-format sparse -x $DATA_PATH"Motif_matrix.txt" -z $DATA_PATH"RNA_matrix.txt" -y $DATA_PATH"ATAC_matrix.txt" -g $DATA_PATH"LABEL_peaks.txt" -e $DATA_PATH"LABEL_conditions.txt" -m $DATA_PATH"LABEL_motifs.txt" -r $DATA_PATH"LABEL_regulators.txt" --eta1 0.05 --eta2 0.01 --ncpu 1 --output-path /srv/persistent/pgreens/projects/boosting/results/ --stable --plot --compress-regulators
 
+### Tadpole tail data (Baker lab) SCG3
+DATA_PATH=/srv/gsfs0/projects/baker/jessica/data/regeneration/version_9.0/learning_model/matrices/
+python /srv/gsfs0/projects/kundaje/users/pgreens/git/boosting_2D/run_boosting_2D.py --num-iter 1000 --output-prefix tadpole_tail_3K --input-format matrix --mult-format sparse -x $DATA_PATH"Motif_matrix.txt" -z $DATA_PATH"RNA_matrix_reduced.txt" -y $DATA_PATH"ATAC_matrix.txt" -g $DATA_PATH"LABEL_peaks.txt" -e $DATA_PATH"LABEL_conditions.txt" -m $DATA_PATH"LABEL_motifs.txt" -r $DATA_PATH"LABEL_regulators_reduced.txt" --eta1 0.05 --eta2 0.01 --ncpu 1 --output-path /srv/gsfs0/projects/kundaje/users/pgreens/temp_output/ --stable --plot --compress-regulators
+
 
 #
 DATA_PATH=/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/
