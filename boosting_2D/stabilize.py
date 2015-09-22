@@ -16,7 +16,7 @@ from boosting_2D import config
 from boosting_2D import find_rule
 
 import pyximport; pyximport.install()
-import util_functions
+from boosting_2D import util_functions
 
 
 log = util.log
