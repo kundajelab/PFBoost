@@ -153,14 +153,17 @@ for (file in list.files(by_disease_path)){
 	dev.off()
 }
 
+### HEMA HEATMAPS
+######################################################################################
 
-### Read in tables for each gwas 
-########################################################################
+### Read in tables for each gwas  - HEMA to give ranking of blood cell types and enrichment of GWAS
+######################################################################################
+
+result_path='/srv/persistent/pgreens/projects/hema_gwas/results/roadmap_enrich_results/*/'
+result_files=system('ls /srv/persistent/pgreens/projects/hema_gwas/results/roadmap_enrich_results/*/*roadmap_tissue_enrichment_table.txt', intern=TRUE)
 
 blood_cells=c('E062', 'E034', 'E045', 'E033', 'E044', 'E043', 'E039', 'E041', 'E042', 'E040', 'E037', 'E048', 'E038', 'E047', 
 'E029', 'E031', 'E035', 'E051', 'E050', 'E036', 'E032', 'E046', 'E030')
-result_path='/srv/persistent/pgreens/projects/hema_gwas/results/roadmap_enrich_results/*/'
-result_files=system('ls /srv/persistent/pgreens/projects/hema_gwas/results/roadmap_enrich_results/*/*roadmap_tissue_enrichment_table.txt', intern=TRUE)
 rank_df = data.frame(matrix(nrow=length(result_files), ncol=3))
 colnames(rank_df)=c('max', 'mean', 'mean_top5')
 rownames(rank_df)=sapply(result_files, function(x) tail(strsplit(x, '/')[[1]], n=2)[1])
@@ -174,4 +177,49 @@ for (file in result_files){
 }
 
 sort_df = rank_df[order(rank_df$mean_top5, decreasing=TRUE),c(1,3)]
+
+### Make matrix of all GWAS by cell types
+######################################################################################
+library(gplots)
+library(cba)
+
+file1 = read.table(result_files[1], header=TRUE)
+enrich_df = data.frame(matrix(nrow=length(result_files), ncol=127))
+colnames(enrich_df)=colnames(file1)[2:ncol(file1)]
+rownames(enrich_df)=sapply(result_files, function(x) tail(strsplit(x, '/')[[1]], n=2)[1])
+
+# Fill in matrix with the mean of the cell type in the last two bins
+for (file in result_files){
+	row_label=tail(strsplit(file, '/')[[1]], n=2)[1]
+	table=read.table(file, header=TRUE)
+	row_vals=apply(table[c(nrow(table)-1, nrow(table)),2:ncol(table)], 2, mean)
+	if (sum(is.na(row_vals))>0){
+		print(file)
+	} else{
+		enrich_df[row_label,]=row_vals
+	}
+}
+
+# Enrichment DF only GWAS without NAs
+enrich_df_plot <- enrich_df[is.na(apply(enrich_df, 1, sum))==FALSE,]
+
+### Plot
+annots = read.table('/srv/persistent/pgreens/projects/hema_gwas/jul2013.roadmapData_annotations.tsv', stringsAsFactors=FALSE, fill=T, header=T, sep='\t', comment.char='')
+annots= annots[3:nrow(annots),]
+
+plotannots = annots[match(colnames(enrich_df_plot), annots$NEW.EID),]
+# get palette
+col_breaks = c(0,seq(1,2,0.2),seq(3,8), 10)
+my_palette <- heat.colors(n=length(col_breaks)-1)
+# my_palette <- c("blue", colorRampPalette(c("white", "red"))(length(col_breaks)-2))
+
+# Plot in heatmap
+pdf("/users/pgreens/gwas_enrichment_across_roadmap_cell_types.pdf",width=20,height=20)
+par(mar=c(7,4,4,12)+0.1)
+par(oma=c(2,2,2,12))
+heatmap.2(as.matrix(enrich_df_plot), rowsep=0, colsep=0, sepwidth=c(0,0), trace='none', keysize=1, margins=c(8,14), na.color='black', main="GWAS Enrichment across Roadmap Cell Types", col=my_palette, breaks=col_breaks, ColSideColors=plotannots$COLOR, labCol=plotannots$Epigenome.Mnemonic)
+dev.off()
+
+# Write out table
+write.table(enrich_df_plot, '/srv/persistent/pgreens/projects/hema_gwas/results/roadmap_results/gwas_by_roadmap_enrich_mean_last_two_bins.txt', quote=FALSE, sep="\t", col.names =TRUE)
 

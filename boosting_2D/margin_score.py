@@ -961,6 +961,19 @@ def plot_norm_margin_score_across_conditions(conditions, method, plot_label, num
 #     discrim_df = discrim_df.sort(columns='sort', ascending=False).drop('sort', axis=1)
 #     discrim_df.to_csv(out_file, header=True, index=False, sep="\t")
 
+###
+
+### Take two set of indices and calculate the factors that are most different 
+def discriminate_margin_score(peak_file_1, peak_file_2, condition_file_1, condition_file_2, analysis_prefix):
+    ### calculate margin score with first set
+    # get index mat
+    # calc margin score
+    ### calculate margin score with second set
+    # get index mat
+    # calc margin score
+    ### find difference in normalized margin score between the two
+
+    ### write out differences
 
 
 

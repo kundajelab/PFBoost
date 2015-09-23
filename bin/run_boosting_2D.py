@@ -150,7 +150,7 @@ def parse_args():
                     args.input_format,
                     args.mult_format)
     log('load x2 stop')
-   
+       
     # Shuffle data
     if args.shuffle_y:
         y = util.shuffle_data_object(y)
