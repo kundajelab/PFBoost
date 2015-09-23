@@ -189,17 +189,16 @@ for database in single grasp roadmap;
 do
   for gwas_pruned in $(ls $GWAS_PATH"pruned_LD_geno/rsq_0.8/"$database"/"*_pruned_rsq_0.8.bed);
   do
-    if
-    echo $gwas_pruned
     out_dir=$GWAS_PATH"expanded_LD_geno/rsq_0.8/"$database"/"
     gwas_expanded=$out_dir$(basename $gwas_pruned .bed)"_expanded_rsq_0.8.bed"
     gwas_name0=$(basename $gwas_pruned)
     gwas_name=${gwas_name0/_pruned_rsq_0.8.bed/}
     analysis_name=$database"_"$gwas_name"_roadmap_enrich"
     ANALYSIS_PATH=$RESULT_PATH$database"_"$gwas_name"/"
-    if [ -f $$ANALYSIS_PATH$analysis_name"_roadmap_tissue_enrichment.pdf" ]; then
+    if [ -f $ANALYSIS_PATH$analysis_name"_roadmap_tissue_enrichment.pdf" ]; then
       continue
     fi
+    echo $gwas_pruned
     if [ ! -d $ANALYSIS_PATH ]; then
       mkdir $ANALYSIS_PATH
     fi
