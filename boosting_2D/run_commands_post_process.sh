@@ -55,6 +55,18 @@ cell_file=$INDEX_PATH"hema_LSC_Blast_v_normal_cells.txt"
 peak_file=$INDEX_PATH"hema_LSC_Blast_v_normal_peaks.txt"
 python /users/pgreens/git/boosting_2D/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --margin-score-prefix hema_LSC_Blast_v_normal --run-margin-score --num-perm 100 --margin-score-methods x2,node --region-feat-file $peak_file --condition-feat-file $cell_file
 
+### Discriminative Margin Score
+###############################################################
+CHIP_PATH=/srv/persistent/pgreens/projects/boosting/results/2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/chip_seq/
+INDEX_PATH=/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/
+cell_file=$INDEX_PATH"hema_MPP_HSC_v_pHSC_cells.txt"
+peak_file=$CHIP_PATH"peak_headers_full_subset_CD34_K562_GATA1_REST_INTERSECT.txt"
+peak_file2=$CHIP_PATH"peak_headers_full_subset_CD34_K562_GATA1_REST_NO_INTERSECT.txt"
+RESULT_PATH=/srv/persistent/pgreens/projects/boosting/results/
+python /users/pgreens/git/boosting_2D/bin/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --margin-score-prefix hema_GATA1_REST --run-disc-margin-score --margin-score-methods x1,x2 --region-feat-file $peak_file --condition-feat-file $cell_file --region-feat-file2 $peak_file2 --condition-feat-file2 $cell_file
+
+
+
 ### KNN
 ###############################################################
 RESULT_PATH=/srv/persistent/pgreens/projects/boosting/results/

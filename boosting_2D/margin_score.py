@@ -964,19 +964,37 @@ def plot_norm_margin_score_across_conditions(conditions, method, plot_label, num
 ###
 
 ### Take two set of indices and calculate the factors that are most different 
-def discriminate_margin_score(peak_file_1, peak_file_2, condition_file_1, condition_file_2, analysis_prefix):
+def call_discriminate_margin_score(index_mat_1, index_mat_2, key, method, margin_score_prefix,
+                    y, x1, x2, tree, pool, num_perm, null_tree_file):
+    disc_margin_outdir = '{0}{1}/disc_margin_scores/'.format(config.OUTPUT_PATH,
+     config.OUTPUT_PREFIX)
+    if not os.path.exists(disc_margin_outdir):
+        os.makedirs(disc_margin_outdir)
+    y_value = +1 if 'up' in key else -1
     ### calculate margin score with first set
-    # get index mat
-    # calc margin score
+    rank_score_df_1 = rank_by_margin_score(tree, y, x1, x2, index_mat_1, pool,
+     method=method)
     ### calculate margin score with second set
-    # get index mat
-    # calc margin score
+    rank_score_df_2 = rank_by_margin_score(tree, y, x1, x2, index_mat_2, pool,
+     method=method)
     ### find difference in normalized margin score between the two
+    disc_rank_df = get_diff_in_rank_score_dfs(rank_score_df_1, rank_score_df_2)
+    # pdb.set_trace()
+    # Write margin score to output_file 
+    disc_rank_df.to_csv('{0}{1}_{2}_{3}_disc_margin_score.txt'.format(disc_margin_outdir,
+        margin_score_prefix, method, key), 
+            sep="\t", index=None, header=True)
+    return 0
 
-    ### write out differences
-
-
-
+# Sub-function to calculate differenc in two rank score DFs
+def get_diff_in_rank_score_dfs(rank_score_df_1, rank_score_df_2):
+    disc_rank_df = rank_score_df_1
+    disc_rank_df = pd.merge(rank_score_df_1, rank_score_df_2, on=['x1_feat', 'x1_feat_bundles'])
+    # disc_rank_df['margin_score_diff']=disc_rank_df['margin_score_x']-disc_rank_df['margin_score_y']
+    disc_rank_df['margin_score_norm_diff']=disc_rank_df['margin_score_norm_x']-disc_rank_df['margin_score_norm_y']
+    disc_rank_df=disc_rank_df.sort(columns='margin_score_norm_diff', ascending=False)
+    disc_rank_df.index=range(disc_rank_df.shape[0])
+    return disc_rank_df
 
 
 

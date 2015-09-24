@@ -41,8 +41,10 @@ TuningParams = namedtuple('TuningParams', [
 
 PostProcess_Params = namedtuple('PostProcess_Params', [
     'model_path', 'margin_score_prefix',
-    'run_margin_score', 'margin_score_methods',
+    'run_margin_score', 'run_disc_margin_score', 
+    'margin_score_methods',
     'condition_feat_file', 'region_feat_file', 
+    'condition_feat_file2', 'region_feat_file2', 
     'num_perm', 'split_prom_enh_dist',
     'null_tree_model',
     'run_unsupervised_clustering', 'n_clusters_start',
@@ -65,9 +67,15 @@ def parse_args():
     # Margin score arguments
     parser.add_argument('--run-margin-score', 
                         help='Flag to run margin score', action='store_true')
+    parser.add_argument('--run-disc-margin-score', 
+                        help='Flag to run discriminative margin score between two index matrices', action='store_true')
     parser.add_argument('--condition-feat-file', 
                         help='set of conditions to calculate margin score over', default=None)
     parser.add_argument('--region-feat-file', 
+                        help='set of regions (genes, peaks, etc.) to calculate margin score over', default=None)
+    parser.add_argument('--condition-feat-file2', 
+                        help='set of conditions to calculate margin score over', default=None)
+    parser.add_argument('--region-feat-file2', 
                         help='set of regions (genes, peaks, etc.) to calculate margin score over', default=None)
     parser.add_argument('--margin-score-methods', 
                         help='choices of: x1, x2, node, path. can combine several comma-separated.', default=None)
@@ -79,6 +87,7 @@ def parse_args():
                         help='pickled tree file of NULL model', default=None)
     # parser.add_argument('--tss_file', 
     #                     help='file containing promoter start sites for splitting index matrix', default=None) #ADD
+
 
     # Unsupervised Learning Arguments
     parser.add_argument('--run-unsupervised-clustering', 
@@ -110,8 +119,10 @@ def parse_args():
     # Store arguments in a named tuple
     PARAMS = PostProcess_Params(
         args.model_path, prefix,
-        args.run_margin_score, margin_score_methods,
+        args.run_margin_score, args.run_disc_margin_score,
+        margin_score_methods,
         args.condition_feat_file, args.region_feat_file,
+        args.condition_feat_file2, args.region_feat_file2,
         args.num_perm, args.split_prom_enh_dist,
         args.null_tree_model,
         args.run_unsupervised_clustering, args.n_clusters_start,
@@ -121,6 +132,30 @@ def parse_args():
         )
 
     return PARAMS
+
+# Get a dictionary of all index matrices to evaluate
+def get_index_mat_dict(index_mat):
+        index_mat_dict = {}
+        index_mat_dict['all_up'] = util.element_mult(index_mat, y.data==1)
+        index_mat_dict['all_down'] = util.element_mult(index_mat, y.data==-1)
+        return index_mat_dict
+
+# Get a dictionary of all index matrices to evaluate with enh and prom
+def get_index_mat_dict_enh_prom(index_mat_enh, index_math_prom):
+        index_mat_dict = {}
+        index_mat_dict['enh_up'] = util.element_mult(index_mat_enh, y.data==1)
+        index_mat_dict['enh_down'] = util.element_mult(index_mat_enh, y.data==-1)
+        index_mat_dict['prom_up'] = util.element_mult(index_mat_prom, y.data==1)
+        index_mat_dict['prom_down'] = util.element_mult(index_mat_prom, y.data==-1)
+        return index_mat_dict
+
+# Check if any index matrices are empty
+def check_empty_index_mat(index_mat_dict):
+    empty_mat=False
+    for key in index_mat_dict.keys():
+        if index_mat_dict[key].sum()==0:
+            empty_mat=True
+    return empty_mat
 
 
 # Run main loop
@@ -150,9 +185,7 @@ def main():
 
         # Keep promoters and enhancers together 
         if PARAMS.split_prom_enh_dist == None:
-            index_mat_dict = {}
-            index_mat_dict['all_up'] = util.element_mult(index_mat, y.data==1)
-            index_mat_dict['all_down'] = util.element_mult(index_mat, y.data==-1)
+            index_mat_dict = get_index_mat_dict(index_mat)
 
         # Split promoters and enhancers 
         if PARAMS.split_prom_enh_dist != None:
@@ -161,17 +194,10 @@ def main():
             _merged_withgenctsscoord_andgnlist.gff.gz""".replace('\n','').replace(' ', '')
             (index_mat_prom, index_mat_enh) = margin_score.split_index_mat_prom_enh(
                 index_mat, y, tss_file)
-            index_mat_dict = {}
-            index_mat_dict['enh_up'] = util.element_mult(index_mat_enh, y.data==1)
-            index_mat_dict['enh_down'] = util.element_mult(index_mat_enh, y.data==-1)
-            index_mat_dict['prom_up'] = util.element_mult(index_mat_prom, y.data==1)
-            index_mat_dict['prom_down'] = util.element_mult(index_mat_prom, y.data==-1)
-            # Return error if enh matrix is empty
-            if index_mat_dict['enh_up'].sum()==0 or index_mat_dict['enh_down'].sum()==0:
+            index_mat_dict = get_index_mat_dict_enh_prom(index_mat_enh, index_math_prom)
+            # Return error if matrix is empty
+            if check_empty_index_mat(index_mat_dict):
                 print "No enhancers found - empty index matrix. Try without separating enh/prom."
-                return 0
-            if index_mat_dict['prom_up'].sum()==0 or index_mat_dict['prom_down'].sum()==0:
-                print "No promoters found - empty index matrix. Try without separating enh/prom."
                 return 0
 
         # Create a pool to calculate all margin scores efficiently
@@ -181,6 +207,54 @@ def main():
         for method in PARAMS.margin_score_methods:
             for key in index_mat_dict.keys():
                 margin_score.call_rank_by_margin_score(index_mat_dict[key], 
+                    key, method, PARAMS.margin_score_prefix,
+                    y, x1, x2, tree, pool, 
+                    num_perm=PARAMS.num_perm, 
+                    null_tree_file=PARAMS.null_tree_model)
+
+        print 'DONE: margin scores in {0}{1}/margin_scores/'.format(
+            config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+
+    # Find discriminative features between two sets of conditions
+    if PARAMS.run_disc_margin_score:
+
+        # Get index matrix
+        index_mat1 = margin_score.get_index(y, x1, x2, tree,
+         condition_feat_file=PARAMS.condition_feat_file, region_feat_file=PARAMS.region_feat_file)
+        index_mat2 = margin_score.get_index(y, x1, x2, tree,
+         condition_feat_file=PARAMS.condition_feat_file2, region_feat_file=PARAMS.region_feat_file2)
+
+        # Keep promoters and enhancers together 
+        if PARAMS.split_prom_enh_dist == None:
+            index_mat_dict1 = get_index_mat_dict(index_mat1)
+            index_mat_dict2 = get_index_mat_dict(index_mat2)
+
+        # Split promoters and enhancers 
+        if PARAMS.split_prom_enh_dist != None:
+            tss_file="""/mnt/data/annotations/by_release/hg19.GRCh37/GENCODE_ann/
+                gencodeTSS/v19/TSS_human_strict_with_gencodetss_notlow_ext50eachside
+            _merged_withgenctsscoord_andgnlist.gff.gz""".replace('\n','').replace(' ', '')
+            (index_mat_prom1, index_mat_enh1) = margin_score.split_index_mat_prom_enh(
+                index_mat1, y, tss_file)
+            (index_mat_prom2, index_mat_enh2) = margin_score.split_index_mat_prom_enh(
+                index_mat2, y, tss_file)
+            index_mat_dict1 = get_index_mat_dict_enh_prom(index_mat_enh1, index_math_prom1)
+            index_mat_dict2 = get_index_mat_dict_enh_prom(index_mat_enh2, index_math_prom2)
+            # Return error if matrix is empty
+            if check_empty_index_mat(index_mat_dict1):
+                print "No enhancers found - empty index matrix 1. Try without separating enh/prom."
+                return 0
+            if check_empty_index_mat(index_mat_dict2):
+                print "No enhancers found - empty index matrix 2. Try without separating enh/prom."
+                return 0
+
+        # Create a pool to calculate all margin scores efficiently
+        pool='serial' # REMOVE
+
+        # Iterate through all methods and index matrices
+        for method in PARAMS.margin_score_methods:
+            for key in index_mat_dict1.keys():
+                margin_score.call_discriminate_margin_score(index_mat_dict1[key], index_mat_dict2[key],
                     key, method, PARAMS.margin_score_prefix,
                     y, x1, x2, tree, pool, 
                     num_perm=PARAMS.num_perm, 
