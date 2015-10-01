@@ -5,6 +5,7 @@
 
 import os
 import sys
+import pdb
 
 from matplotlib import pyplot as plt
 from sklearn.datasets import dump_svmlight_file
@@ -29,7 +30,6 @@ from boosting_2D import config
 # RESULT_PATH='/srv/persistent/pgreens/projects/boosting/results/'
 # execfile('{0}2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py'.format(RESULT_PATH))
 
-
 ### K-Means Clustering
 ###############################################################
 ###############################################################
@@ -44,9 +44,8 @@ def cluster_examples_kmeans( y, x1, x2, tree, n_clusters_start=5000,
         os.makedirs(cluster_outdir)
 
     # Generate matrix of peaks-by-conditions by regulatory programs
-    # mat_features = ['motif', 'reg']
     ex_by_feat_mat = gen_ex_by_feature_matrix(y, x1, x2, tree, feat=mat_features)
-    # Return only peaks that are non-zero in y
+    # Keep only peaks that are non-zero in y
     ex_by_feat_mat = ex_by_feat_mat[y.data.toarray().ravel()!=0,]
 
     # Dump marix in SVM Light format
@@ -126,12 +125,11 @@ def join_similar_kmeans_cluster(cluster_file, assignment_file, max_distance=0.5)
 
     return new_clusters
 
-
 # write_out_cluster(y, cluster_file, new_clusters, out_dir,
 #      clusters_to_write=[1,2,3,4], create_match_null=True)
 
 def write_out_cluster(y, cluster_file, new_clusters,
-     clusters_to_write='all', create_match_null=True):
+     clusters_to_write='all', create_match_null=False):
 
     ### Set up output folder
     cluster_bed_dir = '{0}{1}/clustering/cluster_bed_files/'.format(
@@ -151,7 +149,7 @@ def write_out_cluster(y, cluster_file, new_clusters,
     if clusters_to_write=='all':
         clusters_for_iter=np.unique(new_clusters)
     else:
-        clusters_for_iter=clusters_to_write
+        clusters_for_iter=[int(el) for el in clusters_to_write.split(',')]
 
     # Iterate over all clusters and write out bed files of coordinates
     # !! Current assumes labels are the coordinates
@@ -194,7 +192,6 @@ def write_out_cluster(y, cluster_file, new_clusters,
                     f.write("{0}\n".format(item))
 
     print 'DONE: Find clusters in: {0}'.format(cluster_bed_dir)
-
 
 
 # np.max([len([i for i in new_clusters if i==clust]) for clust in xrange(max(new_clusters))])
@@ -320,7 +317,7 @@ def get_order_vec(cond_margin_scores, order_file):
 ### K-nearest neighbors - take in set of examples, find indices
 ### and return a dictionary of elements 
 # ex_file='/srv/persistent/pgreens/projects/boosting/results/clustering_files/hema_examples_to_track.txt'
-def knn(ex_file, y, x1, x2, tree):
+def knn(ex_file, y, x1, x2, tree, num_neighbors):
     ### Read in examples and get indices
     ex_df = pd.read_table(ex_file, header=None)
     peaks = ex_df.ix[:,0].tolist()
@@ -334,6 +331,9 @@ def knn(ex_file, y, x1, x2, tree):
         peak_index_list = [el-1 for el in peaks]
     else:
         # peak_index_list = [el for el in xrange(y.data.shape[0]) if y.row_labels[el] in peaks]
+        if set(peaks).issubset(y.row_labels)==False:
+            assert False, "Your examples don't match target peak (row) labels. \
+            Provide index numbers or valid peak labels"
         peak_index_list = [np.where(y.row_labels==el)[0][0] for el in peaks]
     # if providing index numbers, subtract 1, else get index of labels
     # if conditions.applymap(lambda x: isinstance(x, (int, float))).sum().tolist()[0]==len(conditions):
@@ -342,6 +342,9 @@ def knn(ex_file, y, x1, x2, tree):
         condition_index_list = [el-1 for el in peaks]
     else:
         # condition_index_list = [el for el in xrange(y.data.shape[1]) if y.col_labels[el] in conditions]
+        if set(conditions).issubset(y.col_labels)==False:
+            assert False, "Your examples don't match target condition (column) labels \
+            Provide index numbers or valid condition labels"
         condition_index_list = [np.where(y.col_labels==el)[0][0] for el in conditions]
     # Get dictionary of all features applying to each example
     feat_dict = {}
@@ -349,7 +352,7 @@ def knn(ex_file, y, x1, x2, tree):
         if y.data[peak_index_list[ind],condition_index_list[ind]]==0:
             print 'There is no change at this feature in this condition.'
             continue
-        feat_dict[ind]=extract_ex_affected_by_same_feat(y, tree, 
+        feat_dict[ind] = extract_feat_affecting_example_set(y, tree, 
             peak_index_list[ind], condition_index_list[ind], ex_by_feat_mat)
     # Get examples to search over for each the 
     ex_dict = {}
@@ -357,21 +360,21 @@ def knn(ex_file, y, x1, x2, tree):
         if len(feat_dict[ind])==0:
             ex_dict[ind]=[]
         else:
-            ex_dict[ind]= find_examples_affected_by_same_features(tree, 
+            ex_dict[ind] = find_examples_affected_by_same_features(tree, 
             feat_dict[ind])
     # get k nearest neighbors based on example_index and other examples
     knn_dict = {}
     for ind in feat_dict.keys():
-        knn_dict[ind]= get_k_nearest_neighbors(y, 
+        knn_dict[ind] = get_k_nearest_neighbors(y, 
             peak_index_list[ind], condition_index_list[ind],
-            ex_dict[ind], ex_by_feat_mat)
+            ex_dict[ind], ex_by_feat_mat, num_neighbors)
     # return the KNN dictionary of nearest neighbors
     return knn_dict
 
 
 
 # Find the indices of the features affecting example index given
-def extract_ex_affected_by_same_feat(y, tree, peak_index, condition_index, ex_by_feat_mat):
+def extract_feat_affecting_example_set(y, tree, peak_index, condition_index, ex_by_feat_mat):
     # ! check
     example_index=peak_index*y.num_col+condition_index
     if y.data[peak_index,condition_index]==0:
@@ -393,7 +396,7 @@ def extract_ex_affected_by_same_feat(y, tree, peak_index, condition_index, ex_by
 def find_examples_affected_by_same_features(tree, feat_list):
     # Concatenate the index of 
     index_vec = np.sum([tree.ind_pred_train[node]+tree.ind_pred_test[node]
-     for node in feat_list if node != 0]).toarray().flatten()
+       for node in feat_list if node != 0]).toarray().flatten()
     expanded_example_list = np.where(index_vec!=0)[0].tolist()
     return expanded_example_list
 

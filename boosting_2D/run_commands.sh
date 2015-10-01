@@ -26,9 +26,10 @@ python /users/pgreens/git/boosting_2D/bin/run_boosting_2D.py --num-iter 1000 --o
 
 ### Tadpole tail data (Baker lab) SCG3
 DATA_PATH=/srv/gsfs0/projects/baker/jessica/data/regeneration/version_9.0/learning_model/matrices/
-/srv/gsfs0/projects/kundaje/users/pgreens/downloads/anaconda/bin/python /srv/gsfs0/projects/kundaje/users/pgreens/git/boosting_2D/bin/run_boosting_2D.py --num-iter 1000 --output-prefix tadpole_tail_3K --input-format matrix --mult-format sparse -x $DATA_PATH"Motif_matrix.txt" -z $DATA_PATH"RNA_matrix_reduced.txt" -y $DATA_PATH"ATAC_matrix.txt" -g $DATA_PATH"LABEL_peaks.txt" -e $DATA_PATH"LABEL_conditions.txt" -m $DATA_PATH"LABEL_motifs.txt" -r $DATA_PATH"LABEL_regulators_reduced.txt" --eta1 0.05 --eta2 0.01 --ncpu 1 --output-path /srv/gsfs0/projects/kundaje/users/pgreens/git/ --stable --plot --compress-regulators
-
-# /srv/gsfs0/projects/baker/jessica/data/regeneration/version_9.0/learning_model/output/ 
+/srv/gsfs0/projects/kundaje/users/pgreens/downloads/anaconda/bin/python /srv/gsfs0/projects/kundaje/users/pgreens/git/boosting_2D/bin/run_boosting_2D.py --num-iter 1000 --output-prefix tadpole_tail_3K --input-format matrix --mult-format sparse -x $DATA_PATH"Motif_matrix.txt" -z $DATA_PATH"RNA_matrix_reduced.txt" -y $DATA_PATH"ATAC_matrix.txt" -g $DATA_PATH"LABEL_peaks.txt" -e $DATA_PATH"LABEL_conditions.txt" -m $DATA_PATH"LABEL_motifs.txt" -r $DATA_PATH"LABEL_regulators_reduced.txt" --eta1 0.05 --eta2 0.01 --ncpu 1 --output-path /srv/gsfs0/projects/kundaje/users/pgreens/temp_output/ --stable --plot --compress-regulators
+# Jessicas output
+ /srv/gsfs0/projects/baker/jessica/ls/bin/python /srv/gsfs0/projects/baker/jessica/data/regeneration/version_9.0/learning_model/boosting_2D/bin/run_boosting_2D.py --num-iter 1000 --output-prefix tadpole_tail_3K --input-format matrix --mult-format sparse -x $DATA_PATH"Motif_matrix.txt" -z $DATA_PATH"RNA_matrix_reduced.txt" -y $DATA_PATH"ATAC_matrix.txt" -g $DATA_PATH"LABEL_peaks.txt" -e $DATA_PATH"LABEL_conditions.txt" -m $DATA_PATH"LABEL_motifs.txt" -r $DATA_PATH"LABEL_regulators_reduced.txt" --eta1 0.05 --eta2 0.01 --ncpu 1 --output-path /srv/gsfs0/projects/baker/jessica/data/regeneration/version_9.0/learning_model/output/  --stable --plot --compress-regulators
+# 
 
 ### YEAST SCG3th
 DATA_PATH=/srv/gsfs0/projects/kundaje/users/pgreens/projects/boosting/data/yeast_data/

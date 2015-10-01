@@ -57,18 +57,27 @@ python /users/pgreens/git/boosting_2D/run_post_processing.py --model-path $RESUL
 
 ### Discriminative Margin Score
 ###############################################################
+
 CHIP_PATH=/srv/persistent/pgreens/projects/boosting/results/2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/chip_seq/
 INDEX_PATH=/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/index_files/
 cell_file=$INDEX_PATH"hema_MPP_HSC_v_pHSC_cells.txt"
 peak_file=$CHIP_PATH"peak_headers_full_subset_CD34_K562_GATA1_REST_INTERSECT.txt"
 peak_file2=$CHIP_PATH"peak_headers_full_subset_CD34_K562_GATA1_REST_NO_INTERSECT.txt"
 RESULT_PATH=/srv/persistent/pgreens/projects/boosting/results/
-python /users/pgreens/git/boosting_2D/bin/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --margin-score-prefix hema_GATA1_REST --run-disc-margin-score --margin-score-methods x1,x2 --region-feat-file $peak_file --condition-feat-file $cell_file --region-feat-file2 $peak_file2 --condition-feat-file2 $cell_file
-
-
+python /users/pgreens/git/boosting_2D/bin/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --margin-score-prefix hema_GATA1_intersecting_REST --run-disc-margin-score --margin-score-methods x1,x2 --region-feat-file $peak_file --condition-feat-file $cell_file --region-feat-file2 $peak_file2 --condition-feat-file2 $cell_file
 
 ### KNN
 ###############################################################
+
 RESULT_PATH=/srv/persistent/pgreens/projects/boosting/results/
-python /users/pgreens/git/boosting_2D/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --margin-score-prefix hema_CMP_v_Mono_NULL_model --run-knn-with-examples --examples-to-track /srv/persistent/pgreens/projects/boosting/results/clustering_files/hema_examples_to_track.txt --number-knneighbors 100
+python /users/pgreens/git/boosting_2D/bin/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --margin-score-prefix hema_CMP_v_Mono_NULL_model --run-knn-with-examples --examples-to-track /srv/persistent/pgreens/projects/boosting/results/clustering_files/SPI1_enh_w_peaks.txt --number-knneighbors 100
+
+### Unsupervised grouping with sofiaML
+###############################################################
+
+RESULT_PATH=/srv/persistent/pgreens/projects/boosting/results/
+python /users/pgreens/git/boosting_2D/bin/run_post_processing.py --model-path $RESULT_PATH"2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py" --run-unsupervised-clustering --n-clusters-start 10000 --features-for-kmeans motif,reg --clusters-to-write 10,11,12
+
+
+
 

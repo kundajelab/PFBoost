@@ -48,7 +48,7 @@ PostProcess_Params = namedtuple('PostProcess_Params', [
     'num_perm', 'split_prom_enh_dist',
     'null_tree_model',
     'run_unsupervised_clustering', 'n_clusters_start',
-    'features_for_kmeans',
+    'features_for_kmeans', 'clusters_to_write',
     'run_knn_with_examples', 'examples_to_track',
     'number_knneighbors'
 ])
@@ -96,6 +96,10 @@ def parse_args():
                         help='Number of k-means clusters to start with sofiaML', default=5000, type=int)
     parser.add_argument('--features-for-kmeans', 
                         help='comma separated list with options: motif,reg,node,path', default='motif')
+    parser.add_argument('--clusters-to-write', 
+                        help='options: "none", "all", or a comma separated string of clusters', default='none')
+
+    # K-nearest neighbors Arguments
     parser.add_argument('--run-knn-with-examples', 
                         help='Flag to run unsupervised clustering', action='store_true')
     parser.add_argument('--examples-to-track', 
@@ -103,7 +107,7 @@ def parse_args():
                          files contain sets of peaks and conditions expected to functionally relate \
                          col1: feature label or index, col2: condition label or index', default=None)
     parser.add_argument('--number-knneighbors', 
-                        help='number of k-nearest neighbors to return for every example', default=None)
+                        help='number of k-nearest neighbors to return for every example', default=None, type=int)
 
 
     # Parse arguments
@@ -126,7 +130,7 @@ def parse_args():
         args.num_perm, args.split_prom_enh_dist,
         args.null_tree_model,
         args.run_unsupervised_clustering, args.n_clusters_start,
-        features_for_kmeans,
+        features_for_kmeans, args.clusters_to_write,
         args.run_knn_with_examples,
         examples_to_track, args.number_knneighbors 
         )
@@ -171,7 +175,7 @@ def main():
     locals_dict = {}
     execfile(PARAMS.model_path, {}, locals_dict)
     globals().update(locals_dict)
-    config.NCPU=8
+    config.NCPU=4
 
     # from IPython import embed; embed()
     # pdb.set_trace()
@@ -260,7 +264,7 @@ def main():
                     num_perm=PARAMS.num_perm, 
                     null_tree_file=PARAMS.null_tree_model)
 
-        print 'DONE: margin scores in {0}{1}/margin_scores/'.format(
+        print 'DONE: margin scores in {0}{1}/disc_margin_scores/'.format(
             config.OUTPUT_PATH, config.OUTPUT_PREFIX)
 
 
@@ -273,8 +277,9 @@ def main():
          y, x1, x2, tree, n_clusters_start=PARAMS.n_clusters_start,
           mat_features=PARAMS.features_for_kmeans)
         # Write out bed files with each cluster
-        write_out_cluster(y, cluster_file, new_clusters,
-         clusters_to_write='all', create_match_null=True)
+        if PARAMS.clusters_to_write!='none':
+            write_out_cluster(y, cluster_file, new_clusters,
+             clusters_to_write=PARAMS.clusters_to_write, create_match_null=True)
         # Track examples
         for f in PARAMS.examples_to_track:
             post_process_unsupervised.knn(f)
@@ -287,7 +292,7 @@ def main():
         # get KNN for every example provided by users
         for ex_file in PARAMS.examples_to_track:
             knn_dict = post_process_unsupervised.knn(
-                ex_file, y, x1, x2, tree)
+                ex_file, y, x1, x2, tree, num_neighbors=PARAMS.number_knneighbors)
             # Write out KNN to file
             knn_path='{0}{1}/knn/'.format(
                 config.OUTPUT_PATH, config.OUTPUT_PREFIX)

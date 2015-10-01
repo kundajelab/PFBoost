@@ -978,7 +978,7 @@ def call_discriminate_margin_score(index_mat_1, index_mat_2, key, method, margin
     rank_score_df_2 = rank_by_margin_score(tree, y, x1, x2, index_mat_2, pool,
      method=method)
     ### find difference in normalized margin score between the two
-    disc_rank_df = get_diff_in_rank_score_dfs(rank_score_df_1, rank_score_df_2)
+    disc_rank_df = get_diff_in_rank_score_dfs(rank_score_df_1, rank_score_df_2, method)
     # pdb.set_trace()
     # Write margin score to output_file 
     disc_rank_df.to_csv('{0}{1}_{2}_{3}_disc_margin_score.txt'.format(disc_margin_outdir,
@@ -987,9 +987,16 @@ def call_discriminate_margin_score(index_mat_1, index_mat_2, key, method, margin
     return 0
 
 # Sub-function to calculate differenc in two rank score DFs
-def get_diff_in_rank_score_dfs(rank_score_df_1, rank_score_df_2):
+def get_diff_in_rank_score_dfs(rank_score_df_1, rank_score_df_2, method):
     disc_rank_df = rank_score_df_1
-    disc_rank_df = pd.merge(rank_score_df_1, rank_score_df_2, on=['x1_feat', 'x1_feat_bundles'])
+    if method=='x1':
+        disc_rank_df = pd.merge(rank_score_df_1, rank_score_df_2, on=['x1_feat', 'x1_feat_bundles'])
+    if method=='x2':
+        disc_rank_df = pd.merge(rank_score_df_1, rank_score_df_2, on=['x2_feat', 'x2_feat_bundles'])
+    if method=='node':
+        disc_rank_df = pd.merge(rank_score_df_1, rank_score_df_2, on=['node', 'x1_feat', 'x1_feat_bundles','x2_feat', 'x2_feat_bundles'])
+    if method=='path':
+        disc_rank_df = pd.merge(rank_score_df_1, rank_score_df_2, on=['node', 'x1_feat', 'x1_feat_bundles','x2_feat', 'x2_feat_bundles'])
     # disc_rank_df['margin_score_diff']=disc_rank_df['margin_score_x']-disc_rank_df['margin_score_y']
     disc_rank_df['margin_score_norm_diff']=disc_rank_df['margin_score_norm_x']-disc_rank_df['margin_score_norm_y']
     disc_rank_df=disc_rank_df.sort(columns='margin_score_norm_diff', ascending=False)
