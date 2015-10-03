@@ -34,6 +34,7 @@ from boosting_2D import config
 ###############################################################
 ###############################################################
 
+# Run k-means clustering using sofia_ml and then join similar clusters
 def cluster_examples_kmeans( y, x1, x2, tree, n_clusters_start=5000,
     mat_features=['motif']):
 
@@ -50,10 +51,11 @@ def cluster_examples_kmeans( y, x1, x2, tree, n_clusters_start=5000,
 
     # Dump marix in SVM Light format
     sofiaml_file = convert_matrix_to_svmlight_for_sofiaml(ex_by_feat_mat,
-     label=config.OUTPUT_PREFIX, out_dir=cluster_outdir)
+     label=config.OUTPUT_PREFIX, out_dir=cluster_outdir, mat_features=mat_features)
 
     # Initial Kmeans clustering
     (cluster_file, assignment_file) = cluster_matrix_w_sofiaml_kmeans(
+        ex_by_feat_mat=ex_by_feat_mat,
         sofiaml_file=sofiaml_file, out_dir=cluster_outdir,
          n_clusters_start=n_clusters_start)
 
@@ -66,14 +68,15 @@ def cluster_examples_kmeans( y, x1, x2, tree, n_clusters_start=5000,
 ### Post clustering with SofiaML
 ###############################################################
 
-def convert_matrix_to_svmlight_for_sofiaml(ex_by_feat_mat, label, out_dir):
+# Convert format 
+def convert_matrix_to_svmlight_for_sofiaml(ex_by_feat_mat, label, out_dir, mat_features):
     sofiaml_file='{0}sofiaml_input_{1}.txt'.format(out_dir,
         '_'.join(mat_features))
     dump_svmlight_file(X=ex_by_feat_mat, y=[0]*ex_by_feat_mat.shape[0],
      f=sofiaml_file)
     return sofiaml_file
 
-def cluster_matrix_w_sofiaml_kmeans(sofiaml_file, out_dir, n_clusters_start):
+def cluster_matrix_w_sofiaml_kmeans(ex_by_feat_mat, sofiaml_file, out_dir, n_clusters_start):
     ### !! how to put on path?
     SCRIPT_PATH='/users/pgreens/svn/sofia-ml-read-only/'
 
@@ -107,6 +110,7 @@ def cluster_matrix_w_sofiaml_kmeans(sofiaml_file, out_dir, n_clusters_start):
 
     return (cluster_file, assignment_file)
 
+# Take k-means cluster files from sofiaML and join similar clusters
 def join_similar_kmeans_cluster(cluster_file, assignment_file, max_distance=0.5):
 
     # Read in clusters and assignments from assignment

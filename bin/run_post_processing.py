@@ -276,6 +276,7 @@ def main():
         (cluster_file, new_clusters) = post_process_unsupervised.cluster_examples_kmeans(
          y, x1, x2, tree, n_clusters_start=PARAMS.n_clusters_start,
           mat_features=PARAMS.features_for_kmeans)
+        pdb.set_trace()
         # Write out bed files with each cluster
         if PARAMS.clusters_to_write!='none':
             write_out_cluster(y, cluster_file, new_clusters,
