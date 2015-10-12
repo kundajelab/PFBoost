@@ -9,6 +9,10 @@ import pandas as pd
 
 from boosting_2D.util import *
 
+import cPickle as pickle
+import gzip
+import config
+
 class Data(object):
     def _load_sparse_data(self):
         data = np.genfromtxt(self.data_file)
@@ -30,6 +34,13 @@ class Data(object):
         else:
             self.data = csr_matrix(np.genfromtxt(self.data_file)).toarray()
 
+    # This method assumes data is in a gzipped pickle file
+    def _load_3D_data(self):
+        self.data = pickle.load( gzip.open(self.data_file, 'rb') )
+        self.data_hstacked = csc_matrix(hstack(self.data), dtype='float64')
+        return None
+        
+
     def element_mult(self, other):
         if self.sparse:
             return self.data.multiply(other)
@@ -44,7 +55,7 @@ class Data(object):
 
     def __init__( self, 
                   data_file, row_labels, col_labels, 
-                  input_format, mult_format):
+                  input_format, mult_format, matrix_is_3d=False, make_3d_compatible=False):
         self.data_file = data_file
         self.row_label_file=row_labels
         self.col_label_file=col_labels
@@ -58,20 +69,218 @@ class Data(object):
             self.sparse = False
         else:
             assert False, "Unrecognized mult format '%s'" % self.mult_format
-        if self.input_format == 'triplet':
-            self._load_sparse_data()
-        elif self.input_format == 'matrix':
-            self._load_dense_data()
+
+        # Load the data very differently if 3D
+        if matrix_is_3d:
+            self._load_3D_data()
+            self.matrix_is_3d = True
+            self.num_row = self.data[0].shape[0]
+            self.num_col = self.data[0].shape[1]
         else:
-            assert False, "Unrecognized data format '%s'" % self.input_format
-        self.num_row = self.data.shape[0]
-        self.num_col = self.data.shape[1]
+            self.matrix_is_3d = False
+            if self.input_format == 'triplet':
+                self._load_sparse_data()
+            elif self.input_format == 'matrix':
+                self._load_dense_data()
+            else:
+                assert False, "Unrecognized data format '%s'" % self.input_format
+            self.num_row = self.data.shape[0]
+            self.num_col = self.data.shape[1]
+
+        # If target matrix,
+        if make_3d_compatible:
+            self._separateDataColumns()
+            self.data = block_diag(self.dataColList, 'csr', dtype='float64')
+            self.num_row = self.data.shape[0]
+            self.num_col = self.data.shape[1]
+
+    def _separateDataColumns(self):
+        '''
+        This function is used to make the 3D multiplication easier (x1 * y)
+        '''
+        [nrows, ncols] = self.data.shape
+        self.dataColList = []
+        for colNum in xrange(ncols):
+            self.dataColList.append(self.data[:, colNum])
+        return None
 
 class TargetMatrix(Data):
+    # 10/5 Don't convert to block diagonal until after holdout is generated??
     pass
 
 class Motifs(Data):
-    pass
+    # Redefine matrix_mult here, if data object is of this class it will always use this method
+
+    def is_3D(self):
+        return self.matrix_is_3d
+
+    def matrix_mult(self, other):
+        if self.matrix_is_3d ==False:
+            import time
+            start = time.time()
+            result = super(Motifs, self).matrix_mult(other)
+            end = time.time()
+            print 'time:', str(end - start)
+            return result
+        else:
+            if True:
+
+                # This stuff needs to NOT happen here!!
+#                import time
+#
+#                start = time.time()
+#                [nrows, ncols] = other.shape
+#                otherColList = []
+#                for colNum in xrange(ncols):
+#                    otherColList.append(other[:,colNum])
+#                end = time.time()
+#                print "splitting into list:", str(end - start)
+
+#                start = time.time()
+#                other_blockdiag = block_diag(otherColList, 'csc', dtype='float64')
+#                end = time.time()
+#                print 'blocking:', str(end - start)
+                # IF at all possible
+
+                # Don't forget to convert to CSC
+
+#                import time
+#                start = time.time()
+                result = self.data_hstacked.dot(csc_matrix(other))
+#                end = time.time()
+#                print 'time:', str(end - start)
+                return csr_matrix(result)
+
+            elif False:
+
+                # for now assume that matrix 'other' is not column split, consider changing for speed up
+                import time
+
+                start = time.time()
+                [nrows, ncols] = other.shape
+                otherColList = []
+                for colNum in xrange(ncols):
+                    otherColList.append(other[:,colNum])
+
+                # Now multiply
+                multiplied_columns = [self.data[i].dot(otherColList[i]) for i in range(ncols)]
+                multiplied_array = csr_matrix(hstack(multiplied_columns))
+
+                end = time.time()
+                print "current:", str(end - start)
+                return multiplied_array
+
+            else:
+
+                # Try pre-allocate dense matrix and fill in?
+#                results = np.empty([self.data[0].shape[0], ncols])
+#                print results.shape
+#                for i in range(ncols):
+#                    tmp = self.data[i].dot(otherColList[i]).todense()
+#                    import ipdb
+#                    ipdb.set_trace()
+#                    print tmp.shape
+#                    results[:,i] = tmp[:,0]
+#                results = csr_matrix(results)
+                
+
+                # Allocate memory first for output
+                # np.dot use out option to send to pre-allocated output matrix
+
+#                import ipdb
+#                ipdb.set_trace()
+
+#                result = np.empty([self.num_row, ncols])
+#                for i in range(ncols):
+#                    np.dot(self.data[i], otherColList[i], result[:,i])
+#                    self.data[i].dot(otherColList[i], result[:,i])
+
+#                multiplied_columns = [self.data[i].dot(otherColList[i], result[:,i]) for i in range(ncols)]
+#                print result.shape
+
+                # Notes w CS
+                # Kronecker product of X2 with sparse identity matrix gives you block diagonal matrix scipy.sparse.kron
+                # Hstack the x1 matrix
+                # 1 matrix multiply for output
+                other_blockdiag = block_diag(otherColList, 'csc', dtype='b')
+                print other_blockdiag.shape
+
+                self_hstacked = csc_matrix(hstack(self.data), dtype='b')
+                print self_hstacked.shape
+                
+                
+                start = time.time()
+#                other_blockdiag = block_diag(otherColList, 'csc', dtype='b')
+                result = self_hstacked.dot(other_blockdiag)
+                end = time.time()
+
+                print 'CS soln:', str(end - start)
+
+                # Try a reshape method
+                self_kron = kron(self.data[0], identity(ncols))
+                print self_kron.shape
+                other_col = csr_matrix(other.todense().reshape([ncols*nrows, 1]))
+                print other_col.shape
+
+                start = time.time()
+                result = self_kron.dot(other_col)
+                end = time.time()
+
+                print "reshape method:", str(end - start)
+
+                # The actual benchmark
+                self_data = self.data[0]
+                start = time.time()
+                result = self_data.dot(other)
+                end = time.time()
+                print "normal:", str(end - start)
+
+                import ipdb
+                ipdb.set_trace()
+
+                import time
+                start = time.time()
+                [nrows, ncols] = other.shape
+                multiplied_columns = [self.data[i].dot(other[:,i]) for i in range(ncols)] # this is the long time step
+                end1 = time.time()
+                multiplied_array = csr_matrix(hstack(multiplied_columns))
+                end2 = time.time()
+                print '>> Matrix multiply end1:', str(end1 - start)
+                print '>> Matrix multiply:', str(end2 -end1)
+
+                # Test speed of pre-split other matrix
+                start = time.time()
+                self.data[0].dot(other[:,0])
+                end = time.time()
+                print '2D version:', str(end - start)
+
+                # Test speed of tensordot
+                print "testing other methods"
+                
+                D,M,N,R = 1,2,3,4
+                A = np.random.rand(M,N,R)
+                B = np.random.rand(N,R)
+                
+                print type(A)
+                print type(B)
+                print np.einsum('mnr,nr->mr', A, B).shape
+
+
+                dense_columns = [np.array(self.data[i].todense()) for i in range(ncols)]
+                array_3d = np.dstack(dense_columns)
+                print array_3d.shape
+                print other.shape
+                print type(array_3d)
+                print type(other)
+                
+                start = time.time()
+                multiplied_array = np.einsum('mnr,nr->mr', array_3d, np.array(other.todense()))
+                end = time.time()
+                print "einsum:", str(end - start)
+                print multiplied_array.shape
+
+                return multiplied_array
+        return None
 
 class Regulators(Data):
     pass
@@ -107,7 +316,7 @@ class Holdout(object):
                 else:
                     self.holdout = csr_matrix(np.genfromtxt(holdout_file)).toarray()
         if holdout_file==None:
-            np.random.seed(1)
+            np.random.seed(1) # Deterministic randomness
             if self.sparse:
                 self.holdout = coo_matrix(
                 np.reshape(
@@ -131,8 +340,12 @@ class Holdout(object):
         self.n_test = self.ind_test_all.sum()
         log('end holdout')
 
+        # Once holdout is made, make into the block diagonal format and use for rest of the run
+        # Actually do before
+
+
 class DecisionTree(object):
-    def __init__(self, holdout, y, x1, x2, boostMode='ADABOOST'):
+    def __init__(self, holdout, y, x1, x2):
         ## Base model parameters
         # the number of nodes in the tree
         self.nsplit = 0
@@ -179,11 +392,11 @@ class DecisionTree(object):
             self.pred_test = np.zeros((y.num_row, y.num_col),dtype='float64')
 
         ### Weights 
-        self.weights = holdout.ind_train_all*1./holdout.n_train
+        self.weights = holdout.ind_train_all*1./holdout.n_train # CHANGE FOR 3D SEQUENCE MATRIX; convert to block diag
 
         # Pre-allocate matrices
         if y.sparse:
-            self.w_up_regup = csr_matrix((x1.num_row, x2.num_col),dtype='float64')
+            self.w_up_regup = csr_matrix((x1.num_row, x2.num_col),dtype='float64') # CHANGE FOR 3D SEQUENCE MATRIX
             self.w_down_regup = csr_matrix((x1.num_row, x2.num_col),dtype='float64')
             self.w_up_regdown = csr_matrix((x1.num_row, x2.num_col),dtype='float64') 
             self.w_down_regdown = csr_matrix((x1.num_row, x2.num_col),dtype='float64') 
@@ -200,17 +413,18 @@ class DecisionTree(object):
         else:
             self.sparse=False
         # put in the root node
-        self.init_root_node(holdout, y, boostMode)
+        self.init_root_node(holdout, y)
     
-    def init_root_node(self, holdout, y, boostMode):
+    def init_root_node(self, holdout, y):
         ## initialize the root node 
-        if boostMode == 'ADABOOST':
+        if config.BOOST_MODE == 'ADABOOST':
             score_root = 0.5*np.log(
                 element_mult(self.weights, holdout.ind_train_up).sum()/element_mult(
                     self.weights, holdout.ind_train_down).sum())
-        elif boostMode == 'LOGITBOOST': # Score represents the summed working response Z
+        elif config.BOOST_MODE == 'LOGITBOOST': # Score represents the summed working response Z
             score_root = 0.00000001
         else:
+            print "YOU HAVE A PROBLEM WHAT IS BOOST MODE"
             score_root = 0
         self.scores.append(score_root)
         # Add root node to first split
@@ -266,9 +480,9 @@ class DecisionTree(object):
         self.pred_train = self.pred_train + score*train_index
         self.pred_test = self.pred_test + score*test_index
 
-    def _update_weights(self, holdout, y, boostMode='ADABOOST'): 
+    def _update_weights(self, holdout, y): 
         # Update example weights
-        if boostMode == 'ADABOOST':
+        if config.BOOST_MODE == 'ADABOOST':
             if self.sparse:
                 exp_term = np.negative(y.element_mult(self.pred_train))
                 exp_term.data = np.exp(exp_term.data)
@@ -278,15 +492,17 @@ class DecisionTree(object):
             new_weights = element_mult(exp_term, holdout.ind_train_all)
             # print (new_weights/new_weights.sum())[new_weights.nonzero()]
             self.weights = new_weights/new_weights.sum() # Change this for LOGITBOOST
-        elif boostMode == 'LOGITBOOST':
+        elif config.BOOST_MODE == 'LOGITBOOST':
             # Calculate p(x_i)
-            example_probs = csr_matrix((1/(1+np.exp(-2*pred_train.data)), # Prob                                        
-                                        pred_train.indices,
-                                        pred_train.indptr),
-                                       shape=pred_train.shape, dtype='float64')
+            example_probs = csr_matrix((1/(1+np.exp(-2*self.pred_train.data)), # Prob                                        
+                                        self.pred_train.indices,
+                                        self.pred_train.indptr),
+                                       shape=self.pred_train.shape, dtype='float64')
             # Calculate the example weights, w_i = p(x_i) * ( 1 - p(x_i) )
-            self.weights = element_mult(example_probs, csr_matrix(np.ones(example_probs.shape)) - example_probs) # W
+#            self.weights = element_mult(example_probs, csr_matrix(np.ones(example_probs.shape)) - example_probs) # W
+            self.weights = element_mult(example_probs, csr_matrix(example_probs>0) - example_probs)
         else:
+            print "YOU HAVE A PROBLEM WHAT IS BOOST MODE"
             self.weights = None
             
     def _update_error(self, holdout, y):

@@ -17,4 +17,4 @@ TuningParams = namedtuple('TuningParams', [
     'eta_1', 'eta_2', 'bundle_max', 'epsilon'
 ])
 
-BOOSTMODE = 'ADABOOST'
+BOOST_MODE = None

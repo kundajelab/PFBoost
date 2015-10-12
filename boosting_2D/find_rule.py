@@ -11,6 +11,7 @@ import pdb
 
 from boosting_2D import config
 from boosting_2D import util
+import config
 
 log = util.log
 
@@ -110,6 +111,7 @@ def find_rule_processes(tree, holdout, y, x1, x2):
     leaf_index_cntr = multiprocessing.Value('i', 0)
 
     # THIS MAY BE THE PLACE TO SPLIT UP 3D MATRICES??
+    # Here, x1*y has to be different for each column of y, but then merge before multiply with x2
 
     # pack arguments for the worker processes
     args = [tree, holdout, y, x1, x2, leaf_index_cntr, (
@@ -128,22 +130,26 @@ def find_rule_processes(tree, holdout, y, x1, x2):
     return (best_leaf, best_loss_reg, best_loss_mat)
 
 # Function - calc min loss with leaf training examples and current weights  
-def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2, pred_train, boostMode=config.BOOSTMODE):
+# NOTE: This is the costly function - run for EACH LEAF
+def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2, pred_train):
     # log('start find_rule_weights')
     rule_weights = find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2) # returns nothing for logitboost but consider updating weights here
     # log('end find_rule_weights')
     
+    # CHANGE HERE FOR 3D MATRICES
+
     ## Calculate Loss
     if config.TUNING_PARAMS.use_corrected_loss==True:
         loss_regup = util.corrected_loss(rule_weights.w_up_regup, rule_weights.w_down_regup, rule_weights.w_zero_regup)
         loss_regdown = util.corrected_loss(rule_weights.w_up_regdown, rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
-    elif boostMode == 'ADABOOST':
+    elif config.BOOST_MODE == 'ADABOOST':
         loss_regup = util.calc_loss_adaboost(rule_weights.w_up_regup, rule_weights.w_down_regup, rule_weights.w_zero_regup)
         loss_regdown = util.calc_loss_adaboost(rule_weights.w_up_regdown, rule_weights.w_down_regdown, rule_weights.w_zero_regdown)
-    elif boostMode == 'LOGITBOOST':
+    elif config.BOOST_MODE == 'LOGITBOOST':
         loss_regup = util.calc_loss_logitboost(x1, x2, y, holdout, example_weights, leaf_training_examples, pred_train, "up")
         loss_regdown = util.calc_loss_logitboost(x1, x2, y, holdout, example_weights, leaf_training_examples, pred_train, "down")
     else:
+        print "YOU HAVE A PROBLEM WHAT IS YOUR BOOST MODE"
         loss_regup = None
         loss_regdown = None
 
@@ -162,12 +168,12 @@ def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdou
 # DK NOTE: need to change this for logitboost. But no RULE weights for logitboost, only
 # example weights - so just set to 0 for logitboost
 # OR really the 'rule weights' are the working responses - but don't want to calculate them over and over?
-def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2, boostMode=config.BOOSTMODE):
+def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2):
     """
     Find rule weights, and return an object store containing them. 
 
     """
-    if boostMode == 'ADABOOST':
+    if config.BOOST_MODE == 'ADABOOST':
         # log('find_rule_weights start')
         w_temp = util.element_mult(example_weights, leaf_training_examples)
         # log('weights element-wise')
@@ -199,7 +205,7 @@ def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout
                            w_down_regup, w_down_regdown, 
                            w_zero_regup, w_zero_regdown, 
                            w_pos, w_neg) 
-    elif boostMode == 'LOGITBOOST':
+    elif config.BOOST_MODE == 'LOGITBOOST':
         # Consider calculating rule weights here
         
         # Calculate example probs
@@ -208,11 +214,13 @@ def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout
 
         # Calculate rule weights
 
-
         return None
-        
+    else:
+        print "YOU HAVE A PROBLEM WHAT IS YOUR BOOST MODE"
+        return None
 
 # From the best split, get the current rule (motif, regulator, regulator sign and test/train indices)
+# REBUILD FOR 3D
 def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2):
     motif,regulator = np.where(loss_best == loss_best.min())
 
@@ -228,20 +236,40 @@ def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout, y, x1
     if isinstance(regulator,int)==False:
         regulator=int(regulator)
 
-    ## Find indices of where motif and regulator appear
-    if x2.sparse:
-        valid_m = np.nonzero(x1.data[motif,:])[1]
-        valid_r = np.where(x2.data.toarray()[:,regulator]==regulator_sign)[0]
-    else:
-        valid_m = np.nonzero(x1.data[motif,:])[0]
-        valid_r = np.where(x2.data[:,regulator]==regulator_sign)[0]
+    if x1.is_3D() == False:
+        ## Find indices of where motif and regulator appear
+        if x2.sparse:
+            valid_m = np.nonzero(x1.data[motif,:])[1]
+            valid_r = np.where(x2.data.toarray()[:,regulator]==regulator_sign)[0]
+        else:
+            valid_m = np.nonzero(x1.data[motif,:])[0]
+            valid_r = np.where(x2.data[:,regulator]==regulator_sign)[0]
 
-    ### Get joint motif-regulator index - training and testing
-    if y.sparse:
-        valid_mat = csr_matrix((y.num_row,y.num_col), dtype=np.bool)
-    else:
-        valid_mat = np.zeros((y.num_row,y.num_col), dtype=np.bool)
-    valid_mat[np.ix_(valid_m, valid_r)]=1 # XX not efficient
+        ### Get joint motif-regulator index - training and testing
+        if y.sparse:
+            valid_mat = csr_matrix((y.num_row,y.num_col), dtype=np.bool)
+        else:
+            valid_mat = np.zeros((y.num_row,y.num_col), dtype=np.bool)
+
+        valid_mat[np.ix_(valid_m, valid_r)]=1 # XX not efficient
+
+    else: # IS 3D
+        # Find indices of where motif and regulator appear, multiply together to get the valid mat
+        # Assume sparse for now
+        # basically grab motif column from each of the cell type 2D matrices and multiply by 1 or 0 if the regulator is present or not
+
+
+        if regulator_sign > 0:
+            valid_mat_columns = [np.transpose(x1.data[i][motif,:])*(x2.data[i,regulator]>0) for i in range(len(x1.data))] 
+        else:
+            valid_mat_columns = [np.transpose(x1.data[i][motif,:])*(x2.data[i,regulator]<0) for i in range(len(x1.data))]
+
+
+        # 10/5 Convert to block diag instead for filtering
+        valid_mat = block_diag(valid_mat_columns, 'csr', dtype='float64')
+        #valid_mat = csr_matrix(hstack(valid_mat_columns))
+
+
     rule_train_index = util.element_mult(valid_mat, tree.ind_pred_train[best_split])
     rule_test_index = util.element_mult(valid_mat, tree.ind_pred_test[best_split])
     

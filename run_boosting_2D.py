@@ -60,6 +60,8 @@ def parse_args():
                         help='x1 features - dimensionality MxG')
     parser.add_argument('-m', '--m-col-labels', 
                         help='column labels for x1 matrix (dimension M)')
+    parser.add_argument('--three_dimensional',
+                        action='store_true', help='is the motif matrix 3D')
 
     parser.add_argument('-z', '--regulators-file', 
                         help='x2 features - dimensionality ExR')
@@ -126,21 +128,28 @@ def parse_args():
     # Parse arguments
     args = parser.parse_args()
 
+    # Is x1 a 3D matrix?
+    x1_3D = args.three_dimensional
+
+    print x1_3D
+
     # Load the three feature matrices
     log('load y start ')
     y = TargetMatrix(args.target_file, 
                      args.target_row_labels, 
                      args.target_col_labels,
                      args.input_format,
-                     args.mult_format)
+                     args.mult_format,
+                     make_3d_compatible=x1_3D)
     log('load y stop')
 
     log('load x1 start')
-    x1 = Motifs(args.motifs_file, 
+    x1 = Motifs(args.motifs_file, # CHANGE FOR 3D SEQUENCE MATRIX
                 args.m_col_labels,
                 args.target_row_labels, 
                 args.input_format,
-                args.mult_format)
+                args.mult_format,
+                matrix_is_3d=x1_3D)
     log('load x1 stop')
     
     log('load x2 start')
@@ -195,8 +204,8 @@ def parse_args():
     config.PLOT = args.plot
 
     # Choose boost mode
-    config.BOOSTMODE = args.boost_mode
-    print config.BOOSTMODE
+    config.BOOST_MODE = args.boost_mode
+    print config.BOOST_MODE
 
     return (x1, x2, y, holdout)
 
@@ -205,8 +214,6 @@ def parse_args():
 def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
     level='QUIET'
     ## Calculate loss at all search nodes
-
-    # THIS IS WHERE TO CHANGE PROCESS FOR MULTIPLE FEATURE SPACES
     log('find rule process', level=level)
     best_split, regulator_sign, loss_best = find_rule_processes(
         tree, holdout, y, x1, x2) 
@@ -319,7 +326,7 @@ def main():
 
     ### Create tree object
     log('make tree start', level=level)
-    tree = DecisionTree(holdout, y, x1, x2, config.BOOSTMODE)
+    tree = DecisionTree(holdout, y, x1, x2)
     log('make tree stop', level=level)
 
     ### Main Loop

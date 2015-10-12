@@ -69,13 +69,13 @@ def load_tree_state(pickle_file):
 ### Calculation Functions
 ##########################################
 
-def calc_score(tree, rule_weights, rule_train_index, y=None, boostMode=config.BOOSTMODE):
+def calc_score(tree, rule_weights, rule_train_index, y=None):
     # Add logitboost score here, this is used to get the overall predictions! The score is the summed working response.
-    if boostMode == 'ADABOOST':
+    if config.BOOST_MODE == 'ADABOOST':
         rule_score = 0.5*np.log((
             element_mult(rule_weights.w_pos, rule_train_index).sum()+config.TUNING_PARAMS.epsilon)/
                                 (element_mult(rule_weights.w_neg, rule_train_index).sum()+config.TUNING_PARAMS.epsilon))
-    elif boostMode == 'LOGITBOOST':
+    elif config.BOOST_MODE == 'LOGITBOOST':
         example_probs = csr_matrix((1/(1 + np.exp(-2*tree.pred_train.data)),
                                     tree.pred_train.indices,
                                     tree.pred_train.indptr),
@@ -96,6 +96,12 @@ def calc_loss_logitboost(x1, x2, y, holdout, example_weights, leaf_training_exam
     Logitboost: look for the smallest least squares regression on the 
     working response z across all examples x
     '''
+    # Determine example probs
+    example_probs = csr_matrix((1/(1 + np.exp(-2*pred_train.data)),
+                                pred_train.indices,
+                                pred_train.indptr),
+                               shape=pred_train.shape)
+
 
     # Determine all the rule weights
     if reg == 'up':
@@ -159,6 +165,8 @@ def element_mult(matrix1, matrix2):
     else:
         assert False, "Inconsistent matrix formats '%s' '%s'" % (type(matrix1), type(matrix2))
 
+
+# Modify this method to consider 3D matrix multiplications (where matrix1 is 3D)
 def matrix_mult(matrix1, matrix2):
     if isinstance(matrix1, csr.csr_matrix) and isinstance(matrix2, csr.csr_matrix):
         return matrix1.dot(matrix2)
