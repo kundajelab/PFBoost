@@ -223,3 +223,150 @@ dev.off()
 # Write out table
 write.table(enrich_df_plot, '/srv/persistent/pgreens/projects/hema_gwas/results/roadmap_results/gwas_by_roadmap_enrich_mean_last_two_bins.txt', quote=FALSE, sep="\t", col.names =TRUE)
 
+
+### PCA of Ryans' RNA Seq
+######################################################################################
+
+library(stats)
+library(ggplot2)
+library(preprocessCore)
+library(limma)
+library(sva)
+library(biomaRt)
+
+### Function to collapse to gene level
+collapse_to_gene_level <- function(transcript_matrix, collapse_column_name='gene_name'){
+	all_genes0 = unique(transcript_matrix[,collapse_column_name])
+	all_genes = all_genes0[!is.na(all_genes0)]
+	gene_matrix = data.frame(matrix(ncol=ncol(transcript_matrix)-1, nrow=length(all_genes)))
+	rownames(gene_matrix)=all_genes
+	colnames(gene_matrix)=colnames(transcript_matrix)[colnames(transcript_matrix)!=collapse_column_name]
+	for (gene in all_genes){
+		gene_ind = which(transcript_matrix[,collapse_column_name]==gene)
+		gene_matrix[gene,]=apply(transcript_matrix[gene_ind,1:(ncol(transcript_matrix)-1)], 2, function(x) sum(x))
+	}
+	print(sprintf('%s rownames did not have a corresponding gene name or were NA',length(sum(is.na(rownames(transcript_matrix))))))
+	return(gene_matrix)
+}
+
+# Convert human ensembl 
+convert_human_ensembl_id_to_human_gene <- function(ensembl_ids, filter_type='transcript'){
+	human = useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+	attributes <- c('ensembl_gene_id', 'external_gene_name', 'description')
+	human_genes <- getBM(filters='ensembl_gene_id', values=ensembl_ids, attributes=attributes, mart=human) 
+	sort_human_genes = human_genes[match(ensembl_ids, human_genes$ensembl_gene_id),]
+	sort_human_genes = sort_human_genes[!is.na(sort_human_genes),]
+	human_genes = unlist(lapply(ensembl_ids, function(x) sort_human_genes[which(sort_human_genes$ensembl_gene_id==x),'external_gene_name'][1]))
+	# If human gene name doesn't exist, just keep ensembl ID
+	human_genes = sapply(1:length(human_genes), function(x) ifelse(is.na(human_genes[x]), ensembl_ids[x], human_genes[x]))
+}
+
+
+
+### Load environment
+annots = read.table('/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/RNA_AML_Samples.txt', sep="\t", fill=TRUE, quote="", header=TRUE, stringsAsFactors=FALSE)
+quant_path='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/processed/'
+plot_path='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/plots/'
+
+### Get TPM Data
+tpm0 = data.frame(matrix(nrow=119207, ncol=0))
+for (file in system(sprintf('ls %s*/abundance.txt', quant_path), intern=TRUE)){
+	tumor = tail(strsplit(file, "/")[[1]],2)[1]
+	tpm0[,tumor]=as.numeric(system(sprintf('cat %s%s/abundance.txt | grep -v "#" | cut -f5 | sed "1d" ', quant_path, tumor), intern=T))
+}
+transcript_names0 =system(sprintf('cat %s%s/abundance.txt | grep -v "#" | cut -f1 | sed "1d" ', quant_path, tumor), intern=T)
+transcript_names= unlist(lapply(transcript_names0, function(x) strsplit(x, "\\|")[[1]][1]))
+rownames(tpm0)=transcript_names
+
+### Collapse to gene level
+human_ensembl_ids =  unlist(lapply(transcript_names0, function(x) strsplit(strsplit(x, "\\|")[[1]][2], "\\.")[[1]][1]))
+tpm0[,'ensembl_gene_id']=human_ensembl_ids
+gene_matrix = collapse_to_gene_level(tpm0, collapse_column_name='ensembl_gene_id')
+# Convert row names to human genes
+human_gene_names = convert_human_ensembl_id_to_human_gene(rownames(gene_matrix), filter_type='gene')
+# Adjust non-unique human gene_names
+for (gene in names(table(human_gene_names)[table(human_gene_names)>1])){
+	gene_ind = which(human_gene_names==gene)
+	count=2
+	for (ind in gene_ind[2:length(gene_ind)]){
+		human_gene_names[ind]=paste(c(human_gene_names[ind], toString(count)), collapse="_")
+		count=count+1
+	}
+}
+rownames(gene_matrix) = human_gene_names
+# Write table
+write.table(gene_matrix, '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrix/gene_level_tpm.txt', sep="\t", col.names=TRUE, row.names=TRUE, quote=FALSE)
+
+### PCA of RNA Seq
+gene_matrix = read.table('/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrix/gene_level_tpm.txt', sep="\t", check.names=FALSE)
+
+# log transform 
+gene_matrix_no0 = gene_matrix[apply(gene_matrix, 1, max)>0,]
+# loadings=pca$rotation
+
+# Plot
+# colors = c(rainbow(n=5),rainbow(n=length(unique(annots$cell_type))-5))
+
+# pdf(sprintf("%saml_atac_rna_seq_pca.pdf", plot_path))
+# ind=1
+# for (cell in unique(annots$cell_type)){
+# 	sample_names = annots$old_file_name[annots$cell_type==cell]
+# 	plot(x=scores[sample_names,'PC1'], y=scores[sample_names,'PC2'], col=colors[ind], pch=16, xlim=c(min(scores[,'PC1'])+0.01, max(scores[,'PC1'])+.01),ylim=c(min(scores[,'PC2'])+.01, max(scores[,'PC2'])+.01))
+# 	par(new=TRUE)
+# 	ind=ind+1
+# }
+# legend('right',legend=unique(annots$cell_type), col=colors, pch=16)
+# dev.off()
+
+pca <- prcomp(t(gene_matrix_no0), center = TRUE, scale = TRUE) 
+scores=pca$x
+
+pdf(sprintf("%saml_atac_rna_seq_pca.pdf", plot_path))
+scores <- data.frame(annots$cell_type, pca$x[,1:3])
+qplot(x=PC1, y=PC2, data=scores, colour=factor(annots.cell_type)) +
+  theme(legend.position="right")
+dev.off()
+
+### Normalize
+gene_matrix_no0 = gene_matrix_no0[which(apply(gene_matrix_no0,1,max)>1),]
+gene_matrix_no0 = gene_matrix_no0[which(apply(gene_matrix_no0,1,sd)>.1),]
+
+# Normalize 
+arcsintpm = asinh(gene_matrix_no0)
+arcsintpm_qn = normalize.quantiles(as.matrix(arcsintpm), copy=TRUE)
+rownames(arcsintpm_qn)=rownames(arcsintpm)
+colnames(arcsintpm_qn)=colnames(arcsintpm)
+
+pca <- prcomp(t(arcsintpm_qn), center = TRUE, scale = TRUE) 
+scores=pca$x
+
+pdf(sprintf("%saml_atac_rna_seq_pca_asinh_quantnorm.pdf", plot_path))
+scores <- data.frame(annots$cell_type, pca$x[,1:3])
+qplot(x=PC1, y=PC2, data=scores, colour=factor(annots.cell_type)) +
+  theme(legend.position="right")
+dev.off()
+
+### Remove batch effects and re-plot
+sva_method='irw'
+data = log2(as.matrix(arcsintpm_qn)+1)
+batch_data = annots[which(annots[,'sample_name']%in%colnames(data)),]
+batch_data = batch_data[match(colnames(data),batch_data$sample_name),]
+full.model <- model.matrix(~ as.factor(cell_type), data = batch_data)
+null.model <- model.matrix(~1, data = batch_data)
+svobj <- sva(dat=data, mod = full.model, mod0 = null.model, method=sva_method)
+full.model.sv <- cbind(full.model, svobj$sv)
+fit <- lmFit(data, full.model.sv)
+mod.tumor_type <- coefficients(fit)[,-seq(1,length(unique(annots$cell_type)))] %*% t(fit$design[,-seq(1,length(unique(annots$cell_type)))]) 
+data.corrected.log <- data - mod.tumor_type
+data.corrected <- (2^data.corrected.log)-1
+sum(data.corrected<0)
+data.corrected[data.corrected<0]=0
+
+pca <- prcomp(t(data.corrected), center = TRUE, scale = TRUE) 
+scores=pca$x
+
+pdf(sprintf("%saml_atac_rna_seq_pca_asinh_quantnorm_sva_corrected_%s.pdf", plot_path, sva_method))
+scores <- data.frame(annots$cell_type, pca$x[,1:3])
+qplot(x=PC1, y=PC2, data=scores, colour=factor(annots.cell_type)) +
+  theme(legend.position="right")
+dev.off()
