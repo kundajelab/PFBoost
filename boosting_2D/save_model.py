@@ -185,7 +185,6 @@ def write_load_pickle_data_script(pickle_file):
     """
 import sys
 import os
-os.chdir('/users/pgreens/git/boosting_2D')
 import random
 import gzip
 

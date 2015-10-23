@@ -233,6 +233,8 @@ library(preprocessCore)
 library(limma)
 library(sva)
 library(biomaRt)
+library(tsne)
+library(Rtsne)
 
 ### Function to collapse to gene level
 collapse_to_gene_level <- function(transcript_matrix, collapse_column_name='gene_name'){
@@ -297,26 +299,33 @@ rownames(gene_matrix) = human_gene_names
 # Write table
 write.table(gene_matrix, '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrix/gene_level_tpm.txt', sep="\t", col.names=TRUE, row.names=TRUE, quote=FALSE)
 
+### Get count data
+counts0 = data.frame(matrix(nrow=119207, ncol=0)) # Code in number of rows
+for (file in system(sprintf('ls %s*/abundance.txt', quant_path), intern=TRUE)){
+	tumor = tail(strsplit(file, "/")[[1]],2)[1]
+	counts0[,tumor]=as.numeric(system(sprintf('cat %s%s/abundance.txt | grep -v "#" | cut -f4 | sed "1d" ', quant_path, tumor), intern=T))
+}
+gene_names0 = system(sprintf('cat %s%s/abundance.txt | grep -v "#" | cut -f1 | sed "1d" ', quant_path, tumor), intern=T)
+gene_names = unlist(lapply(gene_names0, function(x) strsplit(x, "\\|")[[1]][1]))
+rownames(counts0) = gene_names
+
+### Gene level  counts
+########################
+
+counts0_gene_names = counts0
+human_gene_ensembl_ids =  unlist(lapply(gene_names0, function(x) strsplit(strsplit(x, "\\|")[[1]][2], "\\.")[[1]][1]))
+counts0_gene_names[,'ensembl_gene_id']=human_gene_ensembl_ids
+gene_matrix = collapse_to_gene_level(counts0_gene_names, collapse_column_name='ensembl_gene_id')
+
+write.table(gene_matrix, '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrix/gene_level_counts.txt', sep="\t", col.names=TRUE, row.names=TRUE, quote=FALSE)
+
+
 ### PCA of RNA Seq
 gene_matrix = read.table('/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrix/gene_level_tpm.txt', sep="\t", check.names=FALSE)
 
 # log transform 
 gene_matrix_no0 = gene_matrix[apply(gene_matrix, 1, max)>0,]
 # loadings=pca$rotation
-
-# Plot
-# colors = c(rainbow(n=5),rainbow(n=length(unique(annots$cell_type))-5))
-
-# pdf(sprintf("%saml_atac_rna_seq_pca.pdf", plot_path))
-# ind=1
-# for (cell in unique(annots$cell_type)){
-# 	sample_names = annots$old_file_name[annots$cell_type==cell]
-# 	plot(x=scores[sample_names,'PC1'], y=scores[sample_names,'PC2'], col=colors[ind], pch=16, xlim=c(min(scores[,'PC1'])+0.01, max(scores[,'PC1'])+.01),ylim=c(min(scores[,'PC2'])+.01, max(scores[,'PC2'])+.01))
-# 	par(new=TRUE)
-# 	ind=ind+1
-# }
-# legend('right',legend=unique(annots$cell_type), col=colors, pch=16)
-# dev.off()
 
 pca <- prcomp(t(gene_matrix_no0), center = TRUE, scale = TRUE) 
 scores=pca$x
@@ -368,5 +377,37 @@ scores=pca$x
 pdf(sprintf("%saml_atac_rna_seq_pca_asinh_quantnorm_sva_corrected_%s.pdf", plot_path, sva_method))
 scores <- data.frame(annots$cell_type, pca$x[,1:3])
 qplot(x=PC1, y=PC2, data=scores, colour=factor(annots.cell_type)) +
+  theme(legend.position="right")
+dev.off()
+
+### Try out t-SNE
+perplex_param=20
+tsne_data = Rtsne(t(gene_matrix_no0), perplexity=perplex_param)
+
+tsne_plot= data.frame(tsne_data$Y)
+colnames(tsne_plot)=c("TSNE1", "TSNE2")
+
+pdf(sprintf("%saml_atac_rna_seq_tsne_perplex_%s.pdf", plot_path, perplex_param))
+qplot(x=TSNE1, y=TSNE2, data=data.frame(tsne_plot), colour=factor(annots$cell_type)) +
+  theme(legend.position="right")
+dev.off()
+
+tsne_data = Rtsne(t(arcsintpm_qn), perplexity=perplex_param)
+
+tsne_plot= data.frame(tsne_data$Y)
+colnames(tsne_plot)=c("TSNE1", "TSNE2")
+
+pdf(sprintf("%saml_atac_rna_seq_tsne_asinh_quantnorm_perplex_%s.pdf", plot_path, perplex_param))
+qplot(x=TSNE1, y=TSNE2, data=data.frame(tsne_plot), colour=factor(annots$cell_type)) +
+  theme(legend.position="right")
+dev.off()
+
+tsne_data = Rtsne(t(data.corrected), perplexity=perplex_param)
+
+tsne_plot= data.frame(tsne_data$Y)
+colnames(tsne_plot)=c("TSNE1", "TSNE2")
+
+pdf(sprintf("%saml_atac_rna_seq_tsne_asinh_quantnorm_sva_corrected_%s_perplex_%s.pdf", plot_path, sva_method, perplex_param))
+qplot(x=TSNE1, y=TSNE2, data=data.frame(tsne_plot), colour=factor(annots$cell_type)) +
   theme(legend.position="right")
 dev.off()

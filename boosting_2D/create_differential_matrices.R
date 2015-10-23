@@ -10,6 +10,7 @@ library(optparse)
 library(sva)
 library(preprocessCore)
 library(limma)
+library(DESeq2)
 
 ### Usage: 
 ################################################################################################
@@ -24,11 +25,12 @@ library(limma)
 ### Arguments with optparse
 option_list <- list(
 	make_option(c("-a", "--rna_annot_file"). help="Annotation file that contains sample names with annotation to split groups on."),
-	make_option(c("-c", "--comparison_file"), help="list of conditions to compare - groups separated by v, combine groups with '|'. ex: grp1|grp2vgrp3 ", default='none'),
+	make_option(c("-f", "--comparison_file"), help="list of conditions to compare - groups separated by v, combine groups with '|'. ex: grp1|grp2vgrp3 ", default='none'),
 	make_option(c("-c", "--comparison_column"), help="list of files ", default='cell_type'),
 	make_option(c("-r", "--rna_matrix_file"), help=".bed file with regions to test for GWAS enrichment (works best with DHS only regions otherwise coverage discrepancies)", default='none'),
 	make_option(c("-g", "--regulator_file"), help="Name for analysis output directory and file names"),
 	make_option(c("-o", "--output_file"), help="Print plots of enrichment.", default=TRUE)
+	make_option(c("-i", "--input_type"), help="either [counts, tpm]", default=TRUE)
 )
 
 opt <- parse_args(OptionParser(option_list=option_list))
@@ -40,6 +42,7 @@ comparison_column = opt$comparison_column
 rna_matrix_file = opt$rna_matrix_file
 regulator_file = opt$regulator_file
 output_file = opt$output_file
+input_type = opt$input_type
 
 ### Manual Inputs
 DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
@@ -47,12 +50,15 @@ rna_annot_file=paste(c(DATA_PATH,'RNA_AML_Samples.txt'), collapse="")
 comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier.txt'), collapse="")
 comparison_column='cell_type'
 rna_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrix/gene_level_tpm.txt'), collapse="")
+rna_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrix/gene_level_counts.txt'), collapse="")
 regulator_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt'
 output_file=paste(c(DATA_PATH,'boosting_input/regulator_expression.txt'), collapse="")
+input_type='counts'
 
 ### Read in files
 ################################################################################################
-rna_annots = read.table(rna_annot_file, sep="\t", header=TRUE, stringsAsFactors=FALSE)
+
+rna_annots = read.table(rna_annot_file, sep="\t", header=TRUE, stringsAsFactors=FALSE, fill=TRUE)
 comparisons = read.table(comparison_file, sep="\t", header=FALSE, stringsAsFactors=FALSE)
 rna_matrix = read.table(rna_matrix_file, sep="\t", stringsAsFactors=FALSE, header=TRUE,check.names=FALSE)
 regulator_list = read.table(regulator_file, sep="\t", stringsAsFactors=FALSE)[,1]
@@ -79,37 +85,53 @@ for (comp in comparisons[,1]){
 	comp_matrix = rna_matrix[,c(grp1_samples, grp2_samples)]
 	comp_matrix = comp_matrix[which(apply(comp_matrix, 1, max)>0),]
 
-	# Normalize samples
-	comp_matrix_asinh = asinh(comp_matrix)
-	comp_matrix_asinh_qn = normalize.quantiles(as.matrix(comp_matrix_asinh), copy=TRUE)
-	rownames(comp_matrix_asinh_qn) = rownames(comp_matrix_asinh)
-	colnames(comp_matrix_asinh_qn) = colnames(comp_matrix_asinh)
+	# Proceed with TPM data
+	if (input_type=='tpm'){
+		# Normalize samples
+		comp_matrix_asinh = asinh(comp_matrix)
+		comp_matrix_asinh_qn = normalize.quantiles(as.matrix(comp_matrix_asinh), copy=TRUE)
+		rownames(comp_matrix_asinh_qn) = rownames(comp_matrix_asinh)
+		colnames(comp_matrix_asinh_qn) = colnames(comp_matrix_asinh)
 
-	# Calculate differential expression between the samples 
-	comp_matrix_asinh_qn_log = log2(as.matrix(comp_matrix_asinh_qn)+1)
-	comp_annots = rna_annots[match(colnames(comp_matrix_asinh_qn_log),rna_annots$sample_name),]
-	comp_annots['comp']=sapply(comp_annots[,comparison_column], function(x) ifelse(x %in% grp1_labels, "grp1", "grp2"))
-	full.model <- model.matrix(~ as.factor(comp) , data = comp_annots)
-	# null.model <- model.matrix(~  1, data = comp_annots)
-	# svobj <- sva(dat=comp_matrix_asinh_qn_log, mod = full.model, mod0 = null.model)
-	# full.model.sv <- cbind(full.model, svobj$sv)
-	# fit <- lmFit(comp_matrix_asinh_qn_log, full.model.sv)
-	fit <- lmFit(comp_matrix_asinh_qn_log, full.model)
-	ebfit <- eBayes(fit)
-	tophits <- topTable(ebfit, coef = "as.factor(comp)grp2", number = Inf)
+		# Calculate differential expression between the samples 
+		comp_matrix_asinh_qn_log = log2(as.matrix(comp_matrix_asinh_qn)+1)
+		comp_annots = rna_annots[match(colnames(comp_matrix_asinh_qn_log),rna_annots$sample_name),]
+		comp_annots['comp']=sapply(comp_annots[,comparison_column], function(x) ifelse(x %in% grp1_labels, "grp1", "grp2"))
+		full.model <- model.matrix(~ as.factor(comp) , data = comp_annots)
+		null.model <- model.matrix(~  1, data = comp_annots)
+		svobj <- sva(dat=comp_matrix_asinh_qn_log, mod = full.model, mod0 = null.model)
+		full.model.sv <- cbind(full.model, svobj$sv)
+		fit <- lmFit(comp_matrix_asinh_qn_log, full.model.sv)
+		ebfit <- eBayes(fit)
+		tophits <- topTable(ebfit, coef = "as.factor(comp)grp2", number = Inf)
 
-	# Allocate results into complete matrix
-	diff_genes_up = rownames(tophits)[intersect(which(tophits$adj.P.Val<=0.05), which(tophits$logFC>0))]
-	diff_genes_down = rownames(tophits)[intersect(which(tophits$adj.P.Val<=0.05), which(tophits$logFC<0))]
-	rna_diff_mat0[diff_genes_up,comp]=1
-	rna_diff_mat0[diff_genes_down,comp]=-1
+		# Allocate results into complete matrix
+		diff_genes_up = rownames(tophits)[intersect(which(tophits$adj.P.Val<=0.05), which(tophits$logFC>0))]
+		diff_genes_down = rownames(tophits)[intersect(which(tophits$adj.P.Val<=0.05), which(tophits$logFC<0))]
+		rna_diff_mat0[diff_genes_up,comp]=1
+		rna_diff_mat0[diff_genes_down,comp]=-1
+	# Proceed with count data
+	} else if (input_type=='counts'){
+		# Calculate differential expression with DESeq
+		comp_matrix_rounded = round(comp_matrix)
+		comp_annots = rna_annots[match(colnames(comp_matrix),rna_annots$sample_name),]
+		comp_annots['comp']=sapply(comp_annots[,comparison_column], function(x) ifelse(x %in% grp1_labels, "grp1", "grp2"))
+		conditions = factor(comp_annots[,'comp'])
+		dds = DESeqDataSetFromMatrix(countData=comp_matrix_rounded, colData=comp_annots, design = ~comp)
+		dds <- DESeq(dds)
+		res <- results(dds)
+		res = res[order(res$pval), ]
 
+		# Allocate results into complete matrix
+		diff_genes_up = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange>0))]
+		diff_genes_down = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange<0))]
+		rna_diff_mat0[diff_genes_up,comp]=1
+		rna_diff_mat0[diff_genes_down,comp]=-1
+	}
 }
 
 # Check the number of genes that are differentially significant between conditions
-irw_counts = apply(rna_diff_mat0, 2, function(x) sum(x!=0))
-twostep_counts = apply(rna_diff_mat0, 2, function(x) sum(x!=0))
-nosva_counts = apply(rna_diff_mat0, 2, function(x) sum(x!=0))
+apply(rna_diff_mat0, 2, function(x) sum(x!=0))
 
 ### Subset to allowable regulator list
 if (regulator_file!='none'){
@@ -122,12 +144,12 @@ if (regulator_file!='none'){
 # Write out matrix
 ################################################################################################
 
-dense_output_file = cpaste(c(strsplit(output_file, '.txt')[[1]][1], 'dense.txt'), collapse="")
+dense_output_file = paste(c(strsplit(output_file, '.txt')[[1]][1], 'dense.txt'), collapse="")
 sparse_output_file = output_file
 write.table(rna_diff_mat, dense_output_file, quote=FALSE, sep="\t", col.names=TRUE, row.names=TRUE)
 
 # Convert to sparse format
-system(sprintf('/srv/git/boosting_2D/boosting_2D/convert_dense_to_sparse.py --input-file %s --output-file %s --with-labels', dense_output_file, sparse_output_file)
+system(sprintf('python /users/pgreens/git/boosting_2D/boosting_2D/convert_dense_to_sparse.py --input-file %s --output-file %s --with-labels', dense_output_file, sparse_output_file))
 
 # Remove dense version
 system(sprintf('rm %s', dense_output_file))
