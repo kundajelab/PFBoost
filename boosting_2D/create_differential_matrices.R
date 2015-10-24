@@ -1,3 +1,4 @@
+#!//usr/bin/Rscript
 ### Peyton Greenside
 ### Script to take matrices and output differential expression or accessibility
 ### 10/13/15
@@ -14,24 +15,24 @@ library(DESeq2)
 
 ### Usage: 
 ################################################################################################
-# DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
-# RScript create_differential_matrices.R -a $DATA_PATH"RNA_AML_Samples.txt" -c $DATA_PATH"cell_comparisons_w_leuk_all_hier.txt" \
+# DATA_PATH=/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/
+# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
+# $SCRIPT_PATH"create_differential_matrices.R" -a $DATA_PATH"RNA_AML_Samples.txt" -c $DATA_PATH"cell_comparisons_w_leuk_all_hier.txt" \
 # -r $DATA_PATH"data/rna_seq/merged_matrix/gene_level_tpm.txt" -g /srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt \
-# -o $DATA_PATH"boosting_input/regulator_expression.txt"
+# -o $DATA_PATH"boosting_input/regulator_expression.txt" -m deseq_svaseq
 
 ### Get arguments
 ################################################################################################
 
 ### Arguments with optparse
 option_list <- list(
-	make_option(c("-a", "--rna_annot_file"). help="Annotation file that contains sample names with annotation to split groups on."),
+	make_option(c("-a", "--rna_annot_file"), help="Annotation file that contains sample names with annotation to split groups on."),
 	make_option(c("-f", "--comparison_file"), help="list of conditions to compare - groups separated by v, combine groups with '|'. ex: grp1|grp2vgrp3 ", default='none'),
 	make_option(c("-c", "--comparison_column"), help="list of files ", default='cell_type'),
 	make_option(c("-r", "--rna_matrix_file"), help=".bed file with regions to test for GWAS enrichment (works best with DHS only regions otherwise coverage discrepancies)", default='none'),
 	make_option(c("-g", "--regulator_file"), help="Name for analysis output directory and file names"),
-	make_option(c("-o", "--output_file"), help="Print plots of enrichment.", default=TRUE)
-	make_option(c("-i", "--input_type"), help="either [counts, tpm]", default=TRUE)
-)
+	make_option(c("-o", "--output_file"), help="Print plots of enrichment.", default=TRUE),
+	make_option(c("-m", "--method"), help="either [deseq_svaseq, sva_limma, deseq]", default=TRUE))
 
 opt <- parse_args(OptionParser(option_list=option_list))
 
@@ -42,7 +43,7 @@ comparison_column = opt$comparison_column
 rna_matrix_file = opt$rna_matrix_file
 regulator_file = opt$regulator_file
 output_file = opt$output_file
-input_type = opt$input_type
+method = opt$method
 
 ### Manual Inputs
 DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
@@ -52,8 +53,8 @@ comparison_column='cell_type'
 rna_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrix/gene_level_tpm.txt'), collapse="")
 rna_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrix/gene_level_counts.txt'), collapse="")
 regulator_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt'
-output_file=paste(c(DATA_PATH,'boosting_input/regulator_expression.txt'), collapse="")
-input_type='counts'
+method='deseq_svaseq'
+output_file=paste(c(DATA_PATH,sprintf('boosting_input/regulator_expression_%s.txt', method)), collapse="")
 
 ### Read in files
 ################################################################################################
@@ -86,7 +87,7 @@ for (comp in comparisons[,1]){
 	comp_matrix = comp_matrix[which(apply(comp_matrix, 1, max)>0),]
 
 	# Proceed with TPM data
-	if (input_type=='tpm'){
+	if (method=='sva_limma'){
 		# Normalize samples
 		comp_matrix_asinh = asinh(comp_matrix)
 		comp_matrix_asinh_qn = normalize.quantiles(as.matrix(comp_matrix_asinh), copy=TRUE)
@@ -110,8 +111,8 @@ for (comp in comparisons[,1]){
 		diff_genes_down = rownames(tophits)[intersect(which(tophits$adj.P.Val<=0.05), which(tophits$logFC<0))]
 		rna_diff_mat0[diff_genes_up,comp]=1
 		rna_diff_mat0[diff_genes_down,comp]=-1
-	# Proceed with count data
-	} else if (input_type=='counts'){
+	# Proceed with count data DESeq
+	} else if (method=='deseq'){
 		# Calculate differential expression with DESeq
 		comp_matrix_rounded = round(comp_matrix)
 		comp_annots = rna_annots[match(colnames(comp_matrix),rna_annots$sample_name),]
@@ -121,6 +122,32 @@ for (comp in comparisons[,1]){
 		dds <- DESeq(dds)
 		res <- results(dds)
 		res = res[order(res$pval), ]
+
+		# Allocate results into complete matrix
+		diff_genes_up = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange>0))]
+		diff_genes_down = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange<0))]
+		rna_diff_mat0[diff_genes_up,comp]=1
+		rna_diff_mat0[diff_genes_down,comp]=-1
+	# Proceed with count data DESeq with SVASeq
+	} else if (method=="deseq_svaseq"){
+		# Calculate differential expression with DESeq + SVA BATCH VARIABLES (http://genomicsclass.github.io/book/pages/rnaseq_gene_level.html)
+		comp_matrix_rounded = round(comp_matrix)
+		comp_matrix_rounded = as.matrix(comp_matrix_rounded[rowMeans(comp_matrix_rounded) > 1,])
+		comp_annots = rna_annots[match(colnames(comp_matrix),rna_annots$sample_name),]
+		comp_annots['comp']=sapply(comp_annots[,comparison_column], function(x) ifelse(x %in% grp1_labels, "grp1", "grp2"))
+		conditions = factor(comp_annots[,'comp'])
+		dds = DESeqDataSetFromMatrix(countData=comp_matrix_rounded, colData=comp_annots, design = ~comp)
+		mod <- model.matrix(~ comp, colData(dds))
+		mod0 <- model.matrix(~ 1, colData(dds))
+		svaseq <- svaseq(comp_matrix_rounded, mod, mod0)
+		dds.sva <- dds
+		for (sv in seq(1,svaseq$n.sv)){
+			eval(parse(text=sprintf('dds.sva$SV%s <- matrix(svaseq$sv, ncol=svaseq$n.sv)[,%s]', sv, sv)))
+		}
+		eval(parse(text=sprintf('design(dds.sva) <- ~ %s + comp', paste(sapply(seq(1,svaseq$n.sv), function(x) sprintf("SV%s", x)), collapse=" + "))))
+		dds.sva <- DESeq(dds.sva)
+		res <- results(dds.sva)
+		res = res[order(res$pval),]
 
 		# Allocate results into complete matrix
 		diff_genes_up = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange>0))]
