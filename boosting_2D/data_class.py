@@ -470,7 +470,7 @@ class DecisionTree(object):
         self.above_regs.append(above_regs)
         self.above_nodes.append([best_split]+self.above_nodes[best_split])
 
-        self._update_prediction(rule_score, rule_train_index, rule_test_index) 
+        self._update_prediction(rule_score, rule_train_index, rule_test_index) # Here's where it matters which one feature space you use!
         self._update_weights(holdout,y) # May want to use weights
         self._update_error(holdout, y)
         self._update_margin(y)

@@ -2,7 +2,7 @@ import sys
 import os
 import random
 
-import numpy as np 
+import numpy as np
 from scipy.sparse import *
 
 import argparse
@@ -40,89 +40,89 @@ def parse_args():
     # Get arguments
     parser = argparse.ArgumentParser(description='Extract Chromatin States')
 
-    parser.add_argument('--output-prefix', 
+    parser.add_argument('--output-prefix',
                         help='Analysis name for output plots')
-    parser.add_argument('--output-path', 
-                        help='path to write the results to', 
+    parser.add_argument('--output-path',
+                        help='path to write the results to',
                         default='/users/pgreens/projects/boosting/results/')
 
     parser.add_argument('--input-format', help='options are: matrix, triplet')
     parser.add_argument('--mult-format', help='options are: dense, sparse')
 
-    parser.add_argument('-y', '--target-file', 
+    parser.add_argument('-y', '--target-file',
                         help='target matrix - dimensionality GxE')
-    parser.add_argument('-g', '--target-row-labels', 
+    parser.add_argument('-g', '--target-row-labels',
                         help='row labels for y matrix (dimension G)')
-    parser.add_argument('-e', '--target-col-labels', 
+    parser.add_argument('-e', '--target-col-labels',
                         help='column labels for y matrix (dimension E)')
 
-    parser.add_argument('-x', '--motifs-file', 
+    parser.add_argument('-x', '--motifs-file',
                         help='x1 features - dimensionality MxG')
-    parser.add_argument('-m', '--m-col-labels', 
+    parser.add_argument('-m', '--m-col-labels',
                         help='column labels for x1 matrix (dimension M)')
     parser.add_argument('--three_dimensional',
-                        action='store_true', help='is the motif matrix 3D')
+                        action='store_true', help='is the motif matrix 3D') # If there are multiple motifs files (ex enh and prom) then allow option to save in a list
 
-    parser.add_argument('-z', '--regulators-file', 
+    parser.add_argument('-z', '--regulators-file',
                         help='x2 features - dimensionality ExR')
-    parser.add_argument('-r', '--r-row-labels', 
-                        help='row labels for x2 matrix (dimension R)')
+    parser.add_argument('-r', '--r-row-labels',
+                        help='row labels for x2 matrix (dimension R)') # If there are multiple regulator files (ex protein coding and ncRNA) then allow option to save in a list
 
-    parser.add_argument('-n', '--num-iter', 
+    parser.add_argument('-n', '--num-iter',
                         help='Number of iterations', default=500, type=int)
 
     parser.add_argument('--eta1', help='stabilization threshold 1', type=float)
     parser.add_argument('--eta2', help='stabilization threshold 2', type=float)
 
-    parser.add_argument('--stumps', 
-                        help='specify to do stumps instead of adt', 
+    parser.add_argument('--stumps',
+                        help='specify to do stumps instead of adt',
                         action='store_true')
-    parser.add_argument('--stable', 
-                        help='bundle rules/implement stabilized boosting', 
+    parser.add_argument('--stable',
+                        help='bundle rules/implement stabilized boosting',
                         action='store_true')
-    parser.add_argument('--corrected-loss', 
+    parser.add_argument('--corrected-loss',
                         action='store_true', help='For corrected Loss')
-    parser.add_argument('--plot', 
+    parser.add_argument('--plot',
                         action='store_true', help='Plot imbalanced & balanced loss and margins')
 
-    parser.add_argument('--use_prior', 
+    parser.add_argument('--use_prior',
                         action='store_true', help='Use prior',)
-    parser.add_argument('--prior_input_format', 
+    parser.add_argument('--prior_input_format',
                         help='options are: matrix, triplet',)
-    parser.add_argument('--motif_reg_file', 
+    parser.add_argument('--motif_reg_file',
                         default=None, help='motif-regulator priors [0,1] real-valued',)
-    parser.add_argument('--motif_reg_row_labels', 
+    parser.add_argument('--motif_reg_row_labels',
                         default=None, help='motif labels for motif-regulator prior',)
-    parser.add_argument('--motif_reg_col_labels', 
+    parser.add_argument('--motif_reg_col_labels',
                         default=None, help='regulator labels for motif-regulator prior',)
-    parser.add_argument('--reg_reg_file', 
-                        default=None, help='regulator-regulator priors [0,1] real-valued',) 
-    parser.add_argument('--reg_reg_row_labels', 
-                        default=None, help='motif labels for regulator-regulator prior',)    
-    parser.add_argument('--reg_reg_col_labels', 
+    parser.add_argument('--reg_reg_file',
+                        default=None, help='regulator-regulator priors [0,1] real-valued',)
+    parser.add_argument('--reg_reg_row_labels',
+                        default=None, help='motif labels for regulator-regulator prior',)
+    parser.add_argument('--reg_reg_col_labels',
                         default=None, help='regulator labels for regulator-regulator prior',)
-    
 
-    parser.add_argument('--ncpu', 
+
+    parser.add_argument('--ncpu',
                         help='number of cores to run on', type=int)
 
-    parser.add_argument('--holdout-file', 
+    parser.add_argument('--holdout-file',
                         help='Specify holdout matrix, same as y dimensions', default=None)
-    parser.add_argument('--holdout-format', 
-                        help='format for holdout matrix', 
+    parser.add_argument('--holdout-format',
+                        help='format for holdout matrix',
                         default=None)
 
-    parser.add_argument('--shuffle_y', 
-                        help='flag to shuffle the contents of y matrix', 
+    parser.add_argument('--shuffle_y',
+                        help='flag to shuffle the contents of y matrix',
                         action='store_true')
-    parser.add_argument('--shuffle_x1', 
-                        help='flag to shuffle the contents of y matrix', 
+    parser.add_argument('--shuffle_x1',
+                        help='flag to shuffle the contents of y matrix',
                         action='store_true')
-    parser.add_argument('--shuffle_x2', 
-                        help='flag to shuffle the contents of y matrix', 
+    parser.add_argument('--shuffle_x2',
+                        help='flag to shuffle the contents of y matrix',
                         action='store_true')
 
-    parser.add_argument('--boost_mode', 
+    parser.add_argument('--boost_mode',
                         default='ADABOOST', help='loss function used in learning')
 
     # Parse arguments
@@ -133,38 +133,40 @@ def parse_args():
 
     print x1_3D
 
+    # is x1 and x2 multiple matrix spaces
+
     # Load the three feature matrices
     log('load y start ')
-    y = TargetMatrix(args.target_file, 
-                     args.target_row_labels, 
+    y = TargetMatrix(args.target_file,
+                     args.target_row_labels,
                      args.target_col_labels,
                      args.input_format,
                      args.mult_format,
                      make_3d_compatible=x1_3D)
     log('load y stop')
 
-    log('load x1 start')
-    x1 = Motifs(args.motifs_file, # CHANGE FOR 3D SEQUENCE MATRIX
+    log('load x1 start') # Wrap this code in a loop to be able to get all x1 feature spaces into a list
+    x1 = Motifs(args.motifs_file, 
                 args.m_col_labels,
-                args.target_row_labels, 
+                args.target_row_labels,
                 args.input_format,
                 args.mult_format,
                 matrix_is_3d=x1_3D)
     log('load x1 stop')
-    
+
     log('load x2 start')
-    x2 = Regulators(args.regulators_file, 
+    x2 = Regulators(args.regulators_file,
                     args.target_col_labels,
-                    args.r_row_labels, 
+                    args.r_row_labels,
                     args.input_format,
                     args.mult_format)
     log('load x2 stop')
-   
+
     # Shuffle data
     if args.shuffle_y:
         y = util.shuffle_data_object(y)
     if args.shuffle_x1:
-        x1 = util.shuffle_data_object(x1)
+        x1 = util.shuffle_data_object(x1) # NOTE: this will break w/ 3D and multiple feature spaces
     if args.shuffle_x2:
         x2 = util.shuffle_data_object(x1)
 
@@ -175,7 +177,7 @@ def parse_args():
 
     # Configure tuning parameters
     config.TUNING_PARAMS = TuningParams(
-        args.num_iter, 
+        args.num_iter,
         args.stumps, args.stable, args.corrected_loss,
         args.use_prior,
         args.eta1, args.eta2, 20, 1./holdout.n_train)
@@ -195,7 +197,7 @@ def parse_args():
     if config.TUNING_PARAMS.use_prior:
         prior.PRIOR_PARAMS=prior.PriorParams(
             50, 0.998,
-            args.prior_input_format, 
+            args.prior_input_format,
             args.motif_reg_file, args.motif_reg_row_labels, args.motif_reg_col_labels,
             args.reg_reg_file, args.reg_reg_row_labels, args.reg_reg_col_labels)
         prior.prior_motifreg, prior.prior_regreg = prior.parse_prior(prior.PRIOR_PARAMS, x1, x2)
@@ -216,7 +218,7 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
     ## Calculate loss at all search nodes
     log('find rule process', level=level)
     best_split, regulator_sign, loss_best = find_rule_processes(
-        tree, holdout, y, x1, x2) 
+        tree, holdout, y, x1, x2)
 
     log('update loss with prior', level=level)
     if config.TUNING_PARAMS.use_prior:
@@ -225,13 +227,13 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
     # Get rule weights for the best split
     log('find rule weights', level=level)
     rule_weights = find_rule_weights(
-        tree.ind_pred_train[best_split], tree.weights, tree.ones_mat, 
+        tree.ind_pred_train[best_split], tree.weights, tree.ones_mat,
         holdout, y, x1, x2)
 
     # Get current rule, no stabilization
     log('get current rule', level=level)
     # NOTE: rule train index
-    (motif, regulator, regulator_sign, rule_train_index, rule_test_index 
+    (motif, regulator, regulator_sign, rule_train_index, rule_test_index
      ) = get_current_rule(
          tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
 
@@ -245,24 +247,24 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
         stable_test = stabilize.stable_boost_test(tree, rule_train_index, holdout)
         stable_thresh = stabilize.stable_boost_thresh(tree, y, weights_i)
 
-        # If stabilization criterion met, then we want to find a bundle of 
-        # correlated rules to use as a single node  
+        # If stabilization criterion met, then we want to find a bundle of
+        # correlated rules to use as a single node
         if stable_test >= config.TUNING_PARAMS.eta_2*stable_thresh:
             print 'stabilization criterion applies'
             # Get rules that are bundled together
             log('getting rule bundle', level=level)
             bundle = stabilize.bundle_rules(
-                tree, y, x1, x2, 
-                motif, 
-                regulator, regulator_sign, 
+                tree, y, x1, x2,
+                motif,
+                regulator, regulator_sign,
                 best_split, rule_weights)
 
             # rule score is the direction and magnitude of the prediciton update
             # for the rule given by rule_weights and rule_train_index
             log('updating scores and indices with bundle', level=level)
-            ( rule_score, rule_train_index, rule_test_index 
-              ) = stabilize.get_rule_score_and_indices(bundle, 
-              tree.ind_pred_train, tree.ind_pred_test, 
+            ( rule_score, rule_train_index, rule_test_index
+              ) = stabilize.get_rule_score_and_indices(bundle,
+              tree.ind_pred_train, tree.ind_pred_test,
               best_split, weights_i, rule_weights,
               tree, y, x1, x2, holdout,
               rule_train_index, rule_test_index)
@@ -289,17 +291,17 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
         motif_bundle = []
         regulator_bundle = []
 
-        
+
     log('adding above motifs/regs', level=level)
     above_motifs = tree.above_motifs[best_split]+np.unique(
         tree.bundle_x1[best_split]+[tree.split_x1[best_split]]).tolist()
     above_regs = tree.above_regs[best_split]+np.unique(
         tree.bundle_x2[best_split]+[tree.split_x2[best_split]]).tolist()
 
-    return (motif, regulator, best_split, 
-            motif_bundle, regulator_bundle, 
-            rule_train_index, rule_test_index, rule_score, 
-            above_motifs, above_regs)
+    return (motif, regulator, best_split,
+            motif_bundle, regulator_bundle,
+            rule_train_index, rule_test_index, rule_score,
+            above_motifs, above_regs) 
 
 
 def main():
@@ -333,20 +335,24 @@ def main():
     for i in xrange(1,config.TUNING_PARAMS.num_iter):
 
         log('iteration {0}'.format(i))
-        
+
+        # Here generate a loop that considers multiple feature spaces. Then also tracks the best loss from different feature matrices and passes to add
+        # rule with best loss, add rule must ALSO note which feat matrices were used. Name the features differently so that it's saved in the rule
+        # list. Give a list of specific  pairs of spaces to check (for example, you may want to exclude promoters vs miRNAs)
+
         ### Find the next decision node with best loss
         log('find next node', level=level)
-        (motif, regulator, best_split, 
-         motif_bundle, regulator_bundle, 
-         rule_train_index, rule_test_index, rule_score, 
+        (motif, regulator, best_split,
+         motif_bundle, regulator_bundle,
+         rule_train_index, rule_test_index, rule_score,
          above_motifs, above_regs) = find_next_decision_node(
              tree, holdout, y, x1, x2, i)
-        
+
         ### Add the rule with best loss
-        log('adding next rule', level=level)
-        tree.add_rule(motif, regulator, best_split, 
-                      motif_bundle, regulator_bundle, 
-                      rule_train_index, rule_test_index, rule_score, 
+        log('adding next rule', level=level) # Tricky part here is to keep track of which matrix was used - actually, since you pass indices, then it doesn't matter anymore?
+        tree.add_rule(motif, regulator, best_split,
+                      motif_bundle, regulator_bundle,
+                      rule_train_index, rule_test_index, rule_score,
                       above_motifs, above_regs, holdout, y)
 
         ### Print progress
