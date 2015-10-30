@@ -17,9 +17,10 @@ library(DESeq2)
 ################################################################################################
 # DATA_PATH=/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/
 # SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
-# $SCRIPT_PATH"create_differential_matrices.R" -a $DATA_PATH"RNA_AML_Samples.txt" -c $DATA_PATH"cell_comparisons_w_leuk_all_hier.txt" \
-# -r $DATA_PATH"data/rna_seq/merged_matrix/gene_level_tpm.txt" -g /srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt \
-# -o $DATA_PATH"boosting_input/regulator_expression.txt" -m deseq_svaseq
+# $SCRIPT_PATH"create_differential_matrices.R" -a $DATA_PATH"RNA_AML_Samples.txt" -f $DATA_PATH"cell_comparisons_w_leuk_all_hier.txt" \
+# -c cell_type \
+# -r $DATA_PATH"/rna_seq/merged_matrix/gene_level_counts.txt" -g /srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt \
+# -o $DATA_PATH"boosting_input/regulator_expression_deseq.txt" -m deseq
 
 ### Get arguments
 ################################################################################################
@@ -31,8 +32,8 @@ option_list <- list(
 	make_option(c("-c", "--comparison_column"), help="list of files ", default='cell_type'),
 	make_option(c("-r", "--rna_matrix_file"), help=".bed file with regions to test for GWAS enrichment (works best with DHS only regions otherwise coverage discrepancies)", default='none'),
 	make_option(c("-g", "--regulator_file"), help="Name for analysis output directory and file names"),
-	make_option(c("-o", "--output_file"), help="Print plots of enrichment.", default=TRUE),
-	make_option(c("-m", "--method"), help="either [deseq_svaseq, sva_limma, deseq]", default=TRUE))
+	make_option(c("-o", "--output_file"), help="Print plots of enrichment."),
+	make_option(c("-m", "--method"), help="either [deseq_svaseq, sva_limma, deseq]"))
 
 opt <- parse_args(OptionParser(option_list=option_list))
 
@@ -159,6 +160,7 @@ for (comp in comparisons[,1]){
 
 # Check the number of genes that are differentially significant between conditions
 apply(rna_diff_mat0, 2, function(x) sum(x!=0))
+# apply(rna_diff_mat, 2, function(x) sum(x!=0))
 
 ### Subset to allowable regulator list
 if (regulator_file!='none'){
@@ -171,7 +173,7 @@ if (regulator_file!='none'){
 # Write out matrix
 ################################################################################################
 
-dense_output_file = paste(c(strsplit(output_file, '.txt')[[1]][1], 'dense.txt'), collapse="")
+dense_output_file = paste(c(strsplit(output_file, '.txt')[[1]][1], '_dense.txt'), collapse="")
 sparse_output_file = output_file
 write.table(rna_diff_mat, dense_output_file, quote=FALSE, sep="\t", col.names=TRUE, row.names=TRUE)
 
@@ -183,6 +185,8 @@ system(sprintf('rm %s', dense_output_file))
 
 # Print when finished
 sprintf('DONE: find the output matrix in: %s', sparse_output_file)
+
+
 
 
 

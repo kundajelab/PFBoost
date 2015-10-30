@@ -40,34 +40,35 @@ TuningParams = namedtuple('TuningParams', [
 ])
 
 PostProcess_Params = namedtuple('PostProcess_Params', [
-    'model_path', 'margin_score_prefix',
+    'model_path', 'analysis_label',
     'run_margin_score', 'run_disc_margin_score', 
-    'margin_score_methods',
+    'return_ex_by_feat_matrix', 'margin_score_methods',
     'condition_feat_file', 'region_feat_file', 
     'condition_feat_file2', 'region_feat_file2', 
     'num_perm', 'split_prom_enh_dist',
     'null_tree_model',
     'run_unsupervised_clustering', 'n_clusters_start',
-    'features_for_kmeans', 'clusters_to_write',
+    'features_to_use', 'clusters_to_write',
     'run_knn_with_examples', 'examples_to_track',
     'number_knneighbors'
 ])
-
 
 def parse_args():
     # Get arguments
     parser = argparse.ArgumentParser(description='Arguments for Post-Processing')
 
-	# Model files 
+    # Model files 
     parser.add_argument('--model-path', 
                         help='path to stored data model')
-    parser.add_argument('--margin-score-prefix', 
-                        help='path to stored data model')
+    parser.add_argument('--analysis-label', 
+                        help='label of current analysis (e.g. label for cell/peak subset')
 
     # Margin score arguments
     parser.add_argument('--run-margin-score', 
                         help='Flag to run margin score', action='store_true')
     parser.add_argument('--run-disc-margin-score', 
+                        help='Flag to run discriminative margin score between two index matrices', action='store_true')
+    parser.add_argument('--return-ex-by-feat-matrix', 
                         help='Flag to run discriminative margin score between two index matrices', action='store_true')
     parser.add_argument('--condition-feat-file', 
                         help='set of conditions to calculate margin score over', default=None)
@@ -94,7 +95,7 @@ def parse_args():
                         help='Flag to run unsupervised clustering', action='store_true')
     parser.add_argument('--n-clusters-start', 
                         help='Number of k-means clusters to start with sofiaML', default=5000, type=int)
-    parser.add_argument('--features-for-kmeans', 
+    parser.add_argument('--features-to-use', 
                         help='comma separated list with options: motif,reg,node,path', default='motif')
     parser.add_argument('--clusters-to-write', 
                         help='options: "none", "all", or a comma separated string of clusters', default='none')
@@ -114,23 +115,23 @@ def parse_args():
     args = parser.parse_args()
 
     # If no subset files, name consistently for generating unsupervised learning
-    prefix = 'full_model' if args.condition_feat_file==None and args.region_feat_file==None else args.margin_score_prefix 
+    prefix = 'full_model' if args.condition_feat_file==None and args.region_feat_file==None else args.analysis_label 
 
     margin_score_methods = args.margin_score_methods.split(',') if args.margin_score_methods != None else None
-    features_for_kmeans = args.features_for_kmeans.split(',') if args.features_for_kmeans != None else None
+    features_to_use = args.features_to_use.split(',') if args.features_to_use != None else None
     examples_to_track = args.examples_to_track.split(',') if args.examples_to_track != None else None
 
     # Store arguments in a named tuple
     PARAMS = PostProcess_Params(
         args.model_path, prefix,
         args.run_margin_score, args.run_disc_margin_score,
-        margin_score_methods,
+        args.return_ex_by_feat_matrix, margin_score_methods,
         args.condition_feat_file, args.region_feat_file,
         args.condition_feat_file2, args.region_feat_file2,
         args.num_perm, args.split_prom_enh_dist,
         args.null_tree_model,
         args.run_unsupervised_clustering, args.n_clusters_start,
-        features_for_kmeans, args.clusters_to_write,
+        features_to_use, args.clusters_to_write,
         args.run_knn_with_examples,
         examples_to_track, args.number_knneighbors 
         )
@@ -211,7 +212,7 @@ def main():
         for method in PARAMS.margin_score_methods:
             for key in index_mat_dict.keys():
                 margin_score.call_rank_by_margin_score(index_mat_dict[key], 
-                    key, method, PARAMS.margin_score_prefix,
+                    key, method, PARAMS.analysis_label,
                     y, x1, x2, tree, pool, 
                     num_perm=PARAMS.num_perm, 
                     null_tree_file=PARAMS.null_tree_model)
@@ -259,14 +260,13 @@ def main():
         for method in PARAMS.margin_score_methods:
             for key in index_mat_dict1.keys():
                 margin_score.call_discriminate_margin_score(index_mat_dict1[key], index_mat_dict2[key],
-                    key, method, PARAMS.margin_score_prefix,
+                    key, method, PARAMS.analysis_label,
                     y, x1, x2, tree, pool, 
                     num_perm=PARAMS.num_perm, 
                     null_tree_file=PARAMS.null_tree_model)
 
         print 'DONE: margin scores in {0}{1}/disc_margin_scores/'.format(
             config.OUTPUT_PATH, config.OUTPUT_PREFIX)
-
 
     ### Run unsupervised clustering
     if PARAMS.run_unsupervised_clustering:
@@ -275,7 +275,7 @@ def main():
         'depending on the size of the matrix')
         (cluster_file, new_clusters) = post_process_unsupervised.cluster_examples_kmeans(
          y, x1, x2, tree, n_clusters_start=PARAMS.n_clusters_start,
-          mat_features=PARAMS.features_for_kmeans)
+          mat_features=PARAMS.features_to_use)
         pdb.set_trace()
         # Write out bed files with each cluster
         if PARAMS.clusters_to_write!='none':
@@ -306,6 +306,33 @@ def main():
         print 'DONE: k-nearest neighbors in {0}{1}/knn/'.format(
             config.OUTPUT_PATH, config.OUTPUT_PREFIX)        
 
+    ### Return matrix of normalized margin scores for desired index
+    if PARAMS.return_ex_by_feat_matrix:
+
+        ### Set up output folder
+        mat_outdir = '{0}{1}/ex_by_feat_matrix/'.format(
+            config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+        if not os.path.exists(mat_outdir):
+            os.makedirs(mat_outdir)
+
+        print "getting example-by-feature matrix"
+        # get example by feature matrix
+        ex_by_feat_mat = post_process_unsupervised.gen_ex_by_feature_matrix(
+            y, x1, x2, tree, feat=PARAMS.features_to_use)
+
+        print "subsetting example-by-feature matrix"
+        # subset matrix to relevant features
+        sub_ex_by_feat_df = post_process_unsupervised.subset_ex_by_feature_matrix(
+            ex_by_feat_mat, y, x1, condition_feat_file=PARAMS.condition_feat_file, 
+            region_feat_file=PARAMS.region_feat_file, remove_zeros=True)
+
+        print "writing example-by-feature matrix"
+        # Write matrix out
+        sub_ex_by_feat_df.to_csv('{0}{1}_example_by_feature_matrix.txt'.format(
+            mat_outdir, PARAMS.analysis_label), 
+            sep="\t", index=True, header=True)
+
+        print 'DONE: example by feature matrix in {0}'.format(mat_outdir)        
 
 ### Main
 if __name__ == "__main__":

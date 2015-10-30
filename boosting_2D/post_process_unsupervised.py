@@ -11,6 +11,7 @@ from matplotlib import pyplot as plt
 from sklearn.datasets import dump_svmlight_file
 import scipy.cluster.hierarchy as hier
 import scipy.spatial.distance as dist
+from sklearn.cluster.bicluster import SpectralCoclustering
 
 import pandas as pd
 import numpy as np
@@ -23,6 +24,7 @@ from grit.lib.multiprocessing_utils import fork_and_wait
 from boosting_2D import margin_score
 from boosting_2D import util
 from boosting_2D import config
+
 
 ### Load data
 ###############################################################
@@ -558,6 +560,66 @@ def gen_ex_by_feature_matrix(y, x1, x2, tree, feat=[
 
     return ex_by_feat_mat
 
+# Function to return subset of ex_by_feat_mat 
+def subset_ex_by_feature_matrix(ex_by_feat_mat, y, x1, condition_feat_file, region_feat_file, remove_zeros=True):
+    # If no need to subset, then just return the original
+    if condition_feat_file==None and region_feat_file==None:
+        return ex_by_feat_mat
+    # Read in label names to include
+    x1_file = pd.read_table(region_feat_file, header=None)
+    x2_file = pd.read_table(condition_feat_file, header=None)
+    # Create a list of all label names
+    example_labels = ['|'.join([col_lab, row_lab]) for row_lab in y.row_labels
+     for col_lab in y.col_labels]
+    ### Done in terms of data frame to keep labels (probably a better way to do this)
+    ex_by_feat_df = pd.DataFrame(ex_by_feat_mat.toarray())
+    ex_by_feat_df.index = example_labels
+    ex_by_feat_df.columns = x1.row_labels
+    subset_labels = ['|'.join([cond, peak]) for peak in x1_file.ix[:,0] for cond in x2_file.ix[:,0]]
+    index_dict = dict((value, idx) for idx,value in enumerate(ex_by_feat_df.index))
+    subset_index = [index_dict[x] for x in subset_labels]
+    sub_ex_by_feat_df = ex_by_feat_df.ix[subset_index,:]
+    if remove_zeros:
+        sub_ex_by_feat_df0 = sub_ex_by_feat_df.ix[y.data.toarray().ravel()[subset_index]!=0,]
+        sub_ex_by_feat_df1 = sub_ex_by_feat_df0.ix[:,sub_ex_by_feat_df0.apply(np.sum, 0)!=0]
+        sub_ex_by_feat_df2 = sub_ex_by_feat_df1.ix[sub_ex_by_feat_df1.apply(np.sum, 1)!=0,:]
+        return sub_ex_by_feat_df2
+    else:
+        return sub_ex_by_feat_df
+
+
+# Function to cluster feature by example matrix
+def cluster_ex_by_feature_matrix(sub_ex_by_feat_mat, plot_file):
+    if sub_ex_by_feat_mat.shape[0]>50000:
+        print "Matrix too large to be efficient, pleased reduce number of examples"
+    from sklearn.cluster.bicluster import SpectralCoclustering
+    from matplotlib import pyplot as plt
+
+    # Subset down to motifs that are used
+    plot_df = sub_ex_by_feat_mat[:,np.apply_along_axis(np.max, 0, sub_ex_by_feat_mat.toarray())!=0]
+    # for numpy array
+    plot_df = sub_ex_by_feat_mat_1[np.apply_along_axis(lambda row: (row!=0).sum(), 1, sub_ex_by_feat_mat_1.toarray())>10,:]
+    plot_df = plot_df[:,np.apply_along_axis(lambda column: (column!=0).sum(), 0, sub_ex_by_feat_mat_1.toarray())>50]
+    # for pandas
+    plot_df = sub_ex_by_feat_df2.ix[sub_ex_by_feat_df2.apply(lambda row: (row!=0).sum(), 1)>10,:]
+    plot_df = plot_df.ix[:,plot_df.apply(lambda row: (row!=0).sum(), 0)>50]
+    plot_df = sub_ex_by_feat_df2
+
+    np.apply_along_axis(lambda column: (column!=0).sum(), 0, sub_ex_by_feat_mat_1.toarray())
+
+    model = SpectralCoclustering(n_clusters=50)
+    model.fit(plot_df) # fits for 50K
+    fit_data = plot_df.ix[np.argsort(model.row_labels_)]
+    fit_data = fit_data.ix[:, np.argsort(model.column_labels_)]
+
+    plt.figure()
+    plt.matshow(fit_data.ix[0:500,], cmap=plt.cm.YlGnBu, aspect='auto')
+    plt.savefig('/users/pgreens/cluster.png')
+    plt.savefig(plot_file)
+
+    print "DONE: biclustering plot here: {0}".format(plot_file)
+
+    return "pretty picture"
 
 # Enumerate paths for a tree by listing all nodes in path
 ###############################################################

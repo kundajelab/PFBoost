@@ -224,7 +224,8 @@ dev.off()
 write.table(enrich_df_plot, '/srv/persistent/pgreens/projects/hema_gwas/results/roadmap_results/gwas_by_roadmap_enrich_mean_last_two_bins.txt', quote=FALSE, sep="\t", col.names =TRUE)
 
 
-### PCA of Ryans' RNA Seq
+### Quantify Ryan's RNA for ATAC
+######################################################################################
 ######################################################################################
 
 library(stats)
@@ -271,6 +272,7 @@ quant_path='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_
 plot_path='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/plots/'
 
 ### Get TPM Data
+########################
 tpm0 = data.frame(matrix(nrow=119207, ncol=0))
 for (file in system(sprintf('ls %s*/abundance.txt', quant_path), intern=TRUE)){
 	tumor = tail(strsplit(file, "/")[[1]],2)[1]
@@ -281,6 +283,7 @@ transcript_names= unlist(lapply(transcript_names0, function(x) strsplit(x, "\\|"
 rownames(tpm0)=transcript_names
 
 ### Collapse to gene level
+########################
 human_ensembl_ids =  unlist(lapply(transcript_names0, function(x) strsplit(strsplit(x, "\\|")[[1]][2], "\\.")[[1]][1]))
 tpm0[,'ensembl_gene_id']=human_ensembl_ids
 gene_matrix = collapse_to_gene_level(tpm0, collapse_column_name='ensembl_gene_id')
@@ -300,6 +303,7 @@ rownames(gene_matrix) = human_gene_names
 write.table(gene_matrix, '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrix/gene_level_tpm.txt', sep="\t", col.names=TRUE, row.names=TRUE, quote=FALSE)
 
 ### Get count data
+########################
 counts0 = data.frame(matrix(nrow=119207, ncol=0)) # Code in number of rows
 for (file in system(sprintf('ls %s*/abundance.txt', quant_path), intern=TRUE)){
 	tumor = tail(strsplit(file, "/")[[1]],2)[1]
@@ -317,11 +321,28 @@ human_gene_ensembl_ids =  unlist(lapply(gene_names0, function(x) strsplit(strspl
 counts0_gene_names[,'ensembl_gene_id']=human_gene_ensembl_ids
 gene_matrix = collapse_to_gene_level(counts0_gene_names, collapse_column_name='ensembl_gene_id')
 
+# Convert row names to human genes
+human_gene_names = convert_human_ensembl_id_to_human_gene(rownames(gene_matrix), filter_type='gene')
+# Adjust non-unique human gene_names
+for (gene in names(table(human_gene_names)[table(human_gene_names)>1])){
+	gene_ind = which(human_gene_names==gene)
+	count=2
+	for (ind in gene_ind[2:length(gene_ind)]){
+		human_gene_names[ind]=paste(c(human_gene_names[ind], toString(count)), collapse="_")
+		count=count+1
+	}
+}
+rownames(gene_matrix) = human_gene_names
+
 write.table(gene_matrix, '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrix/gene_level_counts.txt', sep="\t", col.names=TRUE, row.names=TRUE, quote=FALSE)
 
 
-### PCA of RNA Seq
+### PCA of Ryans' RNA Seq
+######################################################################################
+
+### TPM
 gene_matrix = read.table('/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrix/gene_level_tpm.txt', sep="\t", check.names=FALSE)
+gene_matrix = read.table('/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrix/gene_level_counts.txt', sep="\t", check.names=FALSE)
 
 # log transform 
 gene_matrix_no0 = gene_matrix[apply(gene_matrix, 1, max)>0,]
