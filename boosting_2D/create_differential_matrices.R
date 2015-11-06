@@ -33,8 +33,8 @@ option_list <- list(
 	make_option(c("-r", "--data_matrix_file"), help="matrix of counts (RNA/ATAC) or TPM (RNA)", default='none'),
 	make_option(c("-g", "--regulator_file"), help="Name for analysis output directory and file names. E.g. list of regulators for an RNA matrix"),
 	make_option(c("-o", "--output_file"), help="Name of PATH+FILE for output differential matrix"),
-	make_option(c("-m", "--method"), help="either [deseq_svaseq, sva_limma, deseq]"))
-	make_option(c("-p", "--pval"), help="Instead of generating binary matrix [-1/0/+1] output p-value for each comp for each region"))
+	make_option(c("-m", "--method"), help="either [deseq_svaseq, sva_limma, deseq]"),
+	make_option(c("-p", "--pval"), help="Instead of generating binary matrix [-1/0/+1] output p-value for each comp for each region", action="store_true"))
 
 opt <- parse_args(OptionParser(option_list=option_list))
 
@@ -46,18 +46,19 @@ data_matrix_file = opt$data_matrix_file
 regulator_file = opt$regulator_file
 output_file = opt$output_file
 method = opt$method
+pval = opt$pval
 
 ### Manual Inputs
-DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
-annot_file=paste(c(DATA_PATH,'RNA_AML_Samples.txt'), collapse="")
-comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier.txt'), collapse="")
-comparison_column='cell_type'
-data_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrix/gene_level_tpm.txt'), collapse="")
-data_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrix/gene_level_counts.txt'), collapse="")
-regulator_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt'
-# regulator_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/regulator_names_GOterms_transcript_reg.txt'
-method='deseq_svaseq'
-output_file=paste(c(DATA_PATH,sprintf('boosting_input/regulator_expression_%s.txt', method)), collapse="")
+# DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
+# annot_file=paste(c(DATA_PATH,'RNA_AML_Samples.txt'), collapse="")
+# comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier.txt'), collapse="")
+# comparison_column='cell_type'
+# data_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrix/gene_level_tpm.txt'), collapse="")
+# data_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrix/gene_level_counts.txt'), collapse="")
+# regulator_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt'
+# # regulator_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/regulator_names_GOterms_transcript_reg.txt'
+# method='deseq_svaseq'
+# output_file=paste(c(DATA_PATH,sprintf('boosting_input/regulator_expression_%s.txt', method)), collapse="")
 
 ### Read in files
 ################################################################################################
