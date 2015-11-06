@@ -34,6 +34,7 @@ option_list <- list(
 	make_option(c("-g", "--regulator_file"), help="Name for analysis output directory and file names. E.g. list of regulators for an RNA matrix"),
 	make_option(c("-o", "--output_file"), help="Name of PATH+FILE for output differential matrix"),
 	make_option(c("-m", "--method"), help="either [deseq_svaseq, sva_limma, deseq]"))
+	make_option(c("-p", "--pval"), help="Instead of generating binary matrix [-1/0/+1] output p-value for each comp for each region"))
 
 opt <- parse_args(OptionParser(option_list=option_list))
 
@@ -108,11 +109,15 @@ for (comp in comparisons[,1]){
 		ebfit <- eBayes(fit)
 		tophits <- topTable(ebfit, coef = "as.factor(comp)grp2", number = Inf)
 
-		# Allocate results into complete matrix
-		diff_genes_up = rownames(tophits)[intersect(which(tophits$adj.P.Val<=0.05), which(tophits$logFC>0))]
-		diff_genes_down = rownames(tophits)[intersect(which(tophits$adj.P.Val<=0.05), which(tophits$logFC<0))]
-		data_diff_mat0[diff_genes_up,comp]=1
-		data_diff_mat0[diff_genes_down,comp]=-1
+		if (pval==TRUE){
+			data_diff_mat0[match(rownames(tophits), rownames(data_diff_mat0)),comp]=tophits$adj.P.Val
+		} else {
+			# Allocate results into complete matrix
+			diff_genes_up = rownames(tophits)[intersect(which(tophits$adj.P.Val<=0.05), which(tophits$logFC>0))]
+			diff_genes_down = rownames(tophits)[intersect(which(tophits$adj.P.Val<=0.05), which(tophits$logFC<0))]
+			data_diff_mat0[diff_genes_up,comp]=1
+			data_diff_mat0[diff_genes_down,comp]=-1
+		}
 	# Proceed with count data DESeq
 	} else if (method=='deseq'){
 		# Calculate differential expression with DESeq
@@ -125,11 +130,15 @@ for (comp in comparisons[,1]){
 		res <- results(dds)
 		res = res[order(res$pval), ]
 
-		# Allocate results into complete matrix
-		diff_genes_up = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange>0))]
-		diff_genes_down = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange<0))]
-		data_diff_mat0[diff_genes_up,comp]=1
-		data_diff_mat0[diff_genes_down,comp]=-1
+		if (pval==TRUE){
+			data_diff_mat0[match(rownames(res), rownames(data_diff_mat0)),comp]=res$padj
+		} else {
+			# Allocate results into complete matrix
+			diff_genes_up = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange>0))]
+			diff_genes_down = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange<0))]
+			data_diff_mat0[diff_genes_up,comp]=1
+			data_diff_mat0[diff_genes_down,comp]=-1
+		}
 	# Proceed with count data DESeq with SVASeq
 	} else if (method=="deseq_svaseq"){
 		# Calculate differential expression with DESeq + SVA BATCH VARIABLES (http://genomicsclass.github.io/book/pages/rnaseq_gene_level.html)
@@ -151,11 +160,15 @@ for (comp in comparisons[,1]){
 		res <- results(dds.sva)
 		res = res[order(res$pval),]
 
-		# Allocate results into complete matrix
-		diff_genes_up = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange>0))]
-		diff_genes_down = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange<0))]
-		data_diff_mat0[diff_genes_up,comp]=1
-		data_diff_mat0[diff_genes_down,comp]=-1
+		if (pval==TRUE){
+			data_diff_mat0[match(rownames(res), rownames(data_diff_mat0)),comp]=res$padj
+		} else {
+			# Allocate binary results into complete matrix
+			diff_genes_up = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange>0))]
+			diff_genes_down = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange<0))]
+			data_diff_mat0[diff_genes_up,comp]=1
+			data_diff_mat0[diff_genes_down,comp]=-1
+		}
 	}
 }
 
