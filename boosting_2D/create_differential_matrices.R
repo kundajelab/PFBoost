@@ -35,9 +35,11 @@ option_list <- list(
 	make_option(c("-r", "--data_matrix_file"), help="matrix of counts (RNA/ATAC) or TPM (RNA)", default='none'),
 	make_option(c("-g", "--regulator_file"), help="Name for analysis output directory and file names. E.g. list of regulators for an RNA matrix"),
 	make_option(c("-o", "--output_file"), help="Name of PATH+FILE for output differential matrix"),
+	make_option(c("-l", "--label_output_file"), help="Name of PATH+FILE for labels. If not provided, will not write label", default='none'),
 	make_option(c("-m", "--method"), help="either [deseq_svaseq, sva_limma, deseq]"),
 	make_option(c("-p", "--pval"), help="Instead of generating binary matrix [-1/0/+1] output p-value for each comp for each region", action="store_true"),
-	make_option(c("-t", "--out_format"), help="Specify ['dense', 'sparse'] to request specific output format", action="store_true"))
+	make_option(c("-t", "--out_format"), help="Specify ['dense', 'sparse'] to request specific output format", action="store_true"),
+	make_option(c("-s", "--serial"), help="Specify ['dense', 'sparse'] to request specific output format", action="store_true"))
 
 opt <- parse_args(OptionParser(option_list=option_list))
 
@@ -48,9 +50,11 @@ comparison_column = opt$comparison_column
 data_matrix_file = opt$data_matrix_file
 regulator_file = opt$regulator_file
 output_file = opt$output_file
+label_output_file = opt$label_output_file
 method = opt$method
 pval = opt$pval
 out_format = opt$out_format
+serial = opt$serial
 
 ### Manual Inputs
 # DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
@@ -65,17 +69,18 @@ out_format = opt$out_format
 # output_file=paste(c(DATA_PATH,sprintf('boosting_input/regulator_expression_%s.txt', method)), collapse="")
 
 ### Manual Inputs 2
-annot_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/atac_seq/merged_matrices/Leuk_35M_annots_for_pseudorep_counts.txt"
-comparison_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier.txt"
-comparison_column='cell_type'
-data_matrix_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/atac_seq/merged_matrices/Leuk_35M_counts_per_peak_merged_macsqval5_pseudoreps_labelled.txt"
-regulator_file='none'
-# regulator_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/regulator_names_GOterms_transcript_reg.txt'
-method='deseq'
-output_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/regulator_expression_deseq_pval.txt"
-out_format = 'dense'
-pval=TRUE
+# annot_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/atac_seq/merged_matrices/Leuk_35M_annots_for_pseudorep_counts.txt"
+# comparison_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier.txt"
+# comparison_column='cell_type'
+# data_matrix_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/atac_seq/merged_matrices/Leuk_35M_counts_per_peak_merged_macsqval5_pseudoreps_labelled.txt"
+# regulator_file='none'
+# # regulator_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/regulator_names_GOterms_transcript_reg.txt'
+# method='deseq'
+# output_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/regulator_expression_deseq_pval.txt"
+# out_format = 'dense'
+# pval=TRUE
 
+sprintf('%s', output_file)
 
 ### Read in files
 ################################################################################################
@@ -204,15 +209,27 @@ compute_pvals<-function(comp, method, data_diff_mat0) {
 	}
 }
 
-registerDoParallel(cores=10)
-x <- foreach(i=comparisons[,1], .combine='cbind') %dopar% compute_pvals(i, method, data_diff_mat0)
-x[is.na(x)]=1
-colnames(x)=colnames(data_diff_mat0)
-rownames(x)=rownames(data_diff_mat0)
-data_diff_mat0=x
+### PARALLEL VERSION
+if (!serial){
+	registerDoParallel(cores=4)
+	x <- foreach(i=comparisons[,1], .combine='cbind') %dopar% compute_pvals(i, method, data_diff_mat0)
+	x[is.na(x)]=1
+	colnames(x)=colnames(data_diff_mat0)
+	rownames(x)=rownames(data_diff_mat0)
+	data_diff_mat0=x
+} 
+
+### SERIAL VERSION
+if (serial){
+	for (comp in comparisons[,1]){
+		data_diff_mat0[,comp]=compute_pvals(comp, method, data_diff_mat0)
+	}
+}
+
+
 
 # Check the number of genes that are differentially significant between conditions
-apply(data_diff_mat0, 2, function(x) sum(x!=0))
+# apply(data_diff_mat0, 2, function(x) sum(x!=0))
 # apply(data_diff_mat, 2, function(x) sum(x!=0))
 
 ### Subset to allowable regulator list
@@ -242,6 +259,14 @@ if (out_format=='sparse'){
 	# Remove dense version
 	system(sprintf('rm %s', dense_output_file))
 }
+
+# Write out row labels
+################################################################################################
+if (label_output_file!='none'){
+	write.table(data.frame(colnames(data_diff_mat0)), label_output_file, sep="\t", quote=FALSE, sep="\t", col.names=FALSE, row.names=FALSE)
+	sprintf('Wrote labels to: %s', label_output_file)
+}
+
 
 # Print when finished
 sprintf('DONE: find the output matrix in: %s', sparse_output_file)

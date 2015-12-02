@@ -370,7 +370,7 @@ colnames(arcsintpm_qn)=colnames(arcsintpm)
 pca <- prcomp(t(arcsintpm_qn), center = TRUE, scale = TRUE) 
 scores=pca$x
 
-pdf(sprintf("%saml_atac_rna_seq_pca_asinh_quantnorm.pdf", plot_path))
+pdf(sprintf("%saml_atac_rna_seq_pca_asinh_quantnorm_counts.pdf", plot_path))
 scores <- data.frame(annots$cell_type, pca$x[,1:3])
 qplot(x=PC1, y=PC2, data=scores, colour=factor(annots.cell_type)) +
   theme(legend.position="right")
@@ -432,3 +432,112 @@ pdf(sprintf("%saml_atac_rna_seq_tsne_asinh_quantnorm_sva_corrected_%s_perplex_%s
 qplot(x=TSNE1, y=TSNE2, data=data.frame(tsne_plot), colour=factor(annots$cell_type)) +
   theme(legend.position="right")
 dev.off()
+
+
+
+### PCA of Jason's ATAC 
+######################################################################################
+
+library(DESeq2)
+library(ggplot2)
+
+plot_path='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/plots/'
+
+
+### Read in count data
+
+counts = read.table('/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/atac_seq/merged_matrices/Leuk_35M_counts_per_peak_merged_macsqval5_pseudoreps_labelled.txt', row.names=1, header=TRUE)
+
+### Read in annotations
+
+annots = read.table('/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/atac_seq/merged_matrices/Leuk_35M_annots_for_pseudorep_counts.txt', header=TRUE)
+
+### Variance stabilizing transform using DESeq
+
+# norm_data = estimateDispersions(counts, method='blind')
+# norm_data = getVarianceStabilizedData(counts)
+
+comp_matrix = counts
+comp_annots = annots[match(colnames(comp_matrix),annots$sample_name),]
+# comp_annots['comp']=sapply(comp_annots[,'cell_type'], function(x) ifelse(x %in% grp1_labels, "grp1", "grp2"))
+# conditions = factor(comp_annots[,'comp'])
+dds = DESeqDataSetFromMatrix(countData=comp_matrix, colData=comp_annots, design = ~cell_type)
+norm_data = varianceStabilizingTransformation(dds)
+
+norm_data = log2(counts+1)
+
+### PCA 
+
+pca <- prcomp(t(assay(norm_data)), center = TRUE, scale = TRUE) 
+scores=pca$x
+
+### Plot with DESeq plotPCA
+
+top_rows=500
+pdf(sprintf("%saml_atac_atac_seq_pca_deseq_vst_deseqpca_%s.pdf", plot_path, top_rows))
+plotPCA(norm_data, intgroup = "cell_type", ntop = top_rows, returnData = FALSE)
+# scores <- data.frame(comp_annots$cell_type, pca$x[,1:3])
+# qplot(x=PC1, y=PC2, data=scores, colour=factor(comp_annots.cell_type)) +
+#   theme(legend.position="right")
+dev.off()
+
+### Plot with ggplot2
+pdf(sprintf("%saml_atac_atac_seq_pca_deseq_vst_deseqpca_%s.pdf", plot_path, top_rows))
+plotPCA(norm_data, intgroup = "cell_type", ntop = top_rows, returnData = FALSE)
+# scores <- data.frame(comp_annots$cell_type, pca$x[,1:3])
+# qplot(x=PC1, y=PC2, data=scores, colour=factor(comp_annots.cell_type)) +
+#   theme(legend.position="right")
+dev.off()
+
+
+### Source code for plotPCA
+
+library(genefilter)
+
+function (object, ...)
+{
+    .local <- function (object, intgroup = "condition", ntop = 500,
+        returnData = FALSE)
+    {
+    	# Find variance of row
+        rv <- rowVars(assay(object))
+        select <- order(rv, decreasing = TRUE)[seq_len(min(ntop,
+            length(rv)))]
+        pca <- prcomp(t(assay(object)[select, ]))
+        percentVar <- pca$sdev^2/sum(pca$sdev^2)
+        if (!all(intgroup %in% names(colData(object)))) {
+            stop("the argument 'intgroup' should specify columns of colData(dds)")
+        }
+        intgroup.df <- as.data.frame(colData(object)[, intgroup,
+            drop = FALSE])
+        group <- if (length(intgroup) > 1) {
+            factor(apply(intgroup.df, 1, paste, collapse = " : "))
+        }
+        else {
+            colData(object)[[intgroup]]
+        }
+        d <- data.frame(PC1 = pca$x[, 1], PC2 = pca$x[, 2], group = group,
+            intgroup.df, name = colnames(object))
+        if (returnData) {
+            attr(d, "percentVar") <- percentVar[1:2]
+            return(d)
+        }
+        ggplot(data = d, aes_string(x = "PC1", y = "PC2", color = "group")) +
+            geom_point(size = 3) + xlab(paste0("PC1: ", round(percentVar[1] *
+            100), "% variance")) + ylab(paste0("PC2: ", round(percentVar[2] *
+            100), "% variance"))
+    }
+    .local(object, ...)
+}
+
+### After sorting rows by variance
+
+> rowVars
+function (x, ...)
+{
+    sqr = function(x) x * x
+    n = rowSums(!is.na(x))
+    n[n <= 1] = NA
+    return(rowSums(sqr(x - rowMeans(x, ...)), ...)/(n - 1))
+}
+
