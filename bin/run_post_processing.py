@@ -323,7 +323,7 @@ def main():
         print "subsetting example-by-feature matrix"
         # subset matrix to relevant features
         sub_ex_by_feat_df = post_process_unsupervised.subset_ex_by_feature_matrix(
-            ex_by_feat_mat, y, x1, condition_feat_file=PARAMS.condition_feat_file, 
+            ex_by_feat_mat, y, x1, x2, condition_feat_file=PARAMS.condition_feat_file, 
             region_feat_file=PARAMS.region_feat_file, feat=PARAMS.features_to_use,
             remove_zeros=True)
 

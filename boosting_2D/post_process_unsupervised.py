@@ -561,7 +561,7 @@ def gen_ex_by_feature_matrix(y, x1, x2, tree, feat=[
     return ex_by_feat_mat
 
 # Function to return subset of ex_by_feat_mat 
-def subset_ex_by_feature_matrix(ex_by_feat_mat, y, x1, condition_feat_file, region_feat_file, feat, remove_zeros=True):
+def subset_ex_by_feature_matrix(ex_by_feat_mat, y, x1, x2, condition_feat_file, region_feat_file, feat, remove_zeros=True):
     # If no need to subset, then just return the original
     if condition_feat_file==None and region_feat_file==None:
         return ex_by_feat_mat
