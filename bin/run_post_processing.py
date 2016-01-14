@@ -321,7 +321,6 @@ def main():
             y, x1, x2, tree, feat=PARAMS.features_to_use)
 
         print "subsetting example-by-feature matrix"
-        pdb.set_trace()
         # subset matrix to relevant features
         sub_ex_by_feat_df = post_process_unsupervised.subset_ex_by_feature_matrix(
             ex_by_feat_mat, y, x1, condition_feat_file=PARAMS.condition_feat_file, 

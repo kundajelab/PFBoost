@@ -580,7 +580,6 @@ def subset_ex_by_feature_matrix(ex_by_feat_mat, y, x1, condition_feat_file, regi
         ex_by_feat_df.columns = x1.row_labels
     elif 'reg' in feat:
         ex_by_feat_df.columns = x2.col_labels
-    else:
     subset_labels = ['|'.join([cond, peak]) for peak in x1_file.ix[:,0] for cond in x2_file.ix[:,0]]
     index_dict = dict((value, idx) for idx,value in enumerate(ex_by_feat_df.index))
     subset_index = [index_dict[x] for x in subset_labels]
