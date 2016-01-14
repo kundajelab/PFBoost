@@ -561,7 +561,7 @@ def gen_ex_by_feature_matrix(y, x1, x2, tree, feat=[
     return ex_by_feat_mat
 
 # Function to return subset of ex_by_feat_mat 
-def subset_ex_by_feature_matrix(ex_by_feat_mat, y, x1, condition_feat_file, region_feat_file, remove_zeros=True):
+def subset_ex_by_feature_matrix(ex_by_feat_mat, y, x1, condition_feat_file, region_feat_file, feat, remove_zeros=True):
     # If no need to subset, then just return the original
     if condition_feat_file==None and region_feat_file==None:
         return ex_by_feat_mat
@@ -574,7 +574,13 @@ def subset_ex_by_feature_matrix(ex_by_feat_mat, y, x1, condition_feat_file, regi
     ### Done in terms of data frame to keep labels (probably a better way to do this)
     ex_by_feat_df = pd.DataFrame(ex_by_feat_mat.toarray())
     ex_by_feat_df.index = example_labels
-    ex_by_feat_df.columns = x1.row_labels
+    if 'motif' in feat and 'reg' in feat:
+        ex_by_feat_df.columns = x1.row_labels.tolist()+x2.col_labels.tolist()
+    elif 'motif' in feat:
+        ex_by_feat_df.columns = x1.row_labels
+    elif 'reg' in feat:
+        ex_by_feat_df.columns = x2.col_labels
+    else:
     subset_labels = ['|'.join([cond, peak]) for peak in x1_file.ix[:,0] for cond in x2_file.ix[:,0]]
     index_dict = dict((value, idx) for idx,value in enumerate(ex_by_feat_df.index))
     subset_index = [index_dict[x] for x in subset_labels]
