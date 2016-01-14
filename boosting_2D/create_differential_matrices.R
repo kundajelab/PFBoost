@@ -14,6 +14,8 @@ library(limma)
 library(DESeq2)
 library(doParallel)
 library(foreach)
+# library(BiocParallel)
+# register(MulticoreParam(4))
 
 ### Usage: 
 ################################################################################################
@@ -33,12 +35,12 @@ option_list <- list(
 	make_option(c("-f", "--comparison_file"), help="list of conditions to compare - groups separated by v, combine groups with '|'. ex: grp1|grp2vgrp3 ", default='none'),
 	make_option(c("-c", "--comparison_column"), help="list of files ", default='cell_type'),
 	make_option(c("-r", "--data_matrix_file"), help="matrix of counts (RNA/ATAC) or TPM (RNA)", default='none'),
-	make_option(c("-g", "--regulator_file"), help="Name for analysis output directory and file names. E.g. list of regulators for an RNA matrix"),
+	make_option(c("-g", "--regulator_file"), help="Name for analysis output directory and file names. E.g. list of regulators for an RNA matrix", default="none"),
 	make_option(c("-o", "--output_file"), help="Name of PATH+FILE for output differential matrix"),
 	make_option(c("-l", "--label_output_file"), help="Name of PATH+FILE for labels. If not provided, will not write label", default='none'),
-	make_option(c("-m", "--method"), help="either [deseq_svaseq, sva_limma, deseq]"),
-	make_option(c("-p", "--pval"), help="Instead of generating binary matrix [-1/0/+1] output p-value for each comp for each region", action="store_true"),
-	make_option(c("-t", "--out_format"), help="Specify ['dense', 'sparse'] to request specific output format", action="store_true"),
+	make_option(c("-m", "--method"), help="either [deseq_svaseq, sva_limma, deseq]", default="deseq"),
+	make_option(c("-p", "--pval"), help="Instead of generating binary matrix [-1/0/+1] output p-value for each comp for each region", action="store_true", default=FALSE),
+	make_option(c("-t", "--out_format"), help="Specify ['dense', 'sparse'] to request specific output format", default='sparse'),
 	make_option(c("-s", "--serial"), help="Specify ['dense', 'sparse'] to request specific output format", action="store_true"))
 
 opt <- parse_args(OptionParser(option_list=option_list))
@@ -80,7 +82,12 @@ serial = opt$serial
 # out_format = 'dense'
 # pval=TRUE
 
-sprintf('%s', output_file)
+sprintf('output file: %s', output_file)
+sprintf('regulator file: %s', regulator_file)
+sprintf('out_format file: %s', out_format)
+sprintf('annots file: %s', annot_file)
+sprintf('pval: %s', pval)
+sprintf('regulator_file: %s', regulator_file)
 
 ### Read in files
 ################################################################################################
@@ -155,8 +162,10 @@ compute_pvals<-function(comp, method, data_diff_mat0) {
 		comp_annots['comp']=sapply(comp_annots[,comparison_column], function(x) ifelse(x %in% grp1_labels, "grp1", "grp2"))
 		conditions = factor(comp_annots[,'comp'])
 		dds = DESeqDataSetFromMatrix(countData=comp_matrix_rounded, colData=comp_annots, design = ~comp)
-		dds <- DESeq(dds)
-		res <- results(dds, independentFiltering=FALSE)
+		# dds <- DESeq(dds, parallel=TRUE)
+		# res <- results(dds, independentFiltering=FALSE, parallel=TRUE)
+		dds <- DESeq(dds, parallel=FALSE)
+		res <- results(dds, independentFiltering=FALSE, parallel=FALSE)
 		res = res[order(res$pval), ]
 
 		# data_diff_mat0[match(rownames(res), rownames(data_diff_mat0)),comp]=res$padj
@@ -166,8 +175,8 @@ compute_pvals<-function(comp, method, data_diff_mat0) {
 		} else {
 			# Allocate results into complete matrix
 			result_vec = data_diff_mat0[,comp]
-			diff_genes_up = rownames(tophits)[intersect(which(res$pval<=0.05), which(res$log2FoldChange>0))]
-			diff_genes_down = rownames(tophits)[intersect(which(res$pval<=0.05), which(res$log2FoldChange<0))]
+			diff_genes_up = rownames(res)[intersect(which(res$pval<=0.05), which(res$log2FoldChange>0))]
+			diff_genes_down = rownames(res)[intersect(which(res$pval<=0.05), which(res$log2FoldChange<0))]
 			result_vec[diff_genes_up]=1
 			result_vec[diff_genes_down]=-1
 			return(unname(result_vec))
@@ -200,8 +209,8 @@ compute_pvals<-function(comp, method, data_diff_mat0) {
 		} else {
 			# Allocate results into complete matrix
 			result_vec = data_diff_mat0[,comp]
-			diff_genes_up = rownames(tophits)[intersect(which(res$pval<=0.05), which(res$log2FoldChange>0))]
-			diff_genes_down = rownames(tophits)[intersect(which(res$pval<=0.05), which(res$log2FoldChange<0))]
+			diff_genes_up = rownames(res)[intersect(which(res$pval<=0.05), which(res$log2FoldChange>0))]
+			diff_genes_down = rownames(res)[intersect(which(res$pval<=0.05), which(res$log2FoldChange<0))]
 			result_vec[diff_genes_up]=1
 			result_vec[diff_genes_down]=-1
 			return(unname(result_vec))
@@ -263,7 +272,7 @@ if (out_format=='sparse'){
 # Write out row labels
 ################################################################################################
 if (label_output_file!='none'){
-	write.table(data.frame(colnames(data_diff_mat0)), label_output_file, sep="\t", quote=FALSE, sep="\t", col.names=FALSE, row.names=FALSE)
+	write.table(data.frame(rownames(data_diff_mat)), label_output_file, sep="\t", quote=FALSE, col.names=FALSE, row.names=FALSE)
 	sprintf('Wrote labels to: %s', label_output_file)
 }
 
