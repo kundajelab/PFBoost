@@ -40,8 +40,9 @@ option_list <- list(
 	make_option(c("-l", "--label_output_file"), help="Name of PATH+FILE for labels. If not provided, will not write label", default='none'),
 	make_option(c("-m", "--method"), help="either [deseq_svaseq, sva_limma, deseq]", default="deseq"),
 	make_option(c("-p", "--pval"), help="Instead of generating binary matrix [-1/0/+1] output p-value for each comp for each region", action="store_true", default=FALSE),
+	make_option(c("-e", "--foldchange"), help="Instead of generating binary matrix [-1/0/+1] output logfold change for each comp for each region", action="store_true", default=FALSE),
 	make_option(c("-t", "--out_format"), help="Specify ['dense', 'sparse'] to request specific output format", default='sparse'),
-	make_option(c("-s", "--serial"), help="Specify ['dense', 'sparse'] to request specific output format", action="store_true"))
+	make_option(c("-s", "--serial"), help="Specify ['dense', 'sparse'] to request specific output format", action="store_true", default=FALSE))
 
 opt <- parse_args(OptionParser(option_list=option_list))
 
@@ -56,6 +57,7 @@ label_output_file = opt$label_output_file
 method = opt$method
 pval = opt$pval
 out_format = opt$out_format
+foldchange = opt$foldchange
 serial = opt$serial
 
 ### Manual Inputs
@@ -145,6 +147,9 @@ compute_pvals<-function(comp, method, data_diff_mat0) {
 		if (pval==TRUE){
 			ordered_pvals=tophits$adj.P.Val[rownames(data_diff_mat0),match(rownames(tophits))]
 			return(ordered_pvals)
+		} else if (foldchange==TRUE){
+			ordered_pvals=tophits$log2FoldChange[rownames(data_diff_mat0),match(rownames(tophits))]
+			return(ordered_pvals)
 		} else {
 			# Allocate results into complete matrix
 			result_vec = data_diff_mat0[,comp]
@@ -171,6 +176,9 @@ compute_pvals<-function(comp, method, data_diff_mat0) {
 		# data_diff_mat0[match(rownames(res), rownames(data_diff_mat0)),comp]=res$padj
 		if (pval==TRUE){
 			ordered_pvals=res$padj[match(rownames(data_diff_mat0), rownames(res))]
+			return(ordered_pvals)
+		} else if (foldchange==TRUE){
+			ordered_pvals=res$log2FoldChange[match(rownames(data_diff_mat0), rownames(res))]
 			return(ordered_pvals)
 		} else {
 			# Allocate results into complete matrix
@@ -205,6 +213,9 @@ compute_pvals<-function(comp, method, data_diff_mat0) {
 		# data_diff_mat0[match(rownames(res), rownames(data_diff_mat0)),comp]=res$padj
 		if (pval==TRUE) {
 			ordered_pvals=res$padj[match(rownames(data_diff_mat0), rownames(res))]
+			return(ordered_pvals)
+		} else if (foldchange==TRUE){
+			ordered_pvals=tophits$log2FoldChange[rownames(data_diff_mat0),match(rownames(tophits))]
 			return(ordered_pvals)
 		} else {
 			# Allocate results into complete matrix
