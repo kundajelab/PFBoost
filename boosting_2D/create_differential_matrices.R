@@ -106,7 +106,6 @@ data_diff_mat0 = matrix(0,ncol=length(comparisons[,1]), nrow=nrow(data_matrix))
 colnames(data_diff_mat0) = comparisons[,1]
 rownames(data_diff_mat0) = rownames(data_matrix)
 
-
 ###  PARALLELIZED
 ################################################################################################
 ################################################################################################
