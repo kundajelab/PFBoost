@@ -25,6 +25,7 @@ from boosting_2D.find_rule import *
 from boosting_2D import stabilize
 from boosting_2D import prior
 from boosting_2D import save_model
+from boosting_2D import hierarchy
 
 ### Open log files
 log = util.log
@@ -123,6 +124,9 @@ def parse_args():
                         help='flag to shuffle the contents of y matrix', 
                         action='store_true')
 
+    parser.add_argument('--hierarchy_name', 
+                        help='Reference for hierarchy encoding in hierarchy.py', default=None)
+
     # Parse arguments
     args = parser.parse_args()
 
@@ -177,7 +181,7 @@ def parse_args():
         args.eta1, args.eta2, 20, 1./holdout.n_train)
 
     # Get method label so plot label uses parameters used
-    method_label=util.get_method_label()
+    method_label = util.get_method_label()
     # get time stamp
     time_stamp = time.strftime("%Y_%m_%d")
     # Configure output directory - date-stamped directory in output path
@@ -202,7 +206,9 @@ def parse_args():
     config.NCPU = args.ncpu
     config.PLOT = args.plot
 
-    return (x1, x2, y, holdout)
+    hierarchy = hierarchy.get_hierarchy(name=args.hierarchy_name)
+
+    return (x1, x2, y, holdout, hierarchy)
 
 
 ### Find next decision node given current state of tree
@@ -304,7 +310,7 @@ def main():
     ### Parse arguments
     level='VERBOSE'
     log('parse args start', level=level)
-    (x1, x2, y, holdout) = parse_args()
+    (x1, x2, y, holdout, hierarchy) = parse_args()
     log('parse args end', level=level)
 
     ### logfile saves output to file
@@ -324,9 +330,6 @@ def main():
     log('make tree start', level=level)
     tree = DecisionTree(holdout, y, x1, x2)
     log('make tree stop', level=level)
-
-    # from IPython import embed; embed()
-    # pdb.set_trace()
 
     ### Main Loop
     for i in xrange(1,config.TUNING_PARAMS.num_iter):

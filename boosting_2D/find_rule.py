@@ -37,7 +37,7 @@ def find_min_loss(tree, leaf_training_examples, holdout, y, x1, x2):
 # For every leaf, get training examples and calculate loss
 # Keep only leaf with best loss
 def find_rule_process_worker(
-        tree, holdout, y, x1, x2, leaf_index_cntr, (
+        tree, holdout, y, x1, x2, hierarachy, leaf_index_cntr, (
             lock, best_leaf_loss, best_leaf_index, 
             shared_best_loss_mat, best_leaf_regulator_sign)):
     # until we have processed all of the leafs
@@ -51,11 +51,18 @@ def find_rule_process_worker(
         if leaf_index >= tree.nsplit: 
             return
         
-        leaf_training_examples = tree.ind_pred_train[leaf_index]
+        # If no hierarchy use the index for the leaf
+        if hierarachy == None:
+            leaf_training_examples = tree.ind_pred_train[leaf_index]
 
-        # calculate the loss for this leaf  
-        leaf_loss_mat, regulator_sign = find_min_loss(
-            tree, leaf_training_examples, holdout, y, x1, x2)
+            # calculate the loss for this leaf  
+            leaf_loss_mat, regulator_sign = find_min_loss(
+                tree, leaf_training_examples, holdout, y, x1, x2)
+
+        # If there is a hierarchy, iterate through possible children
+        else:
+            for child in hierarchy.direct_children[]
+
         
         # if the loss does not beat the current best loss, then
         # we are done
@@ -111,7 +118,7 @@ def find_rule_processes(tree, holdout, y, x1, x2):
     leaf_index_cntr = multiprocessing.Value('i', 0)
 
     # pack arguments for the worker processes
-    args = [tree, holdout, y, x1, x2, leaf_index_cntr, (
+    args = [tree, holdout, y, x1, x2, hierarchy, leaf_index_cntr, (
             lock, best_loss, best_leaf, shared_best_loss_mat, best_loss_reg)]
     
     # Fork worker processes, and wait for them to return

@@ -196,16 +196,16 @@ class DecisionTree(object):
             self.w_down_regdown = np.zeros((x1.num_row, x2.num_col),dtype='float64') 
             self.ones_mat = np.ones((x1.num_row, x2.num_col),dtype='float64')
 
-        if y.mult_format=='sparse':
-            self.sparse=True
+        if y.mult_format == 'sparse':
+            self.sparse = True
         else:
-            self.sparse=False
+            self.sparse = False
         # put in the root node
         self.init_root_node(holdout, y)
     
     def init_root_node(self, holdout, y):
         ## initialize the root node
-        score_root = 0.5*np.log(
+        score_root = 0.5 * np.log(
             element_mult(self.weights, holdout.ind_train_up).sum()/element_mult(
                 self.weights, holdout.ind_train_down).sum())
         self.scores.append(score_root)

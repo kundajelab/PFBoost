@@ -38,9 +38,7 @@ option_list <- list(
     make_option(c("-g", "--regulator_file"), help="Name for analysis output directory and file names. E.g. list of regulators for an RNA matrix", default="none"),
     make_option(c("-o", "--output_file"), help="Name of PATH+FILE for output differential matrix"),
     make_option(c("-l", "--label_output_file"), help="Name of PATH+FILE for labels. If not provided, will not write label", default='none'),
-    make_option(c("-m", "--method"), help="either [deseq_svaseq, sva_limma, deseq]", default="deseq"),
-    make_option(c("-p", "--pval"), help="Instead of generating binary matrix [-1/0/+1] output p-value for each comp for each region", action="store_true", default=FALSE),
-    make_option(c("-e", "--foldchange"), help="Instead of generating binary matrix [-1/0/+1] output logfold change for each comp for each region", action="store_true", default=FALSE),
+    make_option(c("-m", "--binary_thresh"), help="threshold for being considered present", default=5),
     make_option(c("-t", "--out_format"), help="Specify ['dense', 'sparse'] to request specific output format", default='sparse'),
     make_option(c("-s", "--serial"), help="Specify ['dense', 'sparse'] to request specific output format", action="store_true", default=FALSE))
 
@@ -54,37 +52,13 @@ data_matrix_file = opt$data_matrix_file
 regulator_file = opt$regulator_file
 output_file = opt$output_file
 label_output_file = opt$label_output_file
-method = opt$method
+binary_thresh = opt$binary_thresh
 pval = opt$pval
 out_format = opt$out_format
 foldchange = opt$foldchange
 serial = opt$serial
 
-### Manual Inputs
-# DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
-# annot_file=paste(c(DATA_PATH,'RNA_AML_Samples.txt'), collapse="")
-# comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier.txt'), collapse="")
-# comparison_column='cell_type'
-# data_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrix/gene_level_tpm.txt'), collapse="")
-# data_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrix/ .txt'), collapse="")
-# regulator_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt'
-# # regulator_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/regulator_names_GOterms_transcript_reg.txt'
-# method='deseq_svaseq'
-# output_file=paste(c(DATA_PATH,sprintf('boosting_input/regulator_expression_%s.txt', method)), collapse="")
-
-### Manual Inputs 2
-# annot_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/atac_seq/merged_matrices/Leuk_35M_annots_for_pseudorep_counts.txt"
-# comparison_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier.txt"
-# comparison_column='cell_type'
-# data_matrix_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/atac_seq/merged_matrices/Leuk_35M_counts_per_peak_merged_macsqval5_pseudoreps_labelled.txt"
-# regulator_file='none'
-# # regulator_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/regulator_names_GOterms_transcript_reg.txt'
-# method='deseq'
-# output_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/regulator_expression_deseq_pval.txt"
-# out_format = 'dense'
-# pval=TRUE
-
-### Manul Inputs 3 (Nadine)
+### Manual Inputs (Nadine)
 # DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
 # annot_file=paste(c(DATA_PATH,'RNA_AML_Samples.txt'), collapse="")
 # comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt'), collapse="")
@@ -92,7 +66,7 @@ serial = opt$serial
 # data_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrices/gene_level_counts.txt'), collapse="")
 # regulator_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt'
 # output_file=paste(c(DATA_PATH,'boosting_input/regulator_expression_binary_nadine_dense.txt'), collapse="")
-# BINARY_THRESH=5
+# binary_thresh=5
 
 sprintf('output file: %s', output_file)
 sprintf('regulator file: %s', regulator_file)
@@ -121,7 +95,7 @@ rownames(binary_mat0) = rownames(data_matrix)
 ################################################################################################
 ################################################################################################
 
-compute_binary_expression<-function(cell, data_matrix) {
+compute_binary_expression<-function(cell, data_matrix, binary_thresh) {
     # Print entry
     print(cell)
 
@@ -133,14 +107,14 @@ compute_binary_expression<-function(cell, data_matrix) {
     sample_matrix = data_matrix[,grp_samples]
     sample_means = apply(sample_matrix, 1, mean)
 
-    binary_labels = ifelse(sample_means > BINARY_THRESH, 1, 0)
+    binary_labels = ifelse(sample_means > binary_thresh, 1, 0)
     return(binary_labels)
 }
 
 ### PARALLEL VERSION
 if (!serial){
   registerDoParallel(cores=1)
-  x <- foreach(i=unique_entries, .combine='cbind') %dopar% compute_binary_expression(i, data_matrix)
+  x <- foreach(i=unique_entries, .combine='cbind') %dopar% compute_binary_expression(i, data_matrix, binary_thresh)
   x[is.na(x)]=0
   colnames(x)=colnames(binary_mat0)
   rownames(x)=rownames(binary_mat0)
@@ -150,10 +124,9 @@ if (!serial){
 ### SERIAL VERSION
 if (serial){
     for (cell in unique_entries){
-        binary_mat0[,cell]=compute_binary_expression(cell, data_matrix, binary_mat0)
+        binary_mat0[,cell]=compute_binary_expression(cell, data_matrix, binary_thresh)
     }
 }
-
 
 ### Subset to allowable regulator list
 if (regulator_file!='none'){
