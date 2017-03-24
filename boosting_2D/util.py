@@ -37,8 +37,11 @@ def log_progress(tree, i):
         'imbalanced test error: {0}'.format(tree.imbal_test_err[i]),
         'x1 split feat {0}'.format(tree.split_x1[i]),
         'x2 split feat {0}'.format(tree.split_x2[i]),
-        'rule score {0}'.format(tree.scores[i])])
+        'split node {0}'.format(tree.split_node[i]),
+        'rule score {0}'.format(tree.scores[i]),
+        'hierarchy node {0}'.format(tree.hierarchy_node[i])])
     log(msg, log_time=False, level='VERBOSE')
+    print msg
 
 ### log prints to STDERR
 log = Logger()
@@ -49,13 +52,13 @@ log = Logger()
 # Get method label added to config.OUTPUT_PREFIX
 def get_method_label():
     if config.TUNING_PARAMS.use_stable:
-        stable_label='stable'
+        stable_label = 'stable'
     else:
-        stable_label='non_stable'
+        stable_label = 'non_stable'
     if config.TUNING_PARAMS.use_stumps:
-        method='stumps'
+        method = 'stumps'
     else:
-        method='adt'
+        method = 'adt'
     method_label = '{0}_{1}'.format(method, stable_label)
     return method_label
 
@@ -75,9 +78,9 @@ def load_tree_state(pickle_file):
 ##########################################
 
 def calc_score(tree, rule_weights, rule_train_index):
-    rule_score = 0.5*np.log((
-        element_mult(rule_weights.w_pos, rule_train_index).sum()+config.TUNING_PARAMS.epsilon)/
-        (element_mult(rule_weights.w_neg, rule_train_index).sum()+config.TUNING_PARAMS.epsilon))
+    rule_score = 0.5 * np.log((
+        element_mult(rule_weights.w_pos, rule_train_index).sum() + config.TUNING_PARAMS.epsilon) /
+        (element_mult(rule_weights.w_neg, rule_train_index).sum() + config.TUNING_PARAMS.epsilon))
     return rule_score
 
 def calc_loss(wpos, wneg, wzero):
@@ -180,22 +183,6 @@ def compress_regulators(x2_obj):
     x2_obj.num_row = x2_obj.data.shape[0]
     x2_obj.num_col = x2_obj.data.shape[1]
     return(x2_obj)
-
-# Re-cast x1 object with compressed regulator data and labels
-# def compress_motifs(x1_obj):
-#     data = x2_obj.data.toarray().T if x2_obj.sparse else x2_obj.data.T
-#     labels = x2_obj.col_labels
-#     clusters = get_data_clusters(data, max_distance=0)
-#     new_data = regroup_data_by_clusters(data, clusters)
-#     new_labels = regroup_labels_by_clusters(labels, clusters)
-#     x2_obj.data = csr_matrix(new_data.T) if x2_obj.sparse else new_data.T
-#     x2_obj.col_labels = np.array(new_labels)
-#     x2_obj.num_row = x2_obj.data.shape[0]
-#     x2_obj.num_col = x2_obj.data.shape[1]
-#     return(x2_obj)
-
-# x2_obj = copy.deepcopy(x2)
-# new_x2_obj = util.compress_regulators(x2_obj)
 
 
 

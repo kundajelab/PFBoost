@@ -2,11 +2,12 @@ from grit.lib.multiprocessing_utils import fork_and_wait
 import multiprocessing
 import ctypes
 
-import random
 from collections import namedtuple
 
 import numpy as np 
 from scipy.sparse import *
+import random
+
 import pdb
 
 from boosting_2D import config
@@ -26,8 +27,8 @@ ObjectStore = namedtuple("ObjectStore", [
 # Calc min loss with leaf training examples and current weights 
 def find_min_loss(tree, leaf_training_examples, holdout, y, x1, x2):
     # log('start find_leaf_and_min_loss')
-    example_weights=tree.weights
-    ones_mat=tree.ones_mat
+    example_weights = tree.weights
+    ones_mat = tree.ones_mat
     # log('start calc_min_leaf_loss')
     (best_loss, regulator_sign) = calc_min_leaf_loss(
         leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2)
@@ -37,11 +38,13 @@ def find_min_loss(tree, leaf_training_examples, holdout, y, x1, x2):
 # For every leaf, get training examples and calculate loss
 # Keep only leaf with best loss
 def find_rule_process_worker(
-        tree, holdout, y, x1, x2, hierarachy, leaf_index_cntr, (
-            lock, best_leaf_loss, best_leaf_index, 
+        tree, holdout, y, x1, x2, hierarchy, leaf_index_cntr, (
+            lock, best_leaf_loss, best_leaf_index, best_loss_hier_node,
             shared_best_loss_mat, best_leaf_regulator_sign)):
+
     # until we have processed all of the leafs
     while True:
+
         # get the leaf node to work on
         with leaf_index_cntr.get_lock():
             leaf_index = leaf_index_cntr.value
@@ -52,17 +55,49 @@ def find_rule_process_worker(
             return
         
         # If no hierarchy use the index for the leaf
-        if hierarachy == None:
+        if hierarchy == None:
+
             leaf_training_examples = tree.ind_pred_train[leaf_index]
 
             # calculate the loss for this leaf  
             leaf_loss_mat, regulator_sign = find_min_loss(
                 tree, leaf_training_examples, holdout, y, x1, x2)
 
+            # hierarchy node is just root
+            hierarchy_node = 0
+
         # If there is a hierarchy, iterate through possible children
         else:
-            for child in hierarchy.direct_children[]
 
+            # Keep best loss node of hierarchy
+            best_loss = float('Inf')
+            leaf_loss_mat = None
+            regulator_sign = None
+            hierarchy_node = None
+
+            # Iterate over children
+            for hier_node in hierarchy.direct_children[tree.hierarchy_node[leaf_index]]:
+
+                cells = hierarchy.subtree_nodes[hier_node]
+                cell_matrix = np.zeros(tree.ind_pred_train[leaf_index].shape, dtype=bool)
+                cell_matrix[:, cells] = True
+                if tree.sparse:
+                    leaf_training_examples = util.element_mult(tree.ind_pred_train[leaf_index], 
+                                                               csr_matrix(cell_matrix))
+                else:
+                    leaf_training_examples = util.element_mult(tree.ind_pred_train[leaf_index],
+                                                               cell_matrix)
+
+                # calculate the loss for this leaf  
+                leaf_loss_mat_cell, regulator_sign_cell = find_min_loss(
+                    tree, leaf_training_examples, holdout, y, x1, x2)
+
+                # Update with best loss
+                if leaf_loss_mat_cell.min() < best_loss:
+                    best_loss = leaf_loss_mat_cell.min()
+                    leaf_loss_mat = leaf_loss_mat_cell
+                    regulator_sign = regulator_sign_cell
+                    hierarchy_node = hier_node
         
         # if the loss does not beat the current best loss, then
         # we are done
@@ -81,11 +116,13 @@ def find_rule_process_worker(
             else:
                 shared_best_loss_mat[:] = leaf_loss_mat.ravel()
             best_leaf_regulator_sign.value = regulator_sign
+            best_loss_hier_node.value = hierarchy_node
     
     return
 
 # @profile
-def find_rule_processes(tree, holdout, y, x1, x2):
+def find_rule_processes(tree, holdout, y, x1, x2, hierarchy):
+
     if config.TUNING_PARAMS.use_stumps:
         # since we aren't building a tree, we use all of the
         # training examples to choose a rule
@@ -93,6 +130,8 @@ def find_rule_processes(tree, holdout, y, x1, x2):
         leaf_loss_mat, regulator_sign = find_min_loss(
             tree, leaf_training_examples, holdout, y, x1, x2)
         return 0, regulator_sign, leaf_loss_mat
+
+    # from IPython import embed; embed()
 
     rule_processes = []
 
@@ -112,6 +151,7 @@ def find_rule_processes(tree, holdout, y, x1, x2):
     shared_best_loss_mat = multiprocessing.RawArray(
         ctypes.c_double, nrow*ncol)
     best_loss_reg = multiprocessing.RawValue('i', 0)
+    best_loss_hier_node = multiprocessing.RawValue('i', 0)
 
     # Store the value of the next leaf index that needs to be processed, so that
     # the workers know what leaf to work on
@@ -119,7 +159,8 @@ def find_rule_processes(tree, holdout, y, x1, x2):
 
     # pack arguments for the worker processes
     args = [tree, holdout, y, x1, x2, hierarchy, leaf_index_cntr, (
-            lock, best_loss, best_leaf, shared_best_loss_mat, best_loss_reg)]
+            lock, best_loss, best_leaf, best_loss_hier_node,
+            shared_best_loss_mat, best_loss_reg)]
     
     # Fork worker processes, and wait for them to return
     fork_and_wait(config.NCPU, find_rule_process_worker, args)
@@ -127,14 +168,16 @@ def find_rule_processes(tree, holdout, y, x1, x2):
     # Covert all of the shared types into standard python values
     best_leaf = int(best_leaf.value)
     best_loss_reg = int(best_loss_reg.value)
+    best_loss_hier_node = int(best_loss_hier_node.value)
     # we convert the raw array into a numpy array
     best_loss_mat = np.reshape(np.array(shared_best_loss_mat), (nrow, ncol))
     
     # Return rule_processes
-    return (best_leaf, best_loss_reg, best_loss_mat)
+    return (best_leaf, best_loss_reg, best_loss_hier_node, best_loss_mat)
 
 # Function - calc min loss with leaf training examples and current weights  
 def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdout, y, x1, x2):
+
     # log('start find_rule_weights')
     rule_weights = find_rule_weights(leaf_training_examples, example_weights,
      ones_mat, holdout, y, x1, x2)
@@ -204,34 +247,35 @@ def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout
 
 
 # From the best split, get the current rule (motif, regulator, regulator sign and test/train indices)
-def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2):
-    motif,regulator = np.where(loss_best == loss_best.min())
+def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout,
+                     y, x1, x2):
+    motif, regulator = np.where(loss_best == loss_best.min())
     # If multiple rules have the same loss, randomly select one
-    if len(motif)>1:
+    if len(motif) > 1:
         choice = random.sample(range(len(motif)), 1)
         motif = np.array(motif[choice])
         regulator = np.array(regulator[choice])
        
     # Convert to int
-    if isinstance(motif,int)==False:
-        motif=int(motif)
-    if isinstance(regulator,int)==False:
-        regulator=int(regulator)
+    if isinstance(motif,int) == False:
+        motif = int(motif)
+    if isinstance(regulator,int) == False:
+        regulator = int(regulator)
 
     ## Find indices of where motif and regulator appear
     if x2.sparse:
         valid_m = np.nonzero(x1.data[motif,:])[1]
-        valid_r = np.where(x2.data.toarray()[:,regulator]==regulator_sign)[0]
+        valid_r = np.where(x2.data.toarray()[:,regulator] == regulator_sign)[0]
     else:
         valid_m = np.nonzero(x1.data[motif,:])[0]
-        valid_r = np.where(x2.data[:,regulator]==regulator_sign)[0]
+        valid_r = np.where(x2.data[:,regulator] == regulator_sign)[0]
  
     ### Get joint motif-regulator index - training and testing
     if y.sparse:
         valid_mat = csr_matrix((y.num_row,y.num_col), dtype=np.bool)
     else:
         valid_mat = np.zeros((y.num_row,y.num_col), dtype=np.bool)
-    valid_mat[np.ix_(valid_m, valid_r)]=1 # XX not efficient
+    valid_mat[np.ix_(valid_m, valid_r)] = 1 # XX not efficient
     rule_train_index = util.element_mult(valid_mat, tree.ind_pred_train[best_split])
     rule_test_index = util.element_mult(valid_mat, tree.ind_pred_test[best_split])
 

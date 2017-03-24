@@ -84,6 +84,36 @@ serial = opt$serial
 # out_format = 'dense'
 # pval=TRUE
 
+### Manual Inputs (Nadine expression)
+# DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
+# annot_file=paste(c(DATA_PATH,'RNA_AML_Samples.txt'), collapse="")
+# comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt'), collapse="")
+# comparison_column='cell_type'
+# data_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrices/gene_level_counts.txt'), collapse="")
+# regulator_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt'
+# output_file=paste(c(DATA_PATH,'boosting_input/accessibility_wrt_HSC_nadine_dense.txt'), collapse="")
+# binary_thresh=5
+
+### Manual Inputs (Nadine accessibility)
+# DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
+# annot_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples.txt'
+# comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt'), collapse="")
+# comparison_column='cell_type'
+# data_matrix_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_jason_only_feb6_idr_for_nadine_binaryPeaks.txt'
+# output_file=paste(c(DATA_PATH,'boosting_input/accessibility_wrt_HSC_nadine_dense.txt'), collapse="")
+# binary_thresh=5
+
+# DATA_PATH=/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/
+# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
+# $SCRIPT_PATH"create_differential_matrices.R" \
+# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples.txt \
+# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt \
+# -c cell_type \
+# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_jason_only_feb6_idr_for_nadine_binaryPeaks.txt \
+# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_wrt_HSC_nadine_dense.txt \
+# -m deseq -t dense
+
+
 sprintf('output file: %s', output_file)
 sprintf('regulator file: %s', regulator_file)
 sprintf('out_format file: %s', out_format)

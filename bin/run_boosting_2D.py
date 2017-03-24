@@ -25,7 +25,7 @@ from boosting_2D.find_rule import *
 from boosting_2D import stabilize
 from boosting_2D import prior
 from boosting_2D import save_model
-from boosting_2D import hierarchy
+from boosting_2D import hierarchy as h
 
 ### Open log files
 log = util.log
@@ -206,19 +206,19 @@ def parse_args():
     config.NCPU = args.ncpu
     config.PLOT = args.plot
 
-    hierarchy = hierarchy.get_hierarchy(name=args.hierarchy_name)
+    hierarchy = h.get_hierarchy(name=args.hierarchy_name)
 
     return (x1, x2, y, holdout, hierarchy)
 
 
 ### Find next decision node given current state of tree
 # @profile
-def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
+def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
     level='VERBOSE'
     ## Calculate loss at all search nodes
     log('find rule process', level=level)
-    best_split, regulator_sign, loss_best = find_rule_processes(
-        tree, holdout, y, x1, x2) 
+    best_split, regulator_sign, hierarchy_node, loss_best = find_rule_processes(
+        tree, holdout, y, x1, x2, hierarchy) 
 
     log('update loss with prior', level=level)
     if config.TUNING_PARAMS.use_prior:
@@ -227,8 +227,13 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
 
     # Get rule weights for the best split
     log('find rule weights', level=level)
+
+    # Mask training examples by using only hierarchy children
+    training_examples = h.get_hierarchy_index(hierarchy_node, hierarchy, 
+                                              tree.ind_pred_train[best_split], tree)
+
     rule_weights = find_rule_weights(
-        tree.ind_pred_train[best_split], tree.weights, tree.ones_mat, 
+        training_examples, tree.weights, tree.ones_mat, 
         holdout, y, x1, x2)
 
     # Get current rule, no stabilization
@@ -240,7 +245,7 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
     if config.TUNING_PARAMS.use_stable:
         log('starting stabilization', level=level)
         # Store current training weights
-        weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
+        weights_i = util.element_mult(tree.weights, training_examples)
 
         # Test if stabilization criterion is met
         log('stabilization test', level=level)
@@ -249,7 +254,7 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
 
         # If stabilization criterion met, then we want to find a bundle of 
         # correlated rules to use as a single node  
-        if stable_test >= config.TUNING_PARAMS.eta_2*stable_thresh:
+        if stable_test >= config.TUNING_PARAMS.eta_2 * stable_thresh:
             print 'stabilization criterion applies'
             # Get rules that are bundled together
             log('getting rule bundle', level=level)
@@ -262,8 +267,8 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
             # rule score is the direction and magnitude of the prediciton update
             # for the rule given by rule_weights and rule_train_index
             log('updating scores and indices with bundle', level=level)
-            ( rule_score, rule_train_index, rule_test_index 
-              ) = stabilize.get_rule_score_and_indices(bundle, 
+            (rule_score, rule_train_index, rule_test_index 
+            ) = stabilize.get_rule_score_and_indices(bundle, 
               tree.ind_pred_train, tree.ind_pred_test, 
               best_split, weights_i, rule_weights,
               tree, y, x1, x2, holdout,
@@ -271,8 +276,8 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
 
             # Add bundled rules to bundle
             log('adding bundles to rule', level=level)
-            motif_bundle = bundle.rule_bundle_regup_motifs+bundle.rule_bundle_regdown_motifs
-            regulator_bundle = bundle.rule_bundle_regup_regs+bundle.rule_bundle_regdown_regs
+            motif_bundle = bundle.rule_bundle_regup_motifs + bundle.rule_bundle_regdown_motifs
+            regulator_bundle = bundle.rule_bundle_regup_regs + bundle.rule_bundle_regdown_regs
 
         else:
             # rule score is the direction and magnitude of the prediciton update
@@ -293,12 +298,12 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
 
         
     log('adding above motifs/regs', level=level)
-    above_motifs = tree.above_motifs[best_split]+np.unique(
-        tree.bundle_x1[best_split]+[tree.split_x1[best_split]]).tolist()
-    above_regs = tree.above_regs[best_split]+np.unique(
-        tree.bundle_x2[best_split]+[tree.split_x2[best_split]]).tolist()
+    above_motifs = tree.above_motifs[best_split] + np.unique(
+        tree.bundle_x1[best_split] + [tree.split_x1[best_split]]).tolist()
+    above_regs = tree.above_regs[best_split] + np.unique(
+        tree.bundle_x2[best_split] + [tree.split_x2[best_split]]).tolist()
 
-    return (motif, regulator, best_split, 
+    return (motif, regulator, best_split, hierarchy_node,
             motif_bundle, regulator_bundle, 
             rule_train_index, rule_test_index, rule_score, 
             above_motifs, above_regs)
@@ -308,13 +313,13 @@ def main():
     print 'starting main loop'
 
     ### Parse arguments
-    level='VERBOSE'
+    level = 'VERBOSE'
     log('parse args start', level=level)
     (x1, x2, y, holdout, hierarchy) = parse_args()
     log('parse args end', level=level)
 
     ### logfile saves output to file
-    logfile_name='{0}{1}/LOG_FILE.txt'.format(
+    logfile_name = '{0}{1}/LOG_FILE.txt'.format(
             config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     if not os.path.exists('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)):
         os.makedirs('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX))
@@ -334,18 +339,19 @@ def main():
     ### Main Loop
     for i in xrange(1,config.TUNING_PARAMS.num_iter):
 
+        print i # DELETE LATER
         log('iteration {0}'.format(i))
         
         log('find next node', level=level)
-        (motif, regulator, best_split, 
+        (motif, regulator, best_split, hierarchy_node,
          motif_bundle, regulator_bundle, 
          rule_train_index, rule_test_index, rule_score, 
          above_motifs, above_regs) = find_next_decision_node(
-             tree, holdout, y, x1, x2, i)
+             tree, holdout, y, x1, x2, hierarchy, i)
         
         ### Add the rule with best loss
         log('adding next rule', level=level)
-        tree.add_rule(motif, regulator, best_split, 
+        tree.add_rule(motif, regulator, best_split, hierarchy_node,
                       motif_bundle, regulator_bundle, 
                       rule_train_index, rule_test_index, rule_score, 
                       above_motifs, above_regs, holdout, y)
@@ -356,15 +362,15 @@ def main():
     ### Print end time and close logfile pointer
     t1 = time.time()
     logfile('ending main loop: {0}'.format(t1), log_time=True)
-    logfile('total time: {0}'.format(t1-t0), log_time=True)
+    logfile('total time: {0}'.format(t1 - t0), log_time=True)
 
     # Save tree state
-    tree_file_name='{0}{1}/saved_tree_state__{1}.gz'.format(
+    tree_file_name = '{0}{1}/saved_tree_state__{1}.gz'.format(
         config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     save_tree_state(tree, pickle_file=tree_file_name)
 
     ### Write out rules
-    rule_file_name='{0}{1}/global_rules__{1}.txt'.format(
+    rule_file_name = '{0}{1}/global_rules__{1}.txt'.format(
         config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS,
      out_file=rule_file_name)
@@ -373,13 +379,14 @@ def main():
     # save_model.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name)
 
     ### Store model objects and script to load iteration
-    pickle_file = '{0}{1}/saved_complete_model__{1}.gz'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    pickle_file = '{0}{1}/saved_complete_model__{1}.gz'.format(config.OUTPUT_PATH, 
+                                                               config.OUTPUT_PREFIX)
     save_model.save_complete_model_state(pickle_file, x1, x2, y, tree)
     save_model.write_load_pickle_data_script(pickle_file)
 
     ### Print pickling time and close logfile pointer
     t2 = time.time()
-    logfile('pickling time: {0}'.format(t1-t2), log_time=True)
+    logfile('pickling time: {0}'.format(t1 - t2), log_time=True)
     f.close()
 
     ### Make plots

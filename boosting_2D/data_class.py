@@ -146,6 +146,9 @@ class DecisionTree(object):
         self.split_node = [] # For tree, specify node to split off of
         self.split_depth = [] # Store the depth of the new node (0 is root, 1 is the first layer)
 
+        # store the hierarchical layer
+        self.hierarchy_node = []
+
         ### Stabilization Parameters
         self.bundle_x1 = [] # store motifs bundled with x1 min loss split
         self.bundle_x2 = [] # store motifs bundled with x2 min loss split
@@ -205,9 +208,14 @@ class DecisionTree(object):
     
     def init_root_node(self, holdout, y):
         ## initialize the root node
-        score_root = 0.5 * np.log(
-            element_mult(self.weights, holdout.ind_train_up).sum()/element_mult(
-                self.weights, holdout.ind_train_down).sum())
+        if holdout.ind_train_down.sum() == 0: 
+            score_root = 0.5 * np.log(
+                element_mult(self.weights, holdout.ind_train_up).sum()) # CHECK
+        else:
+            score_root = 0.5 * np.log(
+                element_mult(self.weights, holdout.ind_train_up).sum()/element_mult(
+                    self.weights, holdout.ind_train_down).sum())
+
         self.scores.append(score_root)
         # Add root node to first split
         self.split_x1.append(np.array(['root']))
@@ -221,6 +229,7 @@ class DecisionTree(object):
         self.bundle_x1.append([])
         self.bundle_x2.append([])
         self.split_node.append('root')
+        self.hierarchy_node.append(0)
         self.split_depth.append(0)
         self._update_prediction(
             score_root, holdout.ind_train_all, holdout.ind_test_all)
@@ -230,12 +239,13 @@ class DecisionTree(object):
         self._update_margin(y)
 
     # Store new rule
-    def add_rule(self, motif, regulator, best_split, motif_bundle,
-     regulator_bundle, rule_train_index, rule_test_index, 
-     rule_score, above_motifs, above_regs, holdout, y):
+    def add_rule(self, motif, regulator, best_split, hierarchy_node,
+                 motif_bundle,  regulator_bundle, rule_train_index, rule_test_index, 
+                 rule_score, above_motifs, above_regs, holdout, y):
         self.split_x1.append(motif)
         self.split_x2.append(regulator)
         self.split_node.append(best_split)
+        self.hierarchy_node.append(hierarchy_node)
 
         self.nsplit += 1
         self.ind_pred_train.append(rule_train_index)
@@ -244,13 +254,14 @@ class DecisionTree(object):
         self.bundle_x2.append(regulator_bundle)
         self.scores.append(rule_score)
 
-        if best_split==0:
+        if best_split == 0:
             self.split_depth.append(1)
         else:
-            self.split_depth.append(self.split_depth[best_split]+1)
+            self.split_depth.append(self.split_depth[best_split] + 1)
+
         self.above_motifs.append(above_motifs)
         self.above_regs.append(above_regs)
-        self.above_nodes.append([best_split]+self.above_nodes[best_split])
+        self.above_nodes.append([best_split] + self.above_nodes[best_split])
 
         log('updating prediction')
         self._update_prediction(rule_score, rule_train_index, rule_test_index)
@@ -263,8 +274,8 @@ class DecisionTree(object):
 
     def _update_prediction(self, score, train_index, test_index):        
         # Update predictions
-        self.pred_train += score*train_index
-        self.pred_test += score*test_index
+        self.pred_train += score * train_index
+        self.pred_test += score * test_index
 
     def _update_weights(self, holdout, y):
         # Update weights
@@ -274,34 +285,48 @@ class DecisionTree(object):
             exp_term.data = np.exp(exp_term.data)
         else:
             exp_term = np.negative(y.element_mult(self.pred_train))
-            exp_term[exp_term.nonzero()]=np.exp(exp_term[exp_term.nonzero()])
+            exp_term[exp_term.nonzero()] = np.exp(exp_term[exp_term.nonzero()])
         log('second weights part')
         new_weights = element_mult(exp_term, holdout.ind_train_all)
         # print (new_weights/new_weights.sum())[new_weights.nonzero()]
-        self.weights = new_weights/new_weights.sum()
+        self.weights = new_weights / new_weights.sum()
 
     def _update_error(self, holdout, y):
-        # Identify incorrect processesedictions
-        incorr_train = (y.element_mult(self.pred_train)<0)
-        incorr_test = (y.element_mult(self.pred_test)<0)
+        # from IPython import embed; embed()
+        # Identify incorrect predictions - no negatives
+        if holdout.ind_train_down.sum() == 0:
+            incorr_train = (y.data != np.round(self.pred_train)) # CHECK 
+            incorr_test = (y.data != np.round(self.pred_test)) # CHECK
+        # Identify incorrect predictions - with negatives
+        else:
+            incorr_train = (y.element_mult(self.pred_train) < 0)
+            incorr_test = (y.element_mult(self.pred_test) < 0)
 
-        # Balanced error
-        bal_train_err_i = (float(element_mult(incorr_train,
-             holdout.ind_train_up).sum())/holdout.ind_train_up.sum()
-            +float(element_mult(incorr_train, holdout.ind_train_down
-                ).sum())/holdout.ind_train_down.sum())/2
-        bal_test_err_i = (float(element_mult(incorr_test, 
-            holdout.ind_test_up).sum())/holdout.ind_test_up.sum()
-            +float(element_mult(incorr_test, holdout.ind_test_down
-                ).sum())/holdout.ind_test_down.sum())/2
+        # Balanced error - no negatives
+        if holdout.ind_train_down.sum() == 0:
+            bal_train_err_i = float(element_mult(incorr_train,
+                 holdout.ind_train_up).sum()) / holdout.ind_train_up.sum()
+            bal_test_err_i = float(element_mult(incorr_test, 
+                holdout.ind_test_up).sum()) / holdout.ind_test_up.sum()
+
+        # Balanced error - with negatives
+        else:
+            bal_train_err_i = (float(element_mult(incorr_train,
+                 holdout.ind_train_up).sum()) / holdout.ind_train_up.sum()
+                + float(element_mult(incorr_train, holdout.ind_train_down
+                    ).sum()) / holdout.ind_train_down.sum()) / 2
+            bal_test_err_i = (float(element_mult(incorr_test, 
+                holdout.ind_test_up).sum()) / holdout.ind_test_up.sum()
+                + float(element_mult(incorr_test, holdout.ind_test_down
+                    ).sum()) / holdout.ind_test_down.sum()) / 2
 
         ## Imbalanced error
-        imbal_train_err_i=(float(element_mult(incorr_train,
+        imbal_train_err_i = (float(element_mult(incorr_train,
              np.add(holdout.ind_train_up, holdout.ind_train_down)
-             ).sum())/holdout.ind_train_all.sum())
-        imbal_test_err_i=(float(element_mult(incorr_test, 
+             ).sum()) / holdout.ind_train_all.sum())
+        imbal_test_err_i = (float(element_mult(incorr_test, 
              np.add(holdout.ind_test_up, holdout.ind_test_down)
-             ).sum())/holdout.ind_test_all.sum())
+             ).sum()) / holdout.ind_test_all.sum())
 
         # Store error 
         self.bal_train_err.append(bal_train_err_i)
@@ -310,38 +335,45 @@ class DecisionTree(object):
         self.imbal_test_err.append(imbal_test_err_i)
 
     def _update_margin(self, y):
-        train_margin=calc_margin(y.data, self.pred_train)
-        test_margin=calc_margin(y.data, self.pred_test)
+        train_margin = calc_margin(y.data, self.pred_train)
+        test_margin = calc_margin(y.data, self.pred_test)
         self.train_margins.append(train_margin)
         self.test_margins.append(test_margin)
 
     def write_out_rules(self, tree, x1, x2, tuning_params, out_file=None):
+
         # Allocate matrix of rules
-        rule_score_mat = pd.DataFrame(index=range(len(tree.split_x1)-1),
+        rule_score_mat = pd.DataFrame(index=range(len(tree.split_x1) - 1),
          columns=['x1_feat', 'x2_feat', 'score', 'above_rule', 'tree_depth'])
+
         for i in xrange(1,len(tree.split_x1)):
             x1_ind = [tree.split_x1[i]]+tree.bundle_x1[i]
             x2_ind = [tree.split_x2[i]]+tree.bundle_x2[i]
             above_node = tree.split_node[i]
-            rule_score_mat.ix[i-1,'x1_feat'] = '|'.join(
+            rule_score_mat.ix[i - 1,'x1_feat'] = '|'.join(
                 np.unique(x1.row_labels[x1_ind]).tolist())
-            rule_score_mat.ix[i-1,'x2_feat'] = '|'.join(
+            rule_score_mat.ix[i - 1,'x2_feat'] = '|'.join(
                 np.unique(x2.col_labels[x2_ind]).tolist())
-            rule_score_mat.ix[i-1,'score'] = tree.scores[i]
+            rule_score_mat.ix[i - 1,'score'] = tree.scores[i]
             if tree.split_x1[above_node]=='root':
-                rule_score_mat.ix[i-1,'above_rule'] = 'root'
+                rule_score_mat.ix[i - 1,'above_rule'] = 'root'
             else:
-                rule_score_mat.ix[i-1,'above_rule'] = '{0};{1}'.format(
+                rule_score_mat.ix[i - 1,'above_rule'] = '{0};{1}'.format(
                      '|'.join(np.unique(x1.row_labels[
-                        [tree.split_x1[above_node]]+
+                        [tree.split_x1[above_node]] +
                      tree.bundle_x1[above_node]]).tolist()),
                      '|'.join(np.unique(x2.col_labels[
-                        [tree.split_x2[above_node]]+
+                        [tree.split_x2[above_node]] +
                      tree.bundle_x2[above_node]]).tolist()))       
-            rule_score_mat.ix[i-1,'tree_depth'] = tree.split_depth[i]
-        if out_file!=None:
+            rule_score_mat.ix[i - 1,'tree_depth'] = tree.split_depth[i]
+        if out_file is not None:
             print 'wrote rules to {0}'.format(out_file)
             rule_score_mat.to_csv(out_file, sep="\t", header=True, index=False)
             return 1
         else:
             return rule_score_mat
+
+
+
+
+
