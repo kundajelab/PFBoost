@@ -84,7 +84,7 @@ def parse_args():
                         action='store_true', help='Plot imbalanced & balanced loss and margins')
 
     parser.add_argument('--use-prior', 
-                        action='store_true', help='Use prior',)
+                        action='store_true', help='Use prior', default=False)
     parser.add_argument('--prior-input-format', 
                         help='options are: matrix, triplet',)
     parser.add_argument('--motif-reg-file', 
@@ -214,8 +214,8 @@ def find_next_decision_node(tree, holdout, y, x1, x2, iteration):
     best_split, regulator_sign, loss_best = find_rule_processes(
         tree, holdout, y, x1, x2) 
 
-    log('update loss with prior', level=level)
     if config.TUNING_PARAMS.use_prior:
+        log('update loss with prior', level=level)
         loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS,
          prior.prior_motifreg, prior.prior_regreg, iteration)
 
@@ -325,12 +325,13 @@ def main():
     tree = DecisionTree(holdout, y, x1, x2)
     log('make tree stop', level=level)
 
-    # from IPython import embed; embed()
+    from IPython import embed; embed()
     # pdb.set_trace()
 
     ### Main Loop
     for i in xrange(1,config.TUNING_PARAMS.num_iter):
 
+        print i
         log('iteration {0}'.format(i))
         
         log('find next node', level=level)

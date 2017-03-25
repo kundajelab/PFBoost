@@ -2,12 +2,12 @@ from grit.lib.multiprocessing_utils import fork_and_wait
 import multiprocessing
 import ctypes
 
-import random
 from collections import namedtuple
 
 import numpy as np 
 from scipy.sparse import *
 import pdb
+import random
 
 from boosting_2D import config
 from boosting_2D import util
