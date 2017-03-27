@@ -47,10 +47,10 @@ class Data(object):
                   data_file, row_labels, col_labels, 
                   input_format, mult_format):
         self.data_file = data_file
-        self.row_label_file=row_labels
-        self.col_label_file=col_labels
-        self.row_labels = np.genfromtxt(self.row_label_file, delimiter="\n",dtype="str")
-        self.col_labels = np.genfromtxt(self.col_label_file, delimiter="\n",dtype="str")
+        self.row_label_file = row_labels
+        self.col_label_file = col_labels
+        self.row_labels = np.genfromtxt(self.row_label_file, delimiter="\n", dtype="str")
+        self.col_labels = np.genfromtxt(self.col_label_file, delimiter="\n", dtype="str")
         self.input_format = input_format
         self.mult_format = mult_format
         if self.mult_format == 'sparse':
@@ -107,7 +107,7 @@ class Holdout(object):
                     self.holdout = csr_matrix(np.genfromtxt(holdout_file))
                 else:
                     self.holdout = csr_matrix(np.genfromtxt(holdout_file)).toarray()
-        if holdout_file==None:
+        if holdout_file == None:
             np.random.seed(1)
             if self.sparse:
                 self.holdout = coo_matrix(
@@ -232,7 +232,7 @@ class DecisionTree(object):
         self.hierarchy_node.append(0)
         self.split_depth.append(0)
         self._update_prediction(
-            score_root, holdout.ind_train_all, holdout.ind_test_all)
+            score_root, holdout.ind_train_all, holdout.ind_test_all, y) # Remove y
         self._update_weights(holdout, y)
         # Initialize training error
         self._update_error(holdout, y)
@@ -264,7 +264,7 @@ class DecisionTree(object):
         self.above_nodes.append([best_split] + self.above_nodes[best_split])
 
         log('updating prediction')
-        self._update_prediction(rule_score, rule_train_index, rule_test_index)
+        self._update_prediction(rule_score, rule_train_index, rule_test_index, y) # remove y
         log('updating weights')
         self._update_weights(holdout,y)
         log('updating error')
@@ -272,10 +272,25 @@ class DecisionTree(object):
         log('updating margin')
         self._update_margin(y)
 
-    def _update_prediction(self, score, train_index, test_index):        
+    def _update_prediction(self, score, train_index, test_index, y):     
+
+        # Check if the rule doesn't change any predictions
+        # if (y.element_mult(self.pred_train) < 0).sum() == (y.element_mult(self.pred_train + score * train_index) < 0).sum() \
+        #    and (y.element_mult(self.pred_train) > 0).sum() == (y.element_mult(self.pred_train + score * train_index) > 0).sum():
+        #     from IPython import embed; embed()
+
+        # print('Pre update, min, max, score')
+        # print self.pred_test.min()
+        # print self.pred_test.max()
+        # print score
+
         # Update predictions
         self.pred_train += score * train_index
         self.pred_test += score * test_index
+
+        # print('Post update, min, max')
+        # print self.pred_test.min()
+        # print self.pred_test.max()
 
     def _update_weights(self, holdout, y):
         # Update weights
@@ -289,7 +304,11 @@ class DecisionTree(object):
         log('second weights part')
         new_weights = element_mult(exp_term, holdout.ind_train_all)
         # print (new_weights/new_weights.sum())[new_weights.nonzero()]
+        # print 'weights before'
+        # print self.weights
         self.weights = new_weights / new_weights.sum()
+        # print 'weights after'
+        # print self.weights
 
     def _update_error(self, holdout, y):
         # from IPython import embed; embed()
