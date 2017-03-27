@@ -12,6 +12,7 @@ import pdb
 
 from boosting_2D import config
 from boosting_2D import util
+from boosting_2D import hierarchy as h
 
 log = util.log
 
@@ -220,9 +221,9 @@ def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout
     # log('weights element-wise')
     w_neg = util.element_mult(w_temp, holdout.ind_train_down) 
     # log('weights element-wise')
-    x2_pos = x2.element_mult(x2.data>0)
+    x2_pos = x2.element_mult(x2.data > 0)
     # log('x2 element-wise')
-    x2_neg = abs(x2.element_mult(x2.data<0))
+    x2_neg = abs(x2.element_mult(x2.data < 0))
     # log('x2 element-wise')
     x1wpos = x1.matrix_mult(w_pos)
     # log('x1 weights dot')
@@ -248,7 +249,7 @@ def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout
 
 # From the best split, get the current rule (motif, regulator, regulator sign and test/train indices)
 def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout,
-                     y, x1, x2):
+                     y, x1, x2, hierarchy, hierarchy_node):
     motif, regulator = np.where(loss_best == loss_best.min())
     # If multiple rules have the same loss, randomly select one
     if len(motif) > 1:
@@ -276,8 +277,18 @@ def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout,
     else:
         valid_mat = np.zeros((y.num_row,y.num_col), dtype=np.bool)
     valid_mat[np.ix_(valid_m, valid_r)] = 1 # XX not efficient
-    rule_train_index = util.element_mult(valid_mat, tree.ind_pred_train[best_split])
-    rule_test_index = util.element_mult(valid_mat, tree.ind_pred_test[best_split])
+
+    non_hier_training_examples = tree.ind_pred_train[best_split]
+    training_examples = h.get_hierarchy_index(hierarchy_node, hierarchy, 
+                                          non_hier_training_examples, tree)
+
+    non_hier_testing_examples = tree.ind_pred_test[best_split]
+    testing_examples = h.get_hierarchy_index(hierarchy_node, hierarchy, 
+                                             non_hier_testing_examples, tree)
+
+
+    rule_train_index = util.element_mult(valid_mat, training_examples)
+    rule_test_index = util.element_mult(valid_mat, testing_examples)
 
     return motif, regulator, regulator_sign, rule_train_index, rule_test_index
 

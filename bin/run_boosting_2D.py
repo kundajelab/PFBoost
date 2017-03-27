@@ -215,23 +215,26 @@ def parse_args():
 # @profile
 def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
     level='VERBOSE'
+
     ## Calculate loss at all search nodes
     log('find rule process', level=level)
     best_split, regulator_sign, hierarchy_node, loss_best = find_rule_processes(
         tree, holdout, y, x1, x2, hierarchy) 
 
+    # Update loss with prior
     log('update loss with prior', level=level)
     if config.TUNING_PARAMS.use_prior:
         loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS,
          prior.prior_motifreg, prior.prior_regreg, iteration)
 
-    # Get rule weights for the best split
     log('find rule weights', level=level)
 
     # Mask training examples by using only hierarchy children
+    non_hier_training_examples = tree.ind_pred_train[best_split]
     training_examples = h.get_hierarchy_index(hierarchy_node, hierarchy, 
-                                              tree.ind_pred_train[best_split], tree)
+                                              non_hier_training_examples, tree)
 
+    # Get rule weights for the best split
     rule_weights = find_rule_weights(
         training_examples, tree.weights, tree.ones_mat, 
         holdout, y, x1, x2)
@@ -240,7 +243,8 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
     log('get current rule', level=level)
     (motif, regulator, regulator_sign, rule_train_index, rule_test_index 
      ) = get_current_rule(
-         tree, best_split, regulator_sign, loss_best, holdout, y, x1, x2)
+         tree, best_split, regulator_sign, loss_best, 
+         holdout, y, x1, x2, hierarchy, hierarchy_node)
 
     if config.TUNING_PARAMS.use_stable:
         log('starting stabilization', level=level)
@@ -357,7 +361,7 @@ def main():
                       above_motifs, above_regs, holdout, y)
 
         ### Print progress
-        util.log_progress(tree, i)
+        util.log_progress(tree, i, x1, x2)
 
     ### Print end time and close logfile pointer
     t1 = time.time()

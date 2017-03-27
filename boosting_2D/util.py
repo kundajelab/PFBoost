@@ -31,12 +31,12 @@ class Logger():
             msg = time_stamp + msg
         self.ofp.write(msg.strip() + "\n")
 
-def log_progress(tree, i):
+def log_progress(tree, i, x1, x2):
     msg = "\n".join([
         'imbalanced train error: {0}'.format(tree.imbal_train_err[i]),
         'imbalanced test error: {0}'.format(tree.imbal_test_err[i]),
-        'x1 split feat {0}'.format(tree.split_x1[i]),
-        'x2 split feat {0}'.format(tree.split_x2[i]),
+        'x1 split feat {0}'.format(x1.row_labels[tree.split_x1[i]]),
+        'x2 split feat {0}'.format(x2.col_labels[tree.split_x2[i]]),
         'split node {0}'.format(tree.split_node[i]),
         'rule score {0}'.format(tree.scores[i]),
         'hierarchy node {0}'.format(tree.hierarchy_node[i])])

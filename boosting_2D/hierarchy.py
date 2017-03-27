@@ -75,6 +75,10 @@ def get_hierarchy(name='hema_16cell'):
         subtree_nodes[14] = [14]
         subtree_nodes[15] = [15]
 
+        hierarchy = Hierarchy(NUM_NODES, MAX_CHILDREN, NUM_INT_NODES,
+                      direct_children, subtree_nodes)
+
+
     elif name == 'hema_diff_wrt_HSC':
 
         NUM_NODES = 15
@@ -121,11 +125,12 @@ def get_hierarchy(name='hema_16cell'):
         subtree_nodes[13] = [13]
         subtree_nodes[14] = [14]
 
+        hierarchy = Hierarchy(NUM_NODES, MAX_CHILDREN, NUM_INT_NODES,
+                      direct_children, subtree_nodes)
+
     else:
         raise ValueError('No existing hierarchy for provided name: %s'%name)
 
-    hierarchy = Hierarchy(NUM_NODES, MAX_CHILDREN, NUM_INT_NODES,
-                          direct_children, subtree_nodes)
 
     return hierarchy
 
