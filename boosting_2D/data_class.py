@@ -274,23 +274,9 @@ class DecisionTree(object):
 
     def _update_prediction(self, score, train_index, test_index, y):     
 
-        # Check if the rule doesn't change any predictions
-        # if (y.element_mult(self.pred_train) < 0).sum() == (y.element_mult(self.pred_train + score * train_index) < 0).sum() \
-        #    and (y.element_mult(self.pred_train) > 0).sum() == (y.element_mult(self.pred_train + score * train_index) > 0).sum():
-        #     from IPython import embed; embed()
-
-        # print('Pre update, min, max, score')
-        # print self.pred_test.min()
-        # print self.pred_test.max()
-        # print score
-
         # Update predictions
         self.pred_train += score * train_index
         self.pred_test += score * test_index
-
-        # print('Post update, min, max')
-        # print self.pred_test.min()
-        # print self.pred_test.max()
 
     def _update_weights(self, holdout, y):
         # Update weights
@@ -303,15 +289,9 @@ class DecisionTree(object):
             exp_term[exp_term.nonzero()] = np.exp(exp_term[exp_term.nonzero()])
         log('second weights part')
         new_weights = element_mult(exp_term, holdout.ind_train_all)
-        # print (new_weights/new_weights.sum())[new_weights.nonzero()]
-        # print 'weights before'
-        # print self.weights
         self.weights = new_weights / new_weights.sum()
-        # print 'weights after'
-        # print self.weights
 
     def _update_error(self, holdout, y):
-        # from IPython import embed; embed()
         # Identify incorrect predictions - no negatives
         if holdout.ind_train_down.sum() == 0:
             incorr_train = (y.data != np.round(self.pred_train)) # CHECK 

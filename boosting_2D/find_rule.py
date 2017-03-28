@@ -98,8 +98,8 @@ def find_rule_process_worker(
                     best_loss = leaf_loss_mat_cell.min()
                     leaf_loss_mat = leaf_loss_mat_cell
                     regulator_sign = regulator_sign_cell
-                    hierarchy_node = hier_node
-        
+                    hierarchy_node = hier_node            
+
         # if the loss does not beat the current best loss, then
         # we are done
         leaf_min_loss = leaf_loss_mat.min()
@@ -131,9 +131,7 @@ def find_rule_processes(tree, holdout, y, x1, x2, hierarchy):
         leaf_loss_mat, regulator_sign = find_min_loss(
             tree, leaf_training_examples, holdout, y, x1, x2)
         return 0, regulator_sign, leaf_loss_mat
-
-    # from IPython import embed; embed()
-
+    
     rule_processes = []
 
     # this should be an attribute of tree. Also, during the tree init,
@@ -250,6 +248,7 @@ def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout
 # From the best split, get the current rule (motif, regulator, regulator sign and test/train indices)
 def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout,
                      y, x1, x2, hierarchy, hierarchy_node):
+
     motif, regulator = np.where(loss_best == loss_best.min())
     # If multiple rules have the same loss, randomly select one
     if len(motif) > 1:
