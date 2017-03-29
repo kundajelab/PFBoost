@@ -154,8 +154,6 @@ def parse_args():
                     args.input_format,
                     args.mult_format)
     log('load x2 stop')
-       
-    from IPython import embed; embed()
     
     # Shuffle data
     if args.shuffle_y:

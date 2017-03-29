@@ -13,11 +13,8 @@ from boosting_2D import util
 ### Return specific hierarchy encoding
 
 class Hierarchy:
-    def __init__(self, num_nodes, max_children, num_internal_nodes,
-                 direct_children, subtree_nodes):
+    def __init__(self, num_nodes, direct_children, subtree_nodes):
         self.num_nodes = num_nodes
-        self.max_children = max_children
-        self.num_internal_nodes = num_internal_nodes
         self.direct_children = direct_children
         self.subtree_nodes = subtree_nodes
 
@@ -30,8 +27,6 @@ def get_hierarchy(name='hema_16cell'):
     elif name == 'hema_16cell':
 
         NUM_NODES = 16
-        MAX_CHILDREN = 6
-        NUM_INT_NODES = 9
 
         ### Define the direct children of each internal node
 
@@ -75,15 +70,12 @@ def get_hierarchy(name='hema_16cell'):
         subtree_nodes[14] = [14]
         subtree_nodes[15] = [15]
 
-        hierarchy = Hierarchy(NUM_NODES, MAX_CHILDREN, NUM_INT_NODES,
-                      direct_children, subtree_nodes)
+        hierarchy = Hierarchy(NUM_NODES, direct_children, subtree_nodes)
 
 
     elif name == 'hema_diff_wrt_HSC':
 
         NUM_NODES = 15
-        MAX_CHILDREN = 6
-        NUM_INT_NODES = 9
 
         ### Define the direct children of each internal node
 
@@ -113,7 +105,7 @@ def get_hierarchy(name='hema_16cell'):
         subtree_nodes[1] = [1, 3, 8, 9, 10, 11, 4, 12]
         subtree_nodes[2] = [2, 4, 12, 5, 13]
         subtree_nodes[3] = [3, 5, 6, 13, 14]
-        subtree_nodes[4] = [3, 8, 9, 10, 11]
+        subtree_nodes[4] = [4, 8, 9, 10, 11]
         subtree_nodes[5] = [5, 13]
         subtree_nodes[6] = [6, 7, 14]
         subtree_nodes[7] = [7, 14]
@@ -125,8 +117,7 @@ def get_hierarchy(name='hema_16cell'):
         subtree_nodes[13] = [13]
         subtree_nodes[14] = [14]
 
-        hierarchy = Hierarchy(NUM_NODES, MAX_CHILDREN, NUM_INT_NODES,
-                      direct_children, subtree_nodes)
+        hierarchy = Hierarchy(NUM_NODES, direct_children, subtree_nodes)
 
     else:
         raise ValueError('No existing hierarchy for provided name: %s'%name)
