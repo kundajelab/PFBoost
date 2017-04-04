@@ -313,7 +313,7 @@ def main():
     if not os.path.exists('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)):
         os.makedirs('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX))
     f = open(logfile_name, 'w')
-    logfile = Logger(ofp=f, verbose=True)
+    logfile = Logger(ofp=f, verbose=False)
     logfile("Command run:\n {0} \n \n ".format(' '.join(sys.argv)), log_time=False)
 
     ### Print time to output
@@ -325,7 +325,6 @@ def main():
     tree = DecisionTree(holdout, y, x1, x2)
     log('make tree stop', level=level)
 
-    from IPython import embed; embed()
     # pdb.set_trace()
 
     ### Main Loop

@@ -38,6 +38,7 @@ def log_progress(tree, i):
         'x1 split feat {0}'.format(tree.split_x1[i]),
         'x2 split feat {0}'.format(tree.split_x2[i]),
         'rule score {0}'.format(tree.scores[i])])
+    print msg
     log(msg, log_time=False, level='VERBOSE')
 
 ### log prints to STDERR

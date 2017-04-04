@@ -262,8 +262,10 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
     # bundle_thresh = np.sqrt(sum(np.square(
     #     np.frombuffer(weights_i[weights_i.nonzero()]))
     #     )/np.square(sum(np.frombuffer(weights_i[weights_i.nonzero()]))))
-    bundle_thresh = util_functions.calc_sqrt_sum_sqr_sqr_sums(weights_i.data)
-    
+    if y.sparse:
+        bundle_thresh = util_functions.calc_sqrt_sum_sqr_sqr_sums(weights_i.data)
+    else:
+        bundle_thresh = util_functions.calc_sqrt_sum_sqr_sqr_sums(weights_i.ravel())    
     ## If large bundle, but hard cap on number of rules in bundle:
     log('test bundle size', level=level)
     test_big_bundle = (symm_diff_w_regup < \
@@ -292,10 +294,10 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
             rule_bundle_regup = np.where(symm_diff_w_regup.ravel().argsort().argsort().reshape(symm_diff_w_regup.shape) < config.TUNING_PARAMS.bundle_max/2)
             rule_bundle_regdown = np.where(symm_diff_w_regdown.ravel().argsort().argsort().reshape(symm_diff_w_regup.shape) < config.TUNING_PARAMS.bundle_max/2) 
 
-        rule_bundle_regup_motifs = rule_bundle_regup[0].tolist()[0] # Keeping min loss rule
-        rule_bundle_regup_regs = rule_bundle_regup[1].tolist()[0]
-        rule_bundle_regdown_motifs = rule_bundle_regdown[0].tolist()[0]
-        rule_bundle_regdown_regs = rule_bundle_regdown[1].tolist()[0]
+        rule_bundle_regup_motifs = rule_bundle_regup[0].tolist() # Keeping min loss rule
+        rule_bundle_regup_regs = rule_bundle_regup[1].tolist()
+        rule_bundle_regdown_motifs = rule_bundle_regdown[0].tolist()
+        rule_bundle_regdown_regs = rule_bundle_regdown[1].tolist()
 
 
     # Otherwise take all bundled rules
@@ -311,7 +313,7 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
         rule_bundle_regdown_motifs = rule_bundle_regdown[0].tolist()
         rule_bundle_regdown_regs = rule_bundle_regdown[1].tolist()
 
-    if len(rule_bundle_regup_motifs)+len(rule_bundle_regdown_motifs)>40:
+    if len(rule_bundle_regup_motifs)+len(rule_bundle_regdown_motifs) > 40:
         pdb.set_trace()
 
     # Print names of x1/x2 features that are bundled
