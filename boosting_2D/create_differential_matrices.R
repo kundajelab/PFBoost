@@ -42,7 +42,7 @@ option_list <- list(
 	make_option(c("-p", "--pval"), help="Instead of generating binary matrix [-1/0/+1] output p-value for each comp for each region", action="store_true", default=FALSE),
 	make_option(c("-e", "--foldchange"), help="Instead of generating binary matrix [-1/0/+1] output logfold change for each comp for each region", action="store_true", default=FALSE),
 	make_option(c("-t", "--out_format"), help="Specify ['dense', 'sparse'] to request specific output format", default='sparse'),
-	make_option(c("-s", "--serial"), help="Specify ['dense', 'sparse'] to request specific output format", action="store_true", default=FALSE))
+	make_option(c("-s", "--serial"), help="run in parallel or not", default=FALSE))
 
 opt <- parse_args(OptionParser(option_list=option_list))
 
@@ -103,14 +103,22 @@ serial = opt$serial
 # output_file=paste(c(DATA_PATH,'boosting_input/accessibility_wrt_HSC_nadine_dense.txt'), collapse="")
 # binary_thresh=5
 
-# DATA_PATH=/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/
+### Manual Inputs (Nadine accessibility April 3)
+# DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
+# annot_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples_april3.txt'
+# comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt'), collapse="")
+# comparison_column='cell_type'
+# data_matrix_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_jason_only_feb6_idr_for_nadine_binaryPeaks.txt'
+# output_file=paste(c(DATA_PATH,'boosting_input/accessibility_wrt_HSC_nadine_dense.txt'), collapse="")
+# binary_thresh=2
+
 # SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
 # $SCRIPT_PATH"create_differential_matrices.R" \
 # -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples.txt \
 # -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt \
 # -c cell_type \
-# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_jason_only_feb6_idr_for_nadine_binaryPeaks.txt \
-# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_wrt_HSC_nadine_dense.txt \
+# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_for_nadine_boosting_april3_binaryPeaks.txt \
+# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_wrt_HSC_nadine_dense_april3.txt \
 # -m deseq -t dense
 
 

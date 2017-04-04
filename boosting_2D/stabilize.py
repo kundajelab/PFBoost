@@ -262,7 +262,10 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
     # bundle_thresh = np.sqrt(sum(np.square(
     #     np.frombuffer(weights_i[weights_i.nonzero()]))
     #     )/np.square(sum(np.frombuffer(weights_i[weights_i.nonzero()]))))
-    bundle_thresh = util_functions.calc_sqrt_sum_sqr_sqr_sums(weights_i.ravel()) # Previously weights_i.data
+    if y.sparse:
+        bundle_thresh = util_functions.calc_sqrt_sum_sqr_sqr_sums(weights_i.data)
+    else:
+        bundle_thresh = util_functions.calc_sqrt_sum_sqr_sqr_sums(weights_i.ravel()) # Previously weights_i.data
     
     ## If large bundle, but hard cap on number of rules in bundle:
     log('test bundle size', level=level)

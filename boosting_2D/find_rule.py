@@ -131,7 +131,7 @@ def find_rule_processes(tree, holdout, y, x1, x2, hierarchy):
         leaf_loss_mat, regulator_sign = find_min_loss(
             tree, leaf_training_examples, holdout, y, x1, x2)
         return 0, regulator_sign, leaf_loss_mat
-    
+
     rule_processes = []
 
     # this should be an attribute of tree. Also, during the tree init,
