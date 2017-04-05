@@ -87,6 +87,8 @@ class Holdout(object):
         log('start')
         assert train_fraction <= 1
         self.mult_format = mult_format
+        self.holdout_file = holdout_file
+        self.holdout_format = holdout_format
         self.train_fraction = train_fraction if holdout_file is None else None
         self.valid_fraction = (1 - self.train_fraction) if holdout_file is None else None
         if self.mult_format == 'sparse':
@@ -343,7 +345,8 @@ class DecisionTree(object):
         self.train_margins.append(train_margin)
         self.test_margins.append(test_margin)
 
-    def write_out_rules(self, tree, x1, x2, tuning_params, out_file=None):
+    def write_out_rules(self, tree, x1, x2, tuning_params, 
+                        out_file=None, logfile_pointer=None):
 
         # Allocate matrix of rules
         rule_score_mat = pd.DataFrame(index=range(len(tree.split_x1) - 1),
@@ -369,8 +372,11 @@ class DecisionTree(object):
                         [tree.split_x2[above_node]] +
                      tree.bundle_x2[above_node]]).tolist()))       
             rule_score_mat.ix[i - 1,'tree_depth'] = tree.split_depth[i]
+        log_msg = 'wrote rules to {0}'.format(out_file)
+        if logfile_pointer is not None:
+            logfile_pointer.write(log_msg + "\n")
         if out_file is not None:
-            print 'wrote rules to {0}'.format(out_file)
+            print log_msg
             rule_score_mat.to_csv(out_file, sep="\t", header=True, index=False)
             return 1
         else:

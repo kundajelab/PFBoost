@@ -133,7 +133,7 @@ def parse_args():
     args = parser.parse_args()
 
     # Load the three feature matrices
-    log('load y start ')
+    log('load y start')
     y = TargetMatrix(args.target_file, 
                      args.target_row_labels, 
                      args.target_col_labels,
@@ -188,7 +188,8 @@ def parse_args():
     # get time stamp
     time_stamp = time.strftime("%Y_%m_%d")
     # Configure output directory - date-stamped directory in output path
-    config.OUTPUT_PATH = args.output_path
+    config.OUTPUT_PATH = args.output_path if args.output_path \
+                         is not None else os.getcwd()
     config.OUTPUT_PREFIX = time_stamp+'_'+args.output_prefix+'_'+method_label+ \
         '_'+str(config.TUNING_PARAMS.num_iter)+'iter'
     if not os.path.exists(config.OUTPUT_PATH+config.OUTPUT_PREFIX):
@@ -205,6 +206,8 @@ def parse_args():
             args.reg_reg_row_labels, args.reg_reg_col_labels)
         prior.prior_motifreg, prior.prior_regreg = prior.parse_prior(
             prior.PRIOR_PARAMS, x1, x2)
+    else:
+        prior.PRIOR_PARAMS=None
 
     config.NCPU = args.ncpu
     config.PLOT = args.plot
@@ -217,7 +220,7 @@ def parse_args():
 ### Find next decision node given current state of tree
 # @profile
 def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
-    level='VERBOSE'
+    level = 'VERBOSE' if config.VERBOSE else 'QUIET'
 
     ## Calculate loss at all search nodes
     log('find rule process', level=level)
@@ -225,8 +228,8 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
         tree, holdout, y, x1, x2, hierarchy) 
 
     # Update loss with prior
-    log('update loss with prior', level=level)
     if config.TUNING_PARAMS.use_prior:
+        log('update loss with prior', level=level)
         loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS,
          prior.prior_motifreg, prior.prior_regreg, iteration)
 
@@ -262,7 +265,7 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
         # If stabilization criterion met, then we want to find a bundle of 
         # correlated rules to use as a single node  
         if stable_test >= config.TUNING_PARAMS.eta_2 * stable_thresh:
-            print 'stabilization criterion applies'
+            log('stabilization criterion applies', level='VERBOSE')
             # Get rules that are bundled together
             log('getting rule bundle', level=level)
             bundle = stabilize.bundle_rules(
@@ -317,39 +320,44 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
 
 
 def main():
-    print 'starting main loop'
-
     ### Parse arguments
-    level = 'VERBOSE'
-    log('parse args start', level=level)
-    (x1, x2, y, holdout, hierarchy) = parse_args()
-    log('parse args end', level=level)
+    log('parse args start', level='VERBOSE')
+    (x1, x2, y, holdout, hierarchy) = parse_args() # Sets up output path and prefix
+    log('parse args end', level='VERBOSE')
 
-    ### logfile saves output to file
-    logfile_name = '{0}{1}/LOG_FILE.txt'.format(
-            config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    ### Set up output files
+    out_file_prefix = '{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+    logfile_name = '{0}/LOG_FILE.txt'.format(out_file_prefix)
+    pickle_script_file = '{0}/load_pickle_data_script.py'.format(out_file_prefix)
+    load_data_script_file = '{0}/load_complete_data_script.py'.format(out_file_prefix)
+    pickle_file = '{0}/saved_complete_model__{1}.gz'.format(out_file_prefix, config.OUTPUT_PREFIX)
+
+    log('Log File: {0}'.format(logfile_name), level='VERBOSE')
     if not os.path.exists('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)):
         os.makedirs('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX))
     f = open(logfile_name, 'w')
     logfile = Logger(ofp=f, verbose=True)
-    logfile("Command run:\n {0} \n \n ".format(' '.join(sys.argv)), log_time=False)
+    logfile("Command run:\n {0} \n \n ".format(' '.join(sys.argv)), 
+            log_time=False, level='VERBOSE')
 
     ### Print time to output
     t0 = time.time()
-    logfile('starting main loop: {0}'.format(t0), log_time=True)
+    logfile('starting main loop: {0}'.format(t0), 
+            log_time=True, level='VERBOSE')
 
     ### Create tree object
-    log('make tree start', level=level)
+    log('make tree start')
     tree = DecisionTree(holdout, y, x1, x2)
-    log('make tree stop', level=level)
+    log('make tree stop')
+
+    log('starting main loop', level='VERBOSE') 
 
     ### Main Loop
-    for i in xrange(1,config.TUNING_PARAMS.num_iter):
+    for i in xrange(1, config.TUNING_PARAMS.num_iter + 1):
 
-        print i # DELETE LATER
-        log('iteration {0}'.format(i))
+        # log('iteration {0}'.format(i))
         
-        log('find next node', level=level)
+        log('find next node')
         (motif, regulator, best_split, hierarchy_node,
          motif_bundle, regulator_bundle, 
          rule_train_index, rule_test_index, rule_score, 
@@ -357,19 +365,19 @@ def main():
              tree, holdout, y, x1, x2, hierarchy, i)
         
         ### Add the rule with best loss
-        log('adding next rule', level=level)
+        log('adding next rule')
         tree.add_rule(motif, regulator, best_split, hierarchy_node,
                       motif_bundle, regulator_bundle, 
                       rule_train_index, rule_test_index, rule_score, 
                       above_motifs, above_regs, holdout, y)
 
         ### Print progress
-        util.log_progress(tree, i, x1, x2)
+        util.log_progress(tree, i, x1, x2, ofp=f, verbose=True)
 
     ### Print end time and close logfile pointer
     t1 = time.time()
-    logfile('ending main loop: {0}'.format(t1), log_time=True)
-    logfile('total time: {0}'.format(t1 - t0), log_time=True)
+    logfile('ending main loop: {0}'.format(t1), log_time=True, level='VERBOSE')
+    logfile('total time: {0}'.format(t1 - t0), log_time=True, level='VERBOSE')
 
     # Save tree state
     tree_file_name = '{0}{1}/saved_tree_state__{1}.gz'.format(
@@ -380,20 +388,22 @@ def main():
     rule_file_name = '{0}{1}/global_rules__{1}.txt'.format(
         config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS,
-     out_file=rule_file_name)
+                         out_file=rule_file_name, logfile_pointer=f)
 
     ### Write out load data file
-    # save_model.write_load_data_script(y, x1, x2, prior.PRIOR_PARAMS, tree_file_name)
+    # save_model.write_load_data_script(y, x1, x2, holdout, prior.PRIOR_PARAMS,
+    #                                   tree_file_name, load_data_script_file,
+    #                                   logfile_pointer=f)
 
     ### Store model objects and script to load iteration
-    pickle_file = '{0}{1}/saved_complete_model__{1}.gz'.format(config.OUTPUT_PATH, 
-                                                               config.OUTPUT_PREFIX)
     save_model.save_complete_model_state(pickle_file, x1, x2, y, tree)
-    save_model.write_load_pickle_data_script(pickle_file)
+    save_model.write_load_pickle_data_script(pickle_file, 
+                                             pickle_script_file=pickle_script_file, 
+                                             logfile_pointer=f)
 
     ### Print pickling time and close logfile pointer
     t2 = time.time()
-    logfile('pickling time: {0}'.format(t1 - t2), log_time=True)
+    logfile('save model time: {0}'.format(t2 - t1), log_time=True, level='VERBOSE')
     f.close()
 
     ### Make plots

@@ -199,9 +199,10 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
 # Get rules to average (give motif, regulator and index)
 # @profile
 def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
-    level='VERBOSE'
-    print 'starting bundle rules'
-    print 'best split is {0}'.format(best_split)
+    level = 'VERBOSE' if config.VERBOSE else 'QUIET'
+
+    log('starting bundle rules', level=level)
+    log('best split is {0}'.format(best_split), level=level)
     log('calculate A', level=level)
 
     weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
