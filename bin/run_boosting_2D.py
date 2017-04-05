@@ -100,7 +100,6 @@ def parse_args():
                         default=None, help='motif labels for regulator-regulator prior',)    
     parser.add_argument('--reg-reg-col-labels', 
                         default=None, help='regulator labels for regulator-regulator prior',)
-    
 
     parser.add_argument('--ncpu', 
                         help='number of cores to run on', type=int, default=1)
@@ -110,10 +109,13 @@ def parse_args():
     parser.add_argument('--holdout-format', 
                         help='(matrix or triplet) format for holdout matrix', 
                         default='matrix')
+    parser.add_argument('--train-fraction', 
+                        help='fraction of data used for training. validation is 1 - train_fraction',
+                        type=float, default=0.8)    
 
     parser.add_argument('--compress-regulators', 
                         help='combine regulators with same pattern across conditions', 
-                        action='store_true') #default
+                        action='store_true', default=False)
     parser.add_argument('--shuffle-y', 
                         help='flag to shuffle the contents of y matrix', 
                         action='store_true')
@@ -170,7 +172,8 @@ def parse_args():
     # Load holdout
     log('load holdout start')
     holdout = Holdout(y, args.mult_format,
-     args.holdout_file, args.holdout_format)
+     args.holdout_file, args.holdout_format,
+     args.train_fraction)
     log('load holdout stop')
 
     # Configure tuning tarameters

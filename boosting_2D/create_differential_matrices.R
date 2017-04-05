@@ -112,6 +112,7 @@ serial = opt$serial
 # output_file=paste(c(DATA_PATH,'boosting_input/accessibility_wrt_HSC_nadine_dense.txt'), collapse="")
 # binary_thresh=2
 
+# Command Inputs (Nadine accessibility April 3 100K)
 # SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
 # $SCRIPT_PATH"create_differential_matrices.R" \
 # -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples.txt \
@@ -121,6 +122,25 @@ serial = opt$serial
 # -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_wrt_HSC_nadine_dense_april3.txt \
 # -m deseq -t dense
 
+# Command Inputs (Nadine accessibility April 4 240K wrt HSC)
+# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
+# $SCRIPT_PATH"create_differential_matrices.R" \
+# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples_april4_240K.txt \
+# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt \
+# -c cell_type \
+# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_for_nadine_boosting_april4_240K_binaryPeaks.txt \
+# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_wrt_HSC_nadine_dense_april3.txt \
+# -m deseq -t dense
+
+# Command Inputs (Nadine accessibility April 4 240K wrt previous cell type)
+# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
+# $SCRIPT_PATH"create_differential_matrices.R" \
+# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples_april4_240K.txt \
+# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_previous_cell_type.txt \
+# -c cell_type \
+# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_for_nadine_boosting_april4_240K_binaryPeaks.txt \
+# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_wrt_previous_cell_type_nadine_dense_april3.txt \
+# -m deseq -t dense
 
 sprintf('output file: %s', output_file)
 sprintf('regulator file: %s', regulator_file)

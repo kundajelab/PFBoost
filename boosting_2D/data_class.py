@@ -82,43 +82,47 @@ class Holdout(object):
     Indices for training/testing examples split into target up and down
 
     """
-    def __init__(self, y, mult_format, holdout_file=None, holdout_format=None):
+    def __init__(self, y, mult_format, holdout_file=None, holdout_format=None,
+                 train_fraction=0.8):
         log('start')
+        assert train_fraction <= 1
         self.mult_format = mult_format
+        self.train_fraction = train_fraction if holdout_file is None else None
+        self.valid_fraction = (1 - self.train_fraction) if holdout_file is None else None
         if self.mult_format == 'sparse':
             self.sparse = True
         elif self.mult_format == 'dense':
             self.sparse = False
         else:
             assert False, "Unrecognized mult format '%s'" % self.mult_format
-        if holdout_file!=None:
-            if holdout_format=='triplet':
+        if holdout_file is not None:
+            if holdout_format == 'triplet':
                 data = np.genfromtxt(holdout_file)
                 if self.sparse:
                     self.holdout = csr_matrix(
-                        (data[:,2], (data[:,0]-1, data[:,1]-1)),
+                        (data[:, 2], (data[:, 0] - 1, data[:, 1] - 1)),
                         shape=(y.num_row,y.num_col))
                 else:
                     self.holdout = csr_matrix(
-                        (data[:,2], (data[:,0]-1, data[:,1]-1)),
+                        (data[:, 2], (data[:, 0] - 1, data[:, 1] - 1)),
                         shape=(y.num_row,y.num_col)).toarray()
-            elif holdout_format=='matrix':
+            elif holdout_format == 'matrix':
                 if self.sparse:
                     self.holdout = csr_matrix(np.genfromtxt(holdout_file))
                 else:
                     self.holdout = csr_matrix(np.genfromtxt(holdout_file)).toarray()
-        if holdout_file == None:
+        if holdout_file is None:
             np.random.seed(1)
             if self.sparse:
                 self.holdout = coo_matrix(
                 np.reshape(
                     np.random.choice(a=[0,1], size=y.num_row*y.num_col,
-                     replace=True, p=[0.8,0.2]),
+                     replace=True, p=[self.train_fraction, self.valid_fraction]),
                     (y.num_row, y.num_col))).tocsr()
             else:
                 self.holdout = np.reshape(
                     np.random.choice(a=[0,1], size=y.num_row*y.num_col,
-                     replace=True, p=[0.8,0.2]), (y.num_row, y.num_col))
+                     replace=True, p=[self.train_fraction, self.valid_fraction]), (y.num_row, y.num_col))
         log('allocate holdout')
         self.ind_test_up =  element_mult(self.holdout, y.data==1)
         self.ind_test_down = element_mult(self.holdout, y.data==-1)
