@@ -176,12 +176,18 @@ def parse_args():
      args.train_fraction)
     log('load holdout stop')
 
+    # Configure hierarchy
+    hierarchy = h.get_hierarchy(name=args.hierarchy_name)
+    if hierarchy is not None:
+        log('Applying hierarchy: %s'%hierarchy.name, level='VERBOSE')        
+
     # Configure tuning tarameters
     config.TUNING_PARAMS = TuningParams(
         args.num_iter, 
         args.stumps, args.stable, args.corrected_loss,
         args.use_prior,
         args.eta1, args.eta2, 20, 1./holdout.n_train)
+
 
     # Get method label so plot label uses parameters used
     method_label = util.get_method_label()
@@ -191,7 +197,10 @@ def parse_args():
     config.OUTPUT_PATH = args.output_path if args.output_path \
                          is not None else os.getcwd()
     config.OUTPUT_PREFIX = time_stamp+'_'+args.output_prefix+'_'+method_label+ \
-        '_'+str(config.TUNING_PARAMS.num_iter)+'iter'
+                           '_'+str(config.TUNING_PARAMS.num_iter)+'iter'
+    if hierarchy is not None:
+        config.OUTPUT_PREFIX = config.OUTPUT_PREFIX + '_hierarchy_%s'%hierarchy.name
+
     if not os.path.exists(config.OUTPUT_PATH+config.OUTPUT_PREFIX):
         os.makedirs(config.OUTPUT_PATH+config.OUTPUT_PREFIX)
 
@@ -211,10 +220,6 @@ def parse_args():
 
     config.NCPU = args.ncpu
     config.PLOT = args.plot
-
-    hierarchy = h.get_hierarchy(name=args.hierarchy_name)
-    if hierarchy is not None:
-        log('Applying hierarchy: %s'%hierarchy, level='VERBOSE')        
 
     return (x1, x2, y, holdout, hierarchy)
 

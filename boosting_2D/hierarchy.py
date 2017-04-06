@@ -13,10 +13,11 @@ from boosting_2D import util
 ### Return specific hierarchy encoding
 
 class Hierarchy:
-    def __init__(self, num_nodes, direct_children, subtree_nodes):
+    def __init__(self, num_nodes, direct_children, subtree_nodes, name):
         self.num_nodes = num_nodes
         self.direct_children = direct_children
         self.subtree_nodes = subtree_nodes
+        self.name = name
 
 def get_hierarchy(name='hema_16cell'):
 
@@ -70,7 +71,7 @@ def get_hierarchy(name='hema_16cell'):
         subtree_nodes[14] = [14]
         subtree_nodes[15] = [15]
 
-        hierarchy = Hierarchy(NUM_NODES, direct_children, subtree_nodes)
+        hierarchy = Hierarchy(NUM_NODES, direct_children, subtree_nodes, name)
 
 
     elif name == 'hema_diff_wrt_HSC':
@@ -117,7 +118,7 @@ def get_hierarchy(name='hema_16cell'):
         subtree_nodes[13] = [13]
         subtree_nodes[14] = [14]
 
-        hierarchy = Hierarchy(NUM_NODES, direct_children, subtree_nodes)
+        hierarchy = Hierarchy(NUM_NODES, direct_children, subtree_nodes, name)
 
     else:
         raise ValueError('No existing hierarchy for provided name: %s'%name)

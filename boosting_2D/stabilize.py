@@ -30,13 +30,13 @@ class BundleStore(object):
                  rule_bundle_regdown_regs):
         self.rule_bundle_regup_motifs = rule_bundle_regup_motifs
         self.rule_bundle_regup_regs = rule_bundle_regup_regs
-        assert len(self.rule_bundle_regup_regs) == len(
-            self.rule_bundle_regup_motifs)
+        assert len(self.rule_bundle_regup_regs) == \
+               len(self.rule_bundle_regup_motifs)
 
         self.rule_bundle_regdown_motifs = rule_bundle_regdown_motifs
         self.rule_bundle_regdown_regs = rule_bundle_regdown_regs
-        assert len(self.rule_bundle_regdown_regs) == len(
-            self.rule_bundle_regdown_motifs)
+        assert len(self.rule_bundle_regdown_regs) == \
+               len(self.rule_bundle_regdown_motifs)
         self.size = self.__get_bundle_size__()
         
     def __get_bundle_size__(self):
@@ -49,11 +49,11 @@ def stable_boost_thresh(tree, y, weights_i):
     if y.sparse:
        stable_thresh = np.sqrt(
         np.matrix.sum((np.square(weights_i[weights_i.nonzero()])/np.square(
-            np.matrix.sum(weights_i[weights_i.nonzero()])))))
+                       np.matrix.sum(weights_i[weights_i.nonzero()])))))
     else:
        stable_thresh = np.sqrt(
         sum((np.square(weights_i[weights_i.nonzero()])/np.square(
-            sum(weights_i[weights_i.nonzero()])))))
+             sum(weights_i[weights_i.nonzero()])))))
     return stable_thresh
 
 # Calculate theta or score for the bundle 
@@ -82,8 +82,8 @@ def get_rule_score_and_indices(rule_bundle, ind_pred_train,
 
     # Pack arguments
     stable_args = [y, x1, x2, rule_index_cntr, rule_bundle, \
-         ind_pred_train[best_split], rule_weights.w_pos, rule_weights.w_neg, (
-        lock_stable, theta_alphas, bundle_train_pred, bundle_test_pred)]
+         ind_pred_train[best_split], ind_pred_test[best_split], rule_weights.w_pos, rule_weights.w_neg, (
+         lock_stable, theta_alphas, bundle_train_pred, bundle_test_pred)]
 
     # Fork worker processes, and wait for them to return
     fork_and_wait(config.NCPU, return_rule_index, stable_args)
@@ -121,8 +121,8 @@ def get_rule_score_and_indices(rule_bundle, ind_pred_train,
     return rule_bundle_score, new_train_rule_ind, new_test_rule_ind
 
 def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle, 
-        best_split_train_index, w_pos, w_neg, (
-        lock_stable, theta_alphas, bundle_train_pred, bundle_test_pred)):
+                      best_split_train_index, best_split_test_index, w_pos, w_neg, 
+                      (lock_stable, theta_alphas, bundle_train_pred, bundle_test_pred)):
     while True:
         # get the leaf node to work on
         with rule_index_cntr.get_lock():
@@ -130,8 +130,8 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
             rule_index_cntr.value += 1
         
         # if this isn't a valid leaf, then we are done
-        if rule_index >= len(rule_bundle.rule_bundle_regup_motifs)+ \
-          len(rule_bundle.rule_bundle_regdown_motifs): 
+        if rule_index >= len(rule_bundle.rule_bundle_regup_motifs) + \
+                         len(rule_bundle.rule_bundle_regdown_motifs): 
             return
         
         # Allocate rule matrix to save memory (how to do that)
@@ -141,11 +141,11 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
             valid_mat_h = np.zeros((y.num_row,y.num_col))
 
         m_h = (rule_bundle.rule_bundle_regup_motifs+
-            rule_bundle.rule_bundle_regdown_motifs)[rule_index]
+               rule_bundle.rule_bundle_regdown_motifs)[rule_index]
         r_h = (rule_bundle.rule_bundle_regup_regs+
-            rule_bundle.rule_bundle_regdown_regs)[rule_index]
+               rule_bundle.rule_bundle_regdown_regs)[rule_index]
         reg_h = ([+1]*len(rule_bundle.rule_bundle_regup_motifs)+
-            [-1]*len(rule_bundle.rule_bundle_regdown_motifs))[rule_index]
+                 [-1]*len(rule_bundle.rule_bundle_regdown_motifs))[rule_index]
 
         if x1.sparse:
             valid_m_h = np.nonzero(x1.data[m_h,:])[1]
@@ -153,19 +153,17 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
         else:
             valid_m_h = np.nonzero(x1.data[m_h,:])[0]
             valid_r_h = np.where(x2.data[:,r_h]==reg_h)[0]
-        valid_mat_h[np.ix_(valid_m_h, valid_r_h)]=1
 
         # calculate the loss for this leaf  
         valid_mat_h[np.ix_(valid_m_h, valid_r_h)]=1
         rule_train_index_h = util.element_mult(valid_mat_h, best_split_train_index)
-        rule_test_index_h = util.element_mult(valid_mat_h, best_split_train_index)
-        # rule_test_index_h = element_mult(valid_mat_h, holdout.ind_test_all)
+        rule_test_index_h = util.element_mult(valid_mat_h, best_split_test_index) # before both were best_split_train_index
         rule_score_h = 0.5*np.log((util.element_mult(
-             w_pos, rule_train_index_h).sum()+
-             config.TUNING_PARAMS.epsilon)/(
-             util.element_mult(w_neg,
-             rule_train_index_h).sum()
-             +config.TUNING_PARAMS.epsilon))
+                                 w_pos, rule_train_index_h).sum()+
+                                 config.TUNING_PARAMS.epsilon)/(
+                                 util.element_mult(w_neg,
+                                 rule_train_index_h).sum()
+                                 +config.TUNING_PARAMS.epsilon))
 
         print rule_index
 
@@ -175,13 +173,13 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
             # Add current rule to training and testing sets
             current_bundle_train_pred = np.reshape(
                 np.array(bundle_train_pred), y.data.shape)
-            updated_bundle_train_pred = current_bundle_train_pred+ \
-                rule_score_h*rule_train_index_h
+            updated_bundle_train_pred = current_bundle_train_pred + \
+                                        rule_score_h*rule_train_index_h
 
             current_bundle_test_pred = np.reshape(
                 np.array(bundle_test_pred), y.data.shape)
-            updated_bundle_test_pred = current_bundle_test_pred+ \
-                rule_score_h*rule_test_index_h
+            updated_bundle_test_pred = current_bundle_test_pred + \
+                                       rule_score_h*rule_test_index_h
 
             # Update shared object
             theta_alphas[rule_index]=rule_score_h
@@ -194,7 +192,6 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
                 bundle_train_pred[:]=updated_bundle_train_pred.ravel()
                 bundle_test_pred[:]=updated_bundle_test_pred.ravel()
 
-    
 
 # Get rules to average (give motif, regulator and index)
 # @profile
