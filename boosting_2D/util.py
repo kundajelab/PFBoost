@@ -29,14 +29,17 @@ class Logger():
             msg = time_stamp + msg
         self.ofp.write(msg.strip() + "\n")
 
-def log_progress(tree, i, x1, x2, ofp=None, verbose=True):
-    msg = "\n".join([
+def log_progress(tree, i, x1, x2, hierarchy, ofp=None, verbose=True):
+    msg_contents = [
         'iteration: {0}'.format(i),
         'imbalanced train error: {0}'.format(tree.imbal_train_err[i]),
         'imbalanced test error: {0}'.format(tree.imbal_test_err[i]),
         'x1 split feat {0}'.format(x1.row_labels[tree.split_x1[i]]),
         'x2 split feat {0}'.format(x2.col_labels[tree.split_x2[i]]),
-        'rule score {0}'.format(tree.scores[i])])
+        'rule score {0}'.format(tree.scores[i])]
+    if hierarchy is not None:
+        msg_contents = msg_contents + ['hierarchy node {0}'.format(tree.hierarchy_node[i])]
+    msg = "\n".join(msg_contents)
     if verbose:
         print msg
     if ofp is not None:

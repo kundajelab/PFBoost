@@ -213,6 +213,8 @@ def parse_args():
     config.PLOT = args.plot
 
     hierarchy = h.get_hierarchy(name=args.hierarchy_name)
+    if hierarchy is not None:
+        log('Applying hierarchy: %s'%hierarchy, level='VERBOSE')        
 
     return (x1, x2, y, holdout, hierarchy)
 
@@ -372,7 +374,7 @@ def main():
                       above_motifs, above_regs, holdout, y)
 
         ### Print progress
-        util.log_progress(tree, i, x1, x2, ofp=f, verbose=True)
+        util.log_progress(tree, i, x1, x2, hierarchy, ofp=f, verbose=True)
 
     ### Print end time and close logfile pointer
     t1 = time.time()
