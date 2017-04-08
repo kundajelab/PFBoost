@@ -14,6 +14,7 @@ from grit.lib.multiprocessing_utils import fork_and_wait
 from boosting_2D import util
 from boosting_2D import config
 from boosting_2D import find_rule
+from boosting_2D import hierarchy as h
 
 import pyximport; pyximport.install()
 from boosting_2D import util_functions
@@ -44,7 +45,7 @@ class BundleStore(object):
             self.rule_bundle_regup_motifs)
 
 ### Stabilization Functions
-# Get the stabilizationt threshold based on the current weights
+# Get the stabilization threshold based on the current weights
 def stable_boost_thresh(tree, y, weights_i): 
     if y.sparse:
        stable_thresh = np.sqrt(
@@ -57,10 +58,10 @@ def stable_boost_thresh(tree, y, weights_i):
     return stable_thresh
 
 # Calculate theta or score for the bundle 
-def get_rule_score_and_indices(rule_bundle, ind_pred_train, 
-          ind_pred_test, best_split, weights_i,
-          rule_weights, tree, y, x1, x2, holdout,
-          rule_train_index, rule_test_index):
+def get_rule_score_and_indices(rule_bundle, training_examples, 
+                               testing_examples, weights_i,
+                               rule_weights, tree, y, x1, x2, holdout,
+                               rule_train_index, rule_test_index):
 
     ### ADD IN 
     if rule_bundle.size==1:
@@ -82,8 +83,9 @@ def get_rule_score_and_indices(rule_bundle, ind_pred_train,
 
     # Pack arguments
     stable_args = [y, x1, x2, rule_index_cntr, rule_bundle, \
-         ind_pred_train[best_split], ind_pred_test[best_split], rule_weights.w_pos, rule_weights.w_neg, (
-         lock_stable, theta_alphas, bundle_train_pred, bundle_test_pred)]
+                   training_examples, testing_examples, 
+                   rule_weights.w_pos, rule_weights.w_neg,
+                   (lock_stable, theta_alphas, bundle_train_pred, bundle_test_pred)]
 
     # Fork worker processes, and wait for them to return
     fork_and_wait(config.NCPU, return_rule_index, stable_args)
@@ -115,8 +117,8 @@ def get_rule_score_and_indices(rule_bundle, ind_pred_train,
 
     # get score of new rule
     rule_bundle_score = 0.5*np.log(
-        (w_bundle_pos.sum()+config.TUNING_PARAMS.epsilon)/
-        (w_bundle_neg.sum()+config.TUNING_PARAMS.epsilon))
+                            (w_bundle_pos.sum()+config.TUNING_PARAMS.epsilon)/
+                            (w_bundle_neg.sum()+config.TUNING_PARAMS.epsilon))
 
     return rule_bundle_score, new_train_rule_ind, new_test_rule_ind
 
@@ -124,12 +126,12 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
                       best_split_train_index, best_split_test_index, w_pos, w_neg, 
                       (lock_stable, theta_alphas, bundle_train_pred, bundle_test_pred)):
     while True:
-        # get the leaf node to work on
+        # Get the leaf node to work on
         with rule_index_cntr.get_lock():
             rule_index = rule_index_cntr.value
             rule_index_cntr.value += 1
         
-        # if this isn't a valid leaf, then we are done
+        # If this isn't a valid leaf, then we are done
         if rule_index >= len(rule_bundle.rule_bundle_regup_motifs) + \
                          len(rule_bundle.rule_bundle_regdown_motifs): 
             return
@@ -154,7 +156,7 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
             valid_m_h = np.nonzero(x1.data[m_h,:])[0]
             valid_r_h = np.where(x2.data[:,r_h]==reg_h)[0]
 
-        # calculate the loss for this leaf  
+        # Calculate the loss for this leaf  
         valid_mat_h[np.ix_(valid_m_h, valid_r_h)]=1
         rule_train_index_h = util.element_mult(valid_mat_h, best_split_train_index)
         rule_test_index_h = util.element_mult(valid_mat_h, best_split_test_index) # before both were best_split_train_index
@@ -195,14 +197,21 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
 
 # Get rules to average (give motif, regulator and index)
 # @profile
-def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
+def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, 
+                 rule_weights, hierarchy, hierarchy_node):
     level = 'VERBOSE' if config.VERBOSE else 'QUIET'
 
     log('starting bundle rules', level=level)
     log('best split is {0}'.format(best_split), level=level)
     log('calculate A', level=level)
 
-    weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
+    non_hier_training_examples = tree.ind_pred_train[best_split]
+    training_examples = h.get_hierarchy_index(hierarchy_node, hierarchy, 
+                                              non_hier_training_examples, tree)
+
+    # Get weights based on current training examples (obeying hierarchy)
+    # (formerly tree.ind_pred_train[best_split])
+    weights_i = util.element_mult(tree.weights, training_examples) 
 
     # SYMM DIFF - calculate weights and weights squared of best loss_rule (A)
     if reg==1:
@@ -312,6 +321,7 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
         rule_bundle_regdown_motifs = rule_bundle_regdown[0].tolist()
         rule_bundle_regdown_regs = rule_bundle_regdown[1].tolist()
 
+    # # Investigate large bundles
     # if len(rule_bundle_regup_motifs)+len(rule_bundle_regdown_motifs) > 40:
     #     pdb.set_trace()
 
@@ -326,47 +336,52 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split, rule_weights):
     return BundleStore(rule_bundle_regup_motifs, rule_bundle_regup_regs,
                          rule_bundle_regdown_motifs, rule_bundle_regdown_regs)
 
-# Get rule score
-def get_bundle_rule(tree, rule_bundle, theta, best_split, theta_alphas, 
-                    bundle_train_rule_indices, 
-                    bundle_test_rule_indices, 
-                    holdout, w_pos, w_neg):
-    # Training - add score to all places where rule applies
-    # initialize a prediction matrix with the correct dimensions to 0
-    bundle_train_pred = numpy.zeros(
-         bundle_train_rule_indices[0].shape, dtype=float)
-    for ind in xrange(len(theta_alphas)):
-        bundle_train_pred = bundle_train_pred + \
-            theta_alphas[ind]*bundle_train_rule_indices[ind]  
+# # Get rule score
+# def get_bundle_rule(tree, rule_bundle, theta, best_split, theta_alphas, 
+#                     bundle_train_rule_indices, 
+#                     bundle_test_rule_indices, 
+#                     holdout, w_pos, w_neg):
+#     # Training - add score to all places where rule applies
+#     # initialize a prediction matrix with the correct dimensions to 0
+#     bundle_train_pred = numpy.zeros(
+#          bundle_train_rule_indices[0].shape, dtype=float)
+#     for ind in xrange(len(theta_alphas)):
+#         bundle_train_pred = bundle_train_pred + \
+#             theta_alphas[ind]*bundle_train_rule_indices[ind]  
     
-    # new index is where absolute value greater than theta
-    new_train_rule_ind = (abs(bundle_train_pred)>theta)
+#     # new index is where absolute value greater than theta
+#     new_train_rule_ind = (abs(bundle_train_pred)>theta)
 
-    # Testing - add score to all places where rule applies
-    bundle_test_pred = bundle_test_rule_indices[0]*0
-    for ind in range(len(theta_alphas)):
-        bundle_test_pred = bundle_test_pred + \
-            theta_alphas[ind]*bundle_test_rule_indices[ind]
+#     # Testing - add score to all places where rule applies
+#     bundle_test_pred = bundle_test_rule_indices[0]*0
+#     for ind in range(len(theta_alphas)):
+#         bundle_test_pred = bundle_test_pred + \
+#             theta_alphas[ind]*bundle_test_rule_indices[ind]
 
-    # new index is where absolute value greater than theta
-    new_test_rule_ind = (abs(bundle_test_pred)>theta)
+#     # new index is where absolute value greater than theta
+#     new_test_rule_ind = (abs(bundle_test_pred)>theta)
 
-    # calculate W+ and W- for new rule
-    weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
-    w_pos = util.element_mult(weights_i, holdout.ind_train_up)
-    w_neg = util.element_mult(weights_i, holdout.ind_train_down)
-    w_bundle_pos = util.element_mult(w_pos, new_train_rule_ind)
-    w_bundle_neg = util.element_mult(w_neg, new_train_rule_ind) 
-     # get score of new rule
-    rule_bundle_score = 0.5*np.log((w_bundle_pos.sum() + 
-        config.TUNING_PARAMS.epsilon) /
-        (w_bundle_neg.sum()+config.TUNING_PARAMS.epsilon))
-    return rule_bundle_score, new_train_rule_ind, new_test_rule_ind
+#     # calculate W+ and W- for new rule
+#     weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
+#     w_pos = util.element_mult(weights_i, holdout.ind_train_up)
+#     w_neg = util.element_mult(weights_i, holdout.ind_train_down)
+#     w_bundle_pos = util.element_mult(w_pos, new_train_rule_ind)
+#     w_bundle_neg = util.element_mult(w_neg, new_train_rule_ind) 
+#      # get score of new rule
+#     rule_bundle_score = 0.5*np.log((w_bundle_pos.sum() + 
+#         config.TUNING_PARAMS.epsilon) /
+#         (w_bundle_neg.sum()+config.TUNING_PARAMS.epsilon))
+#     return (rule_bundle_score, new_train_rule_ind, new_test_rule_ind)
 
 # Statistic to see whether stabilization applies
 def stable_boost_test(tree, rule_train_index, holdout):
     w_pos = util.element_mult(tree.weights, holdout.ind_train_up)
     w_neg = util.element_mult(tree.weights, holdout.ind_train_down) 
     test = 0.5*abs(util.element_mult(w_pos, rule_train_index).sum() - \
-        util.element_mult(w_neg, rule_train_index).sum())
+           util.element_mult(w_neg, rule_train_index).sum())
     return test
+
+
+
+
+

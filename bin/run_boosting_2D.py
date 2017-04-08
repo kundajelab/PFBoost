@@ -229,7 +229,8 @@ def parse_args():
 def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
     level = 'VERBOSE' if config.VERBOSE else 'QUIET'
 
-    ## Calculate loss at all search nodes
+    ## Calculate loss at all search nodes 
+    ## (will search across current hier node and direct children to find best hier node)
     log('find rule process', level=level)
     best_split, regulator_sign, hierarchy_node, loss_best = find_rule_processes(
         tree, holdout, y, x1, x2, hierarchy) 
@@ -242,10 +243,15 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
 
     log('find rule weights', level=level)
 
-    # Mask training examples by using only hierarchy children
+    # Mask training/testing examples by using only hierarchy children
     non_hier_training_examples = tree.ind_pred_train[best_split]
     training_examples = h.get_hierarchy_index(hierarchy_node, hierarchy, 
                                               non_hier_training_examples, tree)
+
+    non_hier_testing_examples = tree.ind_pred_test[best_split]
+    testing_examples = h.get_hierarchy_index(hierarchy_node, hierarchy, 
+                                             non_hier_testing_examples, tree)
+
 
     # Get rule weights for the best split
     rule_weights = find_rule_weights(
@@ -253,6 +259,7 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
         holdout, y, x1, x2)
 
     # Get current rule, no stabilization
+    # rule_train_index/rule_test_index restricted to hierarchy
     log('get current rule', level=level)
     (motif, regulator, regulator_sign, rule_train_index, rule_test_index 
      ) = get_current_rule(
@@ -275,21 +282,21 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
             log('stabilization criterion applies', level='VERBOSE')
             # Get rules that are bundled together
             log('getting rule bundle', level=level)
-            bundle = stabilize.bundle_rules(
-                tree, y, x1, x2, 
-                motif, 
-                regulator, regulator_sign, 
-                best_split, rule_weights)
+            bundle = stabilize.bundle_rules(tree, y, x1, x2, 
+                                            motif, 
+                                            regulator, regulator_sign, 
+                                            best_split, rule_weights,
+                                            hierarchy, hierarchy_node)
 
             # rule score is the direction and magnitude of the prediciton update
             # for the rule given by rule_weights and rule_train_index
             log('updating scores and indices with bundle', level=level)
             (rule_score, rule_train_index, rule_test_index 
             ) = stabilize.get_rule_score_and_indices(bundle, 
-              tree.ind_pred_train, tree.ind_pred_test, 
-              best_split, weights_i, rule_weights,
-              tree, y, x1, x2, holdout,
-              rule_train_index, rule_test_index)
+                          training_examples, testing_examples,
+                          weights_i, rule_weights,
+                          tree, y, x1, x2, holdout,
+                          rule_train_index, rule_test_index)
 
             # Add bundled rules to bundle
             log('adding bundles to rule', level=level)
