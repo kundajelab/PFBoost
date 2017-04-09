@@ -343,7 +343,7 @@ def main():
     out_file_prefix = '{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     logfile_name = '{0}/LOG_FILE.txt'.format(out_file_prefix)
     pickle_script_file = '{0}/load_pickle_data_script.py'.format(out_file_prefix)
-    load_data_script_file = '{0}/load_complete_data_script.py'.format(out_file_prefix)
+    load_complete_data_script_file = '{0}/load_complete_data_script.py'.format(out_file_prefix)
     pickle_file = '{0}/saved_complete_model__{1}.gz'.format(out_file_prefix, config.OUTPUT_PREFIX)
 
     log('Log File: {0}'.format(logfile_name), level='VERBOSE')
@@ -405,15 +405,15 @@ def main():
                          out_file=rule_file_name, logfile_pointer=f)
 
     ### Write out load data file
-    # save_model.write_load_data_script(y, x1, x2, holdout, prior.PRIOR_PARAMS,
-    #                                   tree_file_name, load_data_script_file,
-    #                                   logfile_pointer=f)
+    save_model.write_load_complete_data_script(y, x1, x2, holdout, hierarchy, prior.PRIOR_PARAMS,
+                                              tree_file_name, load_complete_data_script_file,
+                                              logfile_pointer=f)
 
     ### Store model objects and script to load iteration
     save_model.save_complete_model_state(pickle_file, x1, x2, y, tree)
-    save_model.write_load_pickle_data_script(pickle_file, 
-                                             pickle_script_file=pickle_script_file, 
-                                             logfile_pointer=f)
+    save_model.write_postprocesssing_load_script(pickle_file, 
+                                                 pickle_script_file=pickle_script_file, 
+                                                 logfile_pointer=f)
 
     ### Print pickling time and close logfile pointer
     t2 = time.time()
