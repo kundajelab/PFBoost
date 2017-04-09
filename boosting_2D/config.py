@@ -4,6 +4,7 @@ OUTPUT_PATH = None
 OUTPUT_PREFIX = None
 
 TUNING_PARAMS = None
+SAVING_PARAMS = None
 NCPU = None
 
 VERBOSE = False
@@ -17,3 +18,7 @@ TuningParams = namedtuple('TuningParams', [
     'eta_1', 'eta_2', 'bundle_max', 'epsilon'
 ])
 
+SavingParams = namedtuple('SavingParams', [
+	'save_tree_only', 'save_complete_data',
+	'save_for_post_processing'
+])

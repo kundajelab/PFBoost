@@ -31,11 +31,11 @@ from boosting_2D import hierarchy as h
 log = util.log
 
 ### Set constant parameters
-TuningParams = namedtuple('TuningParams', [
-    'num_iter',
-    'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
-    'eta_1', 'eta_2', 'bundle_max', 'epsilon'
-])
+# TuningParams = namedtuple('TuningParams', [
+#     'num_iter',
+#     'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
+#     'eta_1', 'eta_2', 'bundle_max', 'epsilon'
+# ])
 
 def parse_args():
     # Get arguments
@@ -126,6 +126,14 @@ def parse_args():
                         help='flag to shuffle the contents of y matrix', 
                         action='store_true')
 
+    parser.add_argument('--save-tree-only', 
+                        help='Pickle the tree only', default=False, action="store_true")
+    parser.add_argument('--save-complete-data', 
+                        help='Pickle every single matrix (x1, x2, y, holdout, prior, tree, etc.)',
+                        default=False, action="store_true")
+    parser.add_argument('--save-for-post-processing', 
+                        help='Generate ', default=True, action="store_true")
+
     parser.add_argument('--hierarchy_name', 
                         help='Reference for hierarchy encoding in hierarchy.py', default=None)
 
@@ -182,12 +190,15 @@ def parse_args():
         log('Applying hierarchy: %s'%hierarchy.name, level='VERBOSE')        
 
     # Configure tuning tarameters
-    config.TUNING_PARAMS = TuningParams(
+    config.TUNING_PARAMS = config.TuningParams(
         args.num_iter, 
         args.stumps, args.stable, args.corrected_loss,
         args.use_prior,
         args.eta1, args.eta2, 20, 1./holdout.n_train)
-
+    config.SAVING_PARAMS = config.SavingParams(
+        args.save_tree_only,
+        args.save_complete_data,
+        args.save_for_post_processing)
 
     # Get method label so plot label uses parameters used
     method_label = util.get_method_label()
@@ -342,9 +353,9 @@ def main():
     ### Set up output files
     out_file_prefix = '{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     logfile_name = '{0}/LOG_FILE.txt'.format(out_file_prefix)
+    pickle_file = '{0}/saved_complete_model__{1}.gz'.format(out_file_prefix, config.OUTPUT_PREFIX)
     pickle_script_file = '{0}/load_pickle_data_script.py'.format(out_file_prefix)
     load_complete_data_script_file = '{0}/load_complete_data_script.py'.format(out_file_prefix)
-    pickle_file = '{0}/saved_complete_model__{1}.gz'.format(out_file_prefix, config.OUTPUT_PREFIX)
 
     log('Log File: {0}'.format(logfile_name), level='VERBOSE')
     if not os.path.exists('{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)):
@@ -393,10 +404,6 @@ def main():
     logfile('ending main loop: {0}'.format(t1), log_time=True, level='VERBOSE')
     logfile('total time: {0}'.format(t1 - t0), log_time=True, level='VERBOSE')
 
-    # Save tree state
-    tree_file_name = '{0}{1}/saved_tree_state__{1}.gz'.format(
-        config.OUTPUT_PATH, config.OUTPUT_PREFIX)
-    save_tree_state(tree, pickle_file=tree_file_name)
 
     ### Write out rules
     rule_file_name = '{0}{1}/global_rules__{1}.txt'.format(
@@ -404,16 +411,25 @@ def main():
     tree.write_out_rules(tree, x1, x2, config.TUNING_PARAMS,
                          out_file=rule_file_name, logfile_pointer=f)
 
+    # Save tree state
+    if config.SAVING_PARAMS.save_tree_only:
+        tree_file_name = '{0}{1}/saved_tree_state__{1}.gz'.format(
+            config.OUTPUT_PATH, config.OUTPUT_PREFIX)
+        save_tree_state(tree, pickle_file=tree_file_name)
+        log('Pickled tree written to: {0}'.format(tree_file_name), level='VERBOSE')
+
     ### Write out load data file
-    save_model.write_load_complete_data_script(y, x1, x2, holdout, hierarchy, prior.PRIOR_PARAMS,
-                                              tree_file_name, load_complete_data_script_file,
-                                              logfile_pointer=f)
+    if config.SAVING_PARAMS.save_complete_data:
+        save_model.write_load_complete_data_script(y, x1, x2, holdout, hierarchy, prior.PRIOR_PARAMS,
+                                                   tree_file_name, load_complete_data_script_file,
+                                                   logfile_pointer=f)
 
     ### Store model objects and script to load iteration
-    save_model.save_complete_model_state(pickle_file, x1, x2, y, tree)
-    save_model.write_postprocesssing_load_script(pickle_file, 
-                                                 pickle_script_file=pickle_script_file, 
-                                                 logfile_pointer=f)
+    if config.SAVING_PARAMS.save_for_post_processing:
+        save_model.save_complete_model_state(pickle_file, x1, x2, y, hierarchy, tree)
+        save_model.write_postprocesssing_load_script(pickle_file, 
+                                                     pickle_script_file=pickle_script_file, 
+                                                     logfile_pointer=f)
 
     ### Print pickling time and close logfile pointer
     t2 = time.time()

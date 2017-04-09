@@ -185,7 +185,7 @@ tree = pickle.load(gzip.open('{0}', 'rb'))
     f = open(load_data_script_file, 'w')
     f.write(complete_message)
     f.close()
-    log_msg = 'load data script is here {0}'.format(load_data_script_file)
+    log_msg = 'Complete load data script is here {0}'.format(load_data_script_file)
     if logfile_pointer is not None:
         logfile_pointer.write(log_msg + "\n")
     print log_msg
@@ -195,17 +195,20 @@ tree = pickle.load(gzip.open('{0}', 'rb'))
 ################################################################################################
 
 ### Store all model components in a dictionary and pickle that dictionary
-def save_complete_model_state(pickle_file, x1, x2, y, tree):
+def save_complete_model_state(pickle_file, x1, x2, y, hierarchy, tree):
     model_dict={}
     model_dict['x1']=x1
     model_dict['x2']=x2
     model_dict['y']=y
+    if hierarchy is not None:
+        model_dict['hierarchy']=hierarchy
     model_dict['tree']=tree
     config_dict=store_module_in_dict(config)
     model_dict['config']=config_dict # also a module object
     prior_dict=store_module_in_dict(prior)
     model_dict['prior']=prior_dict # also a module object
-    with gzip.open(pickle_file,'wb') as f: pickle.dump(obj=model_dict, file=f, protocol=2)
+    with gzip.open(pickle_file,'wb') as f: 
+        pickle.dump(obj=model_dict, file=f, protocol=2)
 
 ### In order to pickle a module object store the dictionary
 def store_module_in_dict(module_object):
@@ -256,11 +259,15 @@ from boosting_2D import save_model
 log = util.log
 
 ### Set constant parameters
-TuningParams = namedtuple('TuningParams', [
-    'num_iter',
-    'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
-    'eta_1', 'eta_2', 'bundle_max', 'epsilon'
-])
+# TuningParams = namedtuple('TuningParams', [
+#     'num_iter',
+#     'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
+#     'eta_1', 'eta_2', 'bundle_max', 'epsilon'
+# ])
+# SavingParams = namedtuple('SavingParams', [
+#     'save_tree_only', 'save_complete_data',
+#     'save_for_post_processing'
+# ])
 
 ### LOAD DATA
 ################################################################################################
@@ -274,6 +281,8 @@ x1 = model_dict['x1']
 x2 = model_dict['x2']
 y = model_dict['y']
 tree = model_dict['tree']
+if 'hierarchy' in model_dict:
+    hierarchy = model_dict['hierarchy']
 
 # Unpack config and prior dictionaries
 for key in model_dict['config'].keys():
@@ -282,7 +291,7 @@ for key in model_dict['prior'].keys():
     exec('prior.%s=model_dict["prior"]["%s"]'%(key, key))
 
     """.format(pickle_file))
-    log_msg = 'load data from {0}'.format(pickle_script_file)
+    log_msg = 'Post-processing load data script is here: {0}'.format(pickle_script_file)
     if logfile_pointer is not None:
         logfile_pointer.write(log_msg + "\n")
     print log_msg
