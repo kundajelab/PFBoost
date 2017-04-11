@@ -4,10 +4,10 @@
 
 import sys
 import os
-import random
 
 import numpy as np 
 from scipy.sparse import *
+import random
 
 import argparse
 import pandas as pd
@@ -62,6 +62,8 @@ def parse_args():
                         help='path to stored data model')
     parser.add_argument('--analysis-label', 
                         help='label of current analysis (e.g. label for cell/peak subset')
+    parser.add_argument('--ncpu', 
+                        help='number CPUs for parallelization', type=int, default=1)
 
     # Margin score arguments
     parser.add_argument('--run-margin-score', 
@@ -121,6 +123,8 @@ def parse_args():
     features_to_use = args.features_to_use.split(',') if args.features_to_use != None else None
     examples_to_track = args.examples_to_track.split(',') if args.examples_to_track != None else None
 
+    config.NCPU = args.ncpu
+
     # Store arguments in a named tuple
     PARAMS = PostProcess_Params(
         args.model_path, prefix,
@@ -165,7 +169,7 @@ def check_empty_index_mat(index_mat_dict):
 
 # Run main loop
 def main():
-    print 'starting main loop'
+    log('starting main loop', level='VERBOSE')
 
     # Parse arguments
     log('parse args start')
@@ -176,24 +180,21 @@ def main():
     locals_dict = {}
     execfile(PARAMS.model_path, {}, locals_dict)
     globals().update(locals_dict)
-    config.NCPU=4
 
-    # from IPython import embed; embed()
-    # pdb.set_trace()
-    
     ### Run margin score
     if PARAMS.run_margin_score:
 
         # Get index matrix
         index_mat = margin_score.get_index(y, x1, x2, tree,
-         condition_feat_file=PARAMS.condition_feat_file, region_feat_file=PARAMS.region_feat_file)
+                                           condition_feat_file=PARAMS.condition_feat_file, 
+                                           region_feat_file=PARAMS.region_feat_file)
 
         # Keep promoters and enhancers together 
-        if PARAMS.split_prom_enh_dist == None:
+        if PARAMS.split_prom_enh_dist is None:
             index_mat_dict = get_index_mat_dict(index_mat)
 
         # Split promoters and enhancers 
-        if PARAMS.split_prom_enh_dist != None:
+        if PARAMS.split_prom_enh_dist is not None:
             tss_file="""/mnt/data/annotations/by_release/hg19.GRCh37/GENCODE_ann/
                 gencodeTSS/v19/TSS_human_strict_with_gencodetss_notlow_ext50eachside
             _merged_withgenctsscoord_andgnlist.gff.gz""".replace('\n','').replace(' ', '')
@@ -205,15 +206,12 @@ def main():
                 print "No enhancers found - empty index matrix. Try without separating enh/prom."
                 return 0
 
-        # Create a pool to calculate all margin scores efficiently
-        pool='serial' # REMOVE
-
         # Iterate through all methods and index matrices
         for method in PARAMS.margin_score_methods:
             for key in index_mat_dict.keys():
                 margin_score.call_rank_by_margin_score(index_mat_dict[key], 
                     key, method, PARAMS.analysis_label,
-                    y, x1, x2, tree, pool, 
+                    y, x1, x2, tree, 
                     num_perm=PARAMS.num_perm, 
                     null_tree_file=PARAMS.null_tree_model)
 
@@ -253,15 +251,12 @@ def main():
                 print "No enhancers found - empty index matrix 2. Try without separating enh/prom."
                 return 0
 
-        # Create a pool to calculate all margin scores efficiently
-        pool='serial' # REMOVE
-
         # Iterate through all methods and index matrices
         for method in PARAMS.margin_score_methods:
             for key in index_mat_dict1.keys():
                 margin_score.call_discriminate_margin_score(index_mat_dict1[key], index_mat_dict2[key],
                     key, method, PARAMS.analysis_label,
-                    y, x1, x2, tree, pool, 
+                    y, x1, x2, tree, 
                     num_perm=PARAMS.num_perm, 
                     null_tree_file=PARAMS.null_tree_model)
 
@@ -274,9 +269,9 @@ def main():
         print ('Beginning clustering, this may take up to several hours '
         'depending on the size of the matrix')
         (cluster_file, new_clusters) = post_process_unsupervised.cluster_examples_kmeans(
-         y, x1, x2, tree, n_clusters_start=PARAMS.n_clusters_start,
-          mat_features=PARAMS.features_to_use)
-        pdb.set_trace()
+                                         y, x1, x2, tree, n_clusters_start=PARAMS.n_clusters_start,
+                                          mat_features=PARAMS.features_to_use)
+        from IPython import embed; embed()
         # Write out bed files with each cluster
         if PARAMS.clusters_to_write!='none':
             write_out_cluster(y, cluster_file, new_clusters,

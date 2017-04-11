@@ -5,12 +5,12 @@ from datetime import datetime
 import pickle
 import copy
 import gzip
-import random
 import pdb
 
 import numpy as np 
 import sklearn.utils
 from scipy.sparse import *
+import random
 
 
 ### Log 

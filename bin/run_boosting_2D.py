@@ -171,7 +171,7 @@ def parse_args():
     if args.shuffle_x1:
         x1 = util.shuffle_data_object(x1)
     if args.shuffle_x2:
-        x2 = util.shuffle_data_object(x1)
+        x2 = util.shuffle_data_object(x2)
 
     # Compress regulators
     if args.compress_regulators:
@@ -180,8 +180,8 @@ def parse_args():
     # Load holdout
     log('load holdout start')
     holdout = Holdout(y, args.mult_format,
-     args.holdout_file, args.holdout_format,
-     args.train_fraction)
+                      args.holdout_file, args.holdout_format,
+                      args.train_fraction)
     log('load holdout stop')
 
     # Configure hierarchy
@@ -442,6 +442,7 @@ def main():
         plot.plot_margin(tree, config.TUNING_PARAMS.num_iter)
         plot.plot_balanced_error(tree, config.TUNING_PARAMS.num_iter)
         plot.plot_imbalanced_error(tree, config.TUNING_PARAMS.num_iter)
+        log('Plots generated in: {0}/plots/'.format(out_file_prefix), log_time=False, level='VERBOSE')
 
 
 ### Main

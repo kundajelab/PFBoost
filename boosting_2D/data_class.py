@@ -372,7 +372,7 @@ class DecisionTree(object):
                         [tree.split_x2[above_node]] +
                      tree.bundle_x2[above_node]]).tolist()))       
             rule_score_mat.ix[i - 1,'tree_depth'] = tree.split_depth[i]
-        log_msg = 'wrote rules to {0}'.format(out_file)
+        log_msg = 'Wrote rules to {0}'.format(out_file)
         if logfile_pointer is not None:
             logfile_pointer.write(log_msg + "\n")
         if out_file is not None:

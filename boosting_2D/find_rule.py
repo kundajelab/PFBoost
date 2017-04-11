@@ -1,4 +1,9 @@
+# from grit.lib.multiprocessing_utils import fork_and_wait
+import os
+os.sys.path.insert(0, '/users/pgreens/git/grit')
+import grit
 from grit.lib.multiprocessing_utils import fork_and_wait
+
 import multiprocessing
 import ctypes
 
@@ -54,6 +59,8 @@ def find_rule_process_worker(
         # if this isn't a valid leaf, then we are done
         if leaf_index >= tree.nsplit: 
             return
+
+        # No issue up to here
         
         # If no hierarchy use the index for the leaf
         if hierarchy == None:
@@ -67,7 +74,7 @@ def find_rule_process_worker(
             # hierarchy node is just root
             hierarchy_node = 0
 
-        # If there is a hierarchy, iterate through possible children
+        # # If there is a hierarchy, iterate through possible children
         else:
 
             # Keep best loss node of hierarchy
