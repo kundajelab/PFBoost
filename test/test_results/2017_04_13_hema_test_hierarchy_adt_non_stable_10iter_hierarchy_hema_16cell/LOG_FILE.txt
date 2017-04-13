@@ -1,0 +1,78 @@
+Command run:
+ bin/run_boosting_2D.py --num-iter 10 --output-prefix hema_test_hierarchy --input-format matrix --mult-format dense -x test/data/hema_data_hierarchy/motif_matrix.txt -z test/data/hema_data_hierarchy/expression_matrix.txt -y test/data/hema_data_hierarchy/accessibility_matrix.txt -g test/data/hema_data_hierarchy/peak_names.txt -e test/data/hema_data_hierarchy/cell_types.txt -m test/data/hema_data_hierarchy/motif_names.txt -r test/data/hema_data_hierarchy/reg_names.txt --holdout-file test/data/hema_data_hierarchy/holdout.txt --ncpu 1 --output-path test/test_results/ --hierarchy_name hema_16cell
+2017-04-13 16:19:05: starting main loop: 1492125545.41
+iteration: 1
+imbalanced train error: 0.32251850419
+imbalanced test error: 0.324079402348
+x1 split feat pwm/UBIP1_HUMAN
+x2 split feat HOXB5
+rule score 0.565107931559
+hierarchy node 0
+iteration: 2
+imbalanced train error: 0.353212987353
+imbalanced test error: 0.354115688367
+x1 split feat pwm/UBIP1_HUMAN
+x2 split feat TFCP2L1
+rule score -0.558215316632
+hierarchy node 1
+iteration: 3
+imbalanced train error: 0.295118079774
+imbalanced test error: 0.295878762006
+x1 split feat pwm/CPEB1_HUMAN
+x2 split feat ZNF214
+rule score 0.31130045539
+hierarchy node 0
+iteration: 4
+imbalanced train error: 0.295118079774
+imbalanced test error: 0.295878762006
+x1 split feat pwm/CPEB1_HUMAN
+x2 split feat FOXD4L1
+rule score -1.21778710101
+hierarchy node 0
+iteration: 5
+imbalanced train error: 0.295118079774
+imbalanced test error: 0.295878762006
+x1 split feat pwm/CPEB1_HUMAN
+x2 split feat ZNF831
+rule score -0.337949975099
+hierarchy node 1
+iteration: 6
+imbalanced train error: 0.261326384899
+imbalanced test error: 0.262449519744
+x1 split feat pwm/TBX15_HUMAN
+x2 split feat PRDM16
+rule score 0.164579145609
+hierarchy node 0
+iteration: 7
+imbalanced train error: 0.261326384899
+imbalanced test error: 0.262449519744
+x1 split feat pwm/CPEB1_HUMAN
+x2 split feat VSX1
+rule score -0.30498322429
+hierarchy node 0
+iteration: 8
+imbalanced train error: 0.261326384899
+imbalanced test error: 0.262449519744
+x1 split feat pwm/BC11A_HUMAN
+x2 split feat FOXD4L1
+rule score -0.590320739622
+hierarchy node 0
+iteration: 9
+imbalanced train error: 0.261326384899
+imbalanced test error: 0.262449519744
+x1 split feat pwm/CPEB1_HUMAN
+x2 split feat FOXD2
+rule score 0.280295684599
+hierarchy node 1
+iteration: 10
+imbalanced train error: 0.261326384899
+imbalanced test error: 0.262449519744
+x1 split feat pwm/BC11A_HUMAN
+x2 split feat ZNF831
+rule score -0.193227929342
+hierarchy node 1
+2017-04-13 16:20:43: ending main loop: 1492125643.5
+2017-04-13 16:20:43: total time: 98.0957410336
+Wrote rules to test/test_results/2017_04_13_hema_test_hierarchy_adt_non_stable_10iter_hierarchy_hema_16cell/global_rules__2017_04_13_hema_test_hierarchy_adt_non_stable_10iter_hierarchy_hema_16cell.txt
+Post-processing load data script is here: test/test_results/2017_04_13_hema_test_hierarchy_adt_non_stable_10iter_hierarchy_hema_16cell/load_pickle_data_script.py
+2017-04-13 16:22:20: save model time: 97.4447529316

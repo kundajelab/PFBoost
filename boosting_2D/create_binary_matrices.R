@@ -8,14 +8,9 @@
 ### Load libraries
 ################################################################################################
 library(optparse)
-# library(sva)
 library(preprocessCore)
-# library(limma)
-# library(DESeq2)
 library(doParallel)
 library(foreach)
-# library(BiocParallel)
-# register(MulticoreParam(4))
 
 ### Usage: 
 ################################################################################################

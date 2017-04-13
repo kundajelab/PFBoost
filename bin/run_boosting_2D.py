@@ -39,7 +39,7 @@ log = util.log
 
 def parse_args():
     # Get arguments
-    parser = argparse.ArgumentParser(description='Extract Chromatin States')
+    parser = argparse.ArgumentParser(description='Run boosting2D')
 
     parser.add_argument('--output-prefix', 
                         help='Analysis name for output plots')

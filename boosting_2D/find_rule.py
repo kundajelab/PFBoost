@@ -259,6 +259,7 @@ def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout,
     motif, regulator = np.where(loss_best == loss_best.min())
     # If multiple rules have the same loss, randomly select one
     if len(motif) > 1:
+        random.seed(1)
         choice = random.sample(range(len(motif)), 1)
         motif = np.array(motif[choice])
         regulator = np.array(regulator[choice])

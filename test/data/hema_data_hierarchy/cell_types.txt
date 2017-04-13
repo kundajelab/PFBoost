@@ -1,0 +1,16 @@
+HSC
+MPP
+LMPP
+CMP
+CLP
+GMP
+MEP
+pHSC
+LSC
+CD4
+CD8
+Bcell
+NKcell
+Monocyte
+Erythroid
+Leuk

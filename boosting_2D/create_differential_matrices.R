@@ -14,8 +14,6 @@ library(limma)
 library(DESeq2)
 library(doParallel)
 library(foreach)
-# library(BiocParallel)
-# register(MulticoreParam(4))
 
 ### Usage: 
 ################################################################################################

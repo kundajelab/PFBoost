@@ -358,12 +358,16 @@ class DecisionTree(object):
         # from IPython import embed; embed()
 
         # Identify train/test predictions and labels
-        train_predictions = self.pred_train[holdout.holdout == False].ravel()
-        test_predictions = self.pred_test[holdout.holdout == True].ravel()
-        train_labels = y.data[holdout.holdout == False].ravel()
-        test_labels = y.data[holdout.holdout == True].ravel()
+        holdout_data = holdout.holdout.toarray() if holdout.sparse else holdout.holdout
+        y_data = y.data.toarray() if y.sparse else y.data
+        pred_train_data = self.pred_train.toarray() if y.sparse else self.pred_train
+        pred_test_data = self.pred_test.toarray() if y.sparse else self.pred_test
+        train_predictions = pred_train_data[holdout_data == False].ravel()
+        test_predictions = pred_test_data[holdout_data == True].ravel()
+        train_labels = y_data[holdout_data == False].ravel()
+        test_labels = y_data[holdout_data == True].ravel()
 
-        if len(np.unique(y.data)) == 2:
+        if len(np.unique(y_data)) == 2:
             # auROC
             train_auroc_i = roc_auc_score(y_true=train_labels,
                                           y_score=train_predictions)
