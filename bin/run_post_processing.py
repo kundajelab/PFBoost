@@ -223,9 +223,11 @@ def main():
 
         # Get index matrix
         index_mat1 = margin_score.get_index(y, x1, x2, tree,
-         condition_feat_file=PARAMS.condition_feat_file, region_feat_file=PARAMS.region_feat_file)
+                                            condition_feat_file=PARAMS.condition_feat_file, 
+                                            region_feat_file=PARAMS.region_feat_file)
         index_mat2 = margin_score.get_index(y, x1, x2, tree,
-         condition_feat_file=PARAMS.condition_feat_file2, region_feat_file=PARAMS.region_feat_file2)
+                                            condition_feat_file=PARAMS.condition_feat_file2, 
+                                            region_feat_file=PARAMS.region_feat_file2)
 
         # Keep promoters and enhancers together 
         if PARAMS.split_prom_enh_dist == None:

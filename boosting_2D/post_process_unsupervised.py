@@ -16,6 +16,7 @@ from sklearn.cluster.bicluster import SpectralCoclustering
 import pandas as pd
 import numpy as np
 from scipy.sparse import *
+import random
 
 import multiprocessing
 import ctypes
@@ -37,7 +38,7 @@ from boosting_2D import config
 ###############################################################
 
 # Run k-means clustering using sofia_ml and then join similar clusters
-def cluster_examples_kmeans( y, x1, x2, tree, n_clusters_start=5000,
+def cluster_examples_kmeans(y, x1, x2, tree, n_clusters_start=5000,
     mat_features=['motif']):
 
     ### Set up output folder
@@ -116,8 +117,8 @@ def cluster_matrix_w_sofiaml_kmeans(ex_by_feat_mat, sofiaml_file, out_dir, n_clu
 def join_similar_kmeans_cluster(cluster_file, assignment_file, max_distance=0.5):
 
     # Read in clusters and assignments from assignment
-    clusters=np.loadtxt(cluster_file)
-    assigns=np.loadtxt(assignment_file)
+    clusters = np.loadtxt(cluster_file)
+    assigns = np.loadtxt(assignment_file)
 
     # Do hierarchical clustering on the clusters and group similar clusters
     d = dist.pdist(clusters, 'euclidean')  
@@ -135,7 +136,7 @@ def join_similar_kmeans_cluster(cluster_file, assignment_file, max_distance=0.5)
 #      clusters_to_write=[1,2,3,4], create_match_null=True)
 
 def write_out_cluster(y, cluster_file, new_clusters,
-     clusters_to_write='all', create_match_null=False):
+                      clusters_to_write='all', create_match_null=False):
 
     ### Set up output folder
     cluster_bed_dir = '{0}{1}/clustering/cluster_bed_files/'.format(

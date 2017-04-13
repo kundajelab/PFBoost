@@ -8,6 +8,9 @@ import numpy as np
 from scipy.sparse import *
 import pandas as pd
 
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import average_precision_score
+
 from boosting_2D.util import *
 
 class Data(object):
@@ -49,8 +52,10 @@ class Data(object):
         self.data_file = data_file
         self.row_label_file = row_labels
         self.col_label_file = col_labels
-        self.row_labels = np.genfromtxt(self.row_label_file, delimiter="\n", dtype="str")
-        self.col_labels = np.genfromtxt(self.col_label_file, delimiter="\n", dtype="str")
+        self.row_labels = np.genfromtxt(self.row_label_file, delimiter="\n", 
+                                        dtype="str")
+        self.col_labels = np.genfromtxt(self.col_label_file, delimiter="\n", 
+                                        dtype="str")
         self.input_format = input_format
         self.mult_format = mult_format
         if self.mult_format == 'sparse':
@@ -90,7 +95,8 @@ class Holdout(object):
         self.holdout_file = holdout_file
         self.holdout_format = holdout_format
         self.train_fraction = train_fraction if holdout_file is None else None
-        self.valid_fraction = (1 - self.train_fraction) if holdout_file is None else None
+        self.valid_fraction = (1 - self.train_fraction) \
+                              if holdout_file is None else None
         if self.mult_format == 'sparse':
             self.sparse = True
         elif self.mult_format == 'dense':
@@ -124,7 +130,8 @@ class Holdout(object):
             else:
                 self.holdout = np.reshape(
                     np.random.choice(a=[0,1], size=y.num_row*y.num_col,
-                     replace=True, p=[self.train_fraction, self.valid_fraction]), (y.num_row, y.num_col))
+                     replace=True, p=[self.train_fraction, self.valid_fraction]), 
+                     (y.num_row, y.num_col))
         log('allocate holdout')
         self.ind_test_up =  element_mult(self.holdout, y.data==1)
         self.ind_test_down = element_mult(self.holdout, y.data==-1)
@@ -173,6 +180,12 @@ class DecisionTree(object):
         self.bal_test_err = []
         self.imbal_train_err = []
         self.imbal_test_err = []
+
+        ### auROC/auPRC parameters
+        self.train_auroc = []
+        self.test_auroc = []
+        self.train_auprc = []
+        self.test_auprc = []
 
         ### Prediction Parameters
         self.ind_pred_train = []
@@ -275,6 +288,8 @@ class DecisionTree(object):
         self._update_weights(holdout,y)
         log('updating error')
         self._update_error(holdout, y)
+        log('updating auROC/auPRC')
+        self._update_auroc_auprc(holdout, y)
         log('updating margin')
         self._update_margin(y)
 
@@ -338,6 +353,44 @@ class DecisionTree(object):
         self.bal_test_err.append(bal_test_err_i)
         self.imbal_train_err.append(imbal_train_err_i)
         self.imbal_test_err.append(imbal_test_err_i)
+
+    def _update_auroc_auprc(self, holdout, y):
+        # from IPython import embed; embed()
+
+        # Identify train/test predictions and labels
+        train_predictions = self.pred_train[holdout.holdout == False].ravel()
+        test_predictions = self.pred_test[holdout.holdout == True].ravel()
+        train_labels = y.data[holdout.holdout == False].ravel()
+        test_labels = y.data[holdout.holdout == True].ravel()
+
+        if len(np.unique(y.data)) == 2:
+            # auROC
+            train_auroc_i = roc_auc_score(y_true=train_labels,
+                                          y_score=train_predictions)
+            test_auroc_i = roc_auc_score(y_true=test_labels,
+                                         y_score=test_predictions)
+            # auPRC
+            train_auprc_i = average_precision_score(y_true=train_labels,
+                                                    y_score=train_predictions)
+            test_auprc_i = average_precision_score(y_true=test_labels,
+                                                   y_score=test_predictions)
+        else:
+            # auROC - compute based on change (+1) v no change (0)
+            train_auroc_i = roc_auc_score(y_true=abs(train_labels),
+                                          y_score=abs(train_predictions))
+            test_auroc_i = roc_auc_score(y_true=abs(test_labels),
+                                         y_score=abs(test_predictions))
+            # auPRC - compute based on change (+1) v no change (0)
+            train_auprc_i = average_precision_score(y_true=abs(train_labels),
+                                                    y_score=abs(train_predictions))
+            test_auprc_i = average_precision_score(y_true=abs(test_labels),
+                                                   y_score=abs(test_predictions))
+
+        # Store error 
+        self.train_auroc.append(train_auroc_i)
+        self.test_auroc.append(test_auroc_i)
+        self.train_auprc.append(train_auprc_i)
+        self.test_auprc.append(test_auprc_i)
 
     def _update_margin(self, y):
         train_margin = calc_margin(y.data, self.pred_train)

@@ -68,6 +68,18 @@ serial = opt$serial
 # output_file=paste(c(DATA_PATH,'boosting_input/regulator_expression_binary_nadine_dense.txt'), collapse="")
 # binary_thresh=5
 
+# Command Inputs (Nadine expression April 12 new regulator set)
+# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
+# $SCRIPT_PATH"create_binary_matrices.R" \
+# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/RNA_AML_Samples.txt \
+# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrices/gene_level_counts.txt \
+# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_binary.txt \
+# -c cell_type \
+# -g /mnt/lab_data/kundaje/users/pgreens/projects/modisco/data/combined_regulators_CISBP_and_GO:0003677_DNA_binding_unique_gene_names_n2790_4_12_17.txt \
+# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/expression_binary_nadine_dense_april12_new_regulators.txt \
+# -m 5 -t dense
+
+
 sprintf('output file: %s', output_file)
 sprintf('regulator file: %s', regulator_file)
 sprintf('out_format file: %s', out_format)
@@ -142,7 +154,7 @@ if (regulator_file!='none'){
 
 dense_output_file = paste(c(strsplit(output_file, '.txt')[[1]][1], '_dense.txt'), collapse="")
 sparse_output_file = output_file
-write.table(data_diff_mat, dense_output_file, quote=FALSE, sep="\t", col.names=TRUE, row.names=TRUE)
+write.table(binary_mat, dense_output_file, quote=FALSE, sep="\t", col.names=TRUE, row.names=TRUE)
 
 if (out_format=='dense'){
     # Move to correct file name
@@ -159,7 +171,7 @@ if (out_format=='sparse'){
 # Write out row labels
 ################################################################################################
 if (label_output_file!='none'){
-    write.table(data.frame(rownames(data_diff_mat)), label_output_file, sep="\t", quote=FALSE, col.names=FALSE, row.names=FALSE)
+    write.table(data.frame(rownames(binary_mat)), label_output_file, sep="\t", quote=FALSE, col.names=FALSE, row.names=FALSE)
     sprintf('Wrote labels to: %s', label_output_file)
 }
 

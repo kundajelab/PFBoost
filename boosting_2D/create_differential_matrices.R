@@ -142,6 +142,17 @@ serial = opt$serial
 # -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_wrt_previous_cell_type_nadine_dense_april3.txt \
 # -m deseq -t dense
 
+# Command Inputs (Nadine expression April 12 new regulator set)
+# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
+# $SCRIPT_PATH"create_differential_matrices.R" \
+# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrices/gene_level_counts.txt \
+# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt \
+# -c cell_type \
+# -r /mnt/lab_data/kundaje/users/pgreens/projects/modisco/data/combined_regulators_CISBP_and_GO:0003677_DNA_binding_unique_gene_names_n2790_4_12_17.txt \
+# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/expression_diff_wrt_HSC_nadine_dense_april12_new_regulators.txt \
+# -m deseq -t dense
+
+
 sprintf('output file: %s', output_file)
 sprintf('regulator file: %s', regulator_file)
 sprintf('out_format file: %s', out_format)
