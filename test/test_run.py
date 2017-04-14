@@ -32,7 +32,7 @@ def load_hema_results():
     return (x1, x2, y, tree)
 
 def test_hema_results():
-    
+
     # Load data
     (x1, x2, y, tree) = load_hema_results()
 
@@ -217,6 +217,8 @@ if args.hierarchy == False:
 --ncpu 1 --output-path test/test_results/ \
     """%(args.mult_format).rstrip('\n')
 
+    print(command)
+
     os.system(command)
 
     result = test_hema_results()
@@ -229,9 +231,9 @@ else:
 python bin/run_boosting_2D.py \
 --num-iter 10 --output-prefix hema_test_hierarchy \
 --input-format matrix --mult-format %s  \
--x test/data/hema_data_hierarchy/motif_matrix.txt \
--z test/data/hema_data_hierarchy/expression_matrix.txt \
--y test/data/hema_data_hierarchy/accessibility_matrix.txt \
+-x test/data/hema_data_hierarchy/motif_matrix.txt.gz \
+-z test/data/hema_data_hierarchy/expression_matrix.txt.gz \
+-y test/data/hema_data_hierarchy/accessibility_matrix.txt.gz \
 -g test/data/hema_data_hierarchy/peak_names.txt \
 -e test/data/hema_data_hierarchy/cell_types.txt \
 -m test/data/hema_data_hierarchy/motif_names.txt \
