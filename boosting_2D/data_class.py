@@ -237,8 +237,8 @@ class DecisionTree(object):
 
         self.scores.append(score_root)
         # Add root node to first split
-        self.split_x1.append(np.array(['root']))
-        self.split_x2.append(np.array(['root']))
+        self.split_x1.append('root')
+        self.split_x2.append('root')
         self.nsplit += 1
         # Add empty lists for store
         self.above_motifs.append([])

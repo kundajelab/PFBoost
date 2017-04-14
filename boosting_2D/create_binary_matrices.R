@@ -74,6 +74,16 @@ serial = opt$serial
 # -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/expression_binary_nadine_dense_april12_new_regulators.txt \
 # -m 5 -t dense
 
+# Command Inputs (Nadine expression April 13 ALL GENES)
+# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
+# $SCRIPT_PATH"create_binary_matrices.R" \
+# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/RNA_AML_Samples.txt \
+# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrices/gene_level_counts.txt \
+# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_binary.txt \
+# -c cell_type \
+# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/expression_binary_nadine_dense_april12_new_regulators.txt \
+# -m 5 -t dense
+# See/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/boosting_data_sets/nadine_expression_binary_april14/prepare_data.py for more
 
 sprintf('output file: %s', output_file)
 sprintf('regulator file: %s', regulator_file)
@@ -87,14 +97,14 @@ sprintf('regulator_file: %s', regulator_file)
 
 annots = read.table(annot_file, sep="\t", header=TRUE, stringsAsFactors=FALSE, fill=TRUE)
 comparisons = read.table(comparison_file, sep="\t", header=FALSE, stringsAsFactors=FALSE)
-data_matrix = read.table(data_matrix_file, sep="\t", stringsAsFactors=FALSE, header=TRUE,check.names=FALSE,row.names=1)
+data_matrix = read.table(data_matrix_file, sep="\t", stringsAsFactors=FALSE, header=TRUE, check.names=FALSE, row.names=1)
 
 ### Get differential matrix
 ################################################################################################
 
 # Initialize the whole matrix
 unique_entries = unlist(unique(annots[comparison_column]))
-binary_mat0 = matrix(0,ncol=length(unique_entries), nrow=nrow(data_matrix))
+binary_mat0 = matrix(0, ncol=length(unique_entries), nrow=nrow(data_matrix))
 colnames(binary_mat0) = unique_entries
 rownames(binary_mat0) = rownames(data_matrix)
 
