@@ -132,7 +132,7 @@ def parse_args():
                         help='Pickle every single matrix (x1, x2, y, holdout, prior, tree, etc.)',
                         default=False, action="store_true")
     parser.add_argument('--save-for-post-processing', 
-                        help='Generate script to load results', default=False, action="store_true")
+                        help='Generate script to load results', default=True, action="store_true")
 
     parser.add_argument('--hierarchy_name', 
                         help='Reference for hierarchy encoding in hierarchy.py', default=None)

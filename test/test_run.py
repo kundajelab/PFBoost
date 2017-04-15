@@ -217,8 +217,6 @@ if args.hierarchy == False:
 --ncpu 1 --output-path test/test_results/ \
     """%(args.mult_format).rstrip('\n')
 
-    print(command)
-
     os.system(command)
 
     result = test_hema_results()
