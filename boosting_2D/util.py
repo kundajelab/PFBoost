@@ -12,6 +12,8 @@ import sklearn.utils
 from scipy.sparse import *
 import random
 
+from boosting_2D import config
+
 
 ### Log 
 ##########################################
@@ -22,7 +24,8 @@ class Logger():
         self.verbose = verbose
     
     def __call__(self, msg, log_time=True, level='QUIET'):
-        if level is not 'VERBOSE': return
+        if config.VERBOSE == False:
+            if level is not 'VERBOSE': return
         if log_time:
             time_stamp = datetime.fromtimestamp(time.time()).strftime(
                 '%Y-%m-%d %H:%M:%S: ')

@@ -73,6 +73,8 @@ def parse_args():
     parser.add_argument('--eta1', help='stabilization threshold 1', type=float, default=0.05)
     parser.add_argument('--eta2', help='stabilization threshold 2', type=float, default=0.01)
 
+    parser.add_argument('--verbose', help='print all logs', default=False, action="store_true")
+
     parser.add_argument('--stumps', 
                         help='specify to do stumps instead of adt', 
                         action='store_true')
@@ -134,11 +136,14 @@ def parse_args():
     parser.add_argument('--save-for-post-processing', 
                         help='Generate script to load results', default=True, action="store_true")
 
-    parser.add_argument('--hierarchy_name', 
+    parser.add_argument('--hierarchy-name', 
                         help='Reference for hierarchy encoding in hierarchy.py', default=None)
 
     # Parse arguments
     args = parser.parse_args()
+
+    # First set level of verbosity
+    config.VERBOSE = args.verbose
 
     # Load the three feature matrices
     log('load y start')
