@@ -30,13 +30,6 @@ from boosting_2D import hierarchy as h
 ### Open log files
 log = util.log
 
-### Set constant parameters
-# TuningParams = namedtuple('TuningParams', [
-#     'num_iter',
-#     'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
-#     'eta_1', 'eta_2', 'bundle_max', 'epsilon'
-# ])
-
 def parse_args():
     # Get arguments
     parser = argparse.ArgumentParser(description='Run boosting2D')
@@ -59,12 +52,12 @@ def parse_args():
 
     parser.add_argument('-x', '--motifs-file', 
                         help='x1 features - dimensionality MxG')
-    parser.add_argument('-m', '--m-row-labels', 
+    parser.add_argument('-m', '--motif-labels', 
                         help='column labels for x1 matrix (dimension M)')
 
     parser.add_argument('-z', '--regulators-file', 
                         help='x2 features - dimensionality ExR')
-    parser.add_argument('-r', '--r-col-labels', 
+    parser.add_argument('-r', '--regulator-labels', 
                         help='row labels for x2 matrix (dimension R)')
 
     parser.add_argument('-n', '--num-iter', 
@@ -81,8 +74,11 @@ def parse_args():
     parser.add_argument('--stable', 
                         help='bundle rules/implement stabilized boosting', 
                         action='store_true')
+    parser.add_argument('--max-bundle-size', 
+                        help='maximum allowed size for bundle', type=int, default=20)
     parser.add_argument('--corrected-loss', 
                         action='store_true', help='For corrected Loss')
+
     parser.add_argument('--plot', 
                         action='store_true', help='Plot imbalanced & balanced loss and margins')
 
@@ -195,7 +191,7 @@ def parse_args():
         args.num_iter, 
         args.stumps, args.stable, args.corrected_loss,
         args.use_prior,
-        args.eta1, args.eta2, 20, 1./holdout.n_train)
+        args.eta1, args.eta2, args.max_bundle_size, 1./holdout.n_train)
     config.SAVING_PARAMS = config.SavingParams(
         args.save_tree_only,
         args.save_complete_data,
@@ -208,8 +204,8 @@ def parse_args():
     # Configure output directory - date-stamped directory in output path
     config.OUTPUT_PATH = args.output_path if args.output_path \
                          is not None else os.getcwd()
-    config.OUTPUT_PREFIX = time_stamp+'_'+args.output_prefix+'_'+method_label+ \
-                           '_'+str(config.TUNING_PARAMS.num_iter)+'iter'
+    config.OUTPUT_PREFIX = time_stamp + '_' + args.output_prefix + '_' + method_label + \
+                           '_'+ str(config.TUNING_PARAMS.num_iter) + 'iter'
     if hierarchy is not None:
         config.OUTPUT_PREFIX = config.OUTPUT_PREFIX + '_hierarchy_%s'%hierarchy.name
 
