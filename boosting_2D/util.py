@@ -154,7 +154,7 @@ def get_data_clusters(data, max_distance=0):
     l = hier.linkage(d, method='complete')
     ordered_data = data[hier.leaves_list(l),:]
     flat_clusters = hier.fcluster(l, t=max_distance, criterion='distance')
-    print 'reduced {0} entries to {1} based on max distance {2}'.format(
+    print 'Compressing data: reduced {0} entries to {1} based on max distance {2}'.format(
         data.shape[0], len(np.unique(flat_clusters)), max_distance)
     return(flat_clusters)
 

@@ -194,9 +194,12 @@ def parse_args():
         args.save_complete_data,
         args.save_for_post_processing)
 
+    if config.TUNING_PARAMS.use_stumps:
+        log('Using stumps', level='VERBOSE') 
+
     # Get method label so plot label uses parameters used
     method_label = util.get_method_label()
-    # get time stamp
+    # Get time stamp
     time_stamp = time.strftime("%Y_%m_%d")
     # Configure output directory - date-stamped directory in output path
     config.OUTPUT_PATH = args.output_path if args.output_path \
@@ -398,7 +401,6 @@ def main():
     logfile('Ending main loop: {0}'.format(t1), log_time=True, level='VERBOSE')
     logfile('Total time: {0}'.format(t1 - t0), log_time=True, level='VERBOSE')
 
-
     ### Write out rules
     rule_file_name = '{0}{1}/global_rules__{1}.txt'.format(
         config.OUTPUT_PATH, config.OUTPUT_PREFIX)
@@ -414,13 +416,15 @@ def main():
 
     ### Write out load data file
     if config.SAVING_PARAMS.save_complete_data:
-        save_model.write_load_complete_data_script(y, x1, x2, holdout, hierarchy, prior.PRIOR_PARAMS,
+        save_model.write_load_complete_data_script(y, x1, x2, holdout, hierarchy, 
+                                                   prior.PRIOR_PARAMS,
                                                    tree_file_name, load_complete_data_script_file,
                                                    logfile_pointer=f)
 
     ### Store model objects and script to load iteration
     if config.SAVING_PARAMS.save_for_post_processing:
-        save_model.save_complete_model_state(pickle_file, x1, x2, y, hierarchy, tree)
+        save_model.save_complete_model_state(pickle_file, x1, x2, 
+                                             y, hierarchy, tree)
         save_model.write_postprocesssing_load_script(pickle_file, 
                                                      pickle_script_file=pickle_script_file, 
                                                      logfile_pointer=f)
@@ -436,7 +440,8 @@ def main():
         plot.plot_margin(tree, config.TUNING_PARAMS.num_iter)
         plot.plot_balanced_error(tree, config.TUNING_PARAMS.num_iter)
         plot.plot_imbalanced_error(tree, config.TUNING_PARAMS.num_iter)
-        log('Plots generated in: {0}/plots/'.format(out_file_prefix), log_time=False, level='VERBOSE')
+        log('Plots generated in: {0}/plots/'.format(out_file_prefix), 
+            log_time=False, level='VERBOSE')
 
 
 ### Main

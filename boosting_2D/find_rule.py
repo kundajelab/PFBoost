@@ -128,16 +128,62 @@ def find_rule_process_worker(
     
     return
 
+def find_rule_process_stumps(tree, holdout, y, x1, x2, hierarchy):
+    if hierarchy == None:
+
+        # Use all examples because no tree
+        leaf_training_examples = tree.ind_pred_train[0]
+
+        # calculate the loss for this leaf  
+        leaf_loss_mat, regulator_sign = find_min_loss(
+            tree, leaf_training_examples, holdout, y, x1, x2)
+
+        # hierarchy node is just root
+        hierarchy_node = 0
+
+    # # If there is a hierarchy, iterate through possible children
+    else:
+
+        # Keep best loss node of hierarchy
+        best_loss = float('Inf')
+        leaf_loss_mat = None
+        regulator_sign = None
+        hierarchy_node = None
+
+        # Iterate over children (always adding to root)
+        for hier_node in hierarchy.direct_children[tree.hierarchy_node[0]]:
+
+            cells = hierarchy.subtree_nodes[hier_node]
+            cell_matrix = np.zeros(tree.ind_pred_train[0].shape, dtype=bool)
+            cell_matrix[:, cells] = True
+            if tree.sparse:
+                leaf_training_examples = util.element_mult(tree.ind_pred_train[0], 
+                                                           csr_matrix(cell_matrix))
+            else:
+                leaf_training_examples = util.element_mult(tree.ind_pred_train[0],
+                                                           cell_matrix)
+
+            # calculate the loss for this leaf  
+            leaf_loss_mat_cell, regulator_sign_cell = find_min_loss(
+                tree, leaf_training_examples, holdout, y, x1, x2)
+
+            # Update with best loss
+            if leaf_loss_mat_cell.min() < best_loss:
+                best_loss = leaf_loss_mat_cell.min()
+                leaf_loss_mat = leaf_loss_mat_cell
+                regulator_sign = regulator_sign_cell
+                hierarchy_node = hier_node        
+
+    return (0, regulator_sign, 0, leaf_loss_mat)
+
 # @profile
 def find_rule_processes(tree, holdout, y, x1, x2, hierarchy):
 
     if config.TUNING_PARAMS.use_stumps:
-        # since we aren't building a tree, we use all of the
-        # training examples to choose a rule
-        leaf_training_examples = tree.ind_pred_train[0]
-        leaf_loss_mat, regulator_sign = find_min_loss(
-            tree, leaf_training_examples, holdout, y, x1, x2)
-        return 0, regulator_sign, leaf_loss_mat
+        # Get rule to add to root
+        (best_leaf, best_reg_sign, best_loss_hier_node, best_loss_mat) = \
+            find_rule_process_stumps(tree, holdout, y, x1, x2, hierarchy)
+        return (best_leaf, best_reg_sign, best_loss_hier_node, best_loss_mat)
 
     rule_processes = []
 
