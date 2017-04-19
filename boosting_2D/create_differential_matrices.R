@@ -150,9 +150,44 @@ serial = opt$serial
 # -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/expression_diff_wrt_HSC_nadine_dense_april12_new_regulators.txt \
 # -m deseq -t dense
 
+# Command Inputs (Nadine expression April 16 new regulator set, wrt HSC)
+# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
+# $SCRIPT_PATH"create_differential_matrices.R" \
+# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/RNA_AML_Samples.txt \
+# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrices/gene_level_counts.txt \
+# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt \
+# -c cell_type \
+# -g /mnt/lab_data/kundaje/users/pgreens/projects/modisco/data/combined_regulators_CISBP_and_GO:0003677_DNA_binding_unique_gene_names_n2790_4_12_17.txt \
+# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/expression_diff_wrt_HSC_nadine_dense_april16_new_regulators.txt \
+# -m deseq -t dense
+
+
+# Command Inputs (Nadine expression April 16 new regulator set, wrt to previous time point)
+# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
+# $SCRIPT_PATH"create_differential_matrices.R" \
+# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/RNA_AML_Samples.txt \
+# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrices/gene_level_counts.txt \
+# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_previous_cell_type_hierarchy_order.txt \
+# -c cell_type \
+# -g /mnt/lab_data/kundaje/users/pgreens/projects/modisco/data/combined_regulators_CISBP_and_GO:0003677_DNA_binding_unique_gene_names_n2790_4_12_17.txt \
+# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/expression_diff_wrt_previous_cell_type_nadine_dense_april16_new_regulators.txt \
+# -m deseq -t dense
+
+# Command Inputs (Nadine accessibility April 16 new regulator set, wrt to previous time point)
+# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
+# $SCRIPT_PATH"create_differential_matrices.R" \
+# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples_april4_240K.txt \
+# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_for_nadine_boosting_april4_240K_binaryPeaks.txt \
+# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_previous_cell_type_hierarchy_order.txt \
+# -c cell_type \
+# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_diff_wrt_previous_cell_type_nadine_dense_april16.txt \
+# -m deseq -t dense
+
+
+
 
 sprintf('output file: %s', output_file)
-sprintf('regulator file: %s', regulator_file)
+sprintf('data file: %s', data_matrix_file)
 sprintf('out_format file: %s', out_format)
 sprintf('annots file: %s', annot_file)
 sprintf('pval: %s', pval)

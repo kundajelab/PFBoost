@@ -87,9 +87,7 @@ def parse_args():
                         action='store_true', help='Plot imbalanced & balanced loss and margins')
 
     parser.add_argument('--use-prior', 
-                        action='store_true', help='Use prior',)
-    parser.add_argument('--prior-input-format', 
-                        help='options are: matrix, triplet',)
+                        action='store_true', help='Use prior', default=False)
     parser.add_argument('--motif-reg-file', 
                         default=None, help='motif-regulator priors [0,1] real-valued',)
     parser.add_argument('--motif-reg-row-labels', 
@@ -98,10 +96,8 @@ def parse_args():
                         default=None, help='regulator labels for motif-regulator prior',)
     parser.add_argument('--reg-reg-file', 
                         default=None, help='regulator-regulator priors [0,1] real-valued',) 
-    parser.add_argument('--reg-reg-row-labels', 
-                        default=None, help='motif labels for regulator-regulator prior',)    
-    parser.add_argument('--reg-reg-col-labels', 
-                        default=None, help='regulator labels for regulator-regulator prior',)
+    parser.add_argument('--reg-reg-labels', 
+                        default=None, help='labels for regulator-regulator prior, used for cols + rows',)    
 
     parser.add_argument('--ncpu', 
                         help='number of cores to run on', type=int, default=1)
@@ -222,13 +218,13 @@ def parse_args():
 
     # Configure prior matrix
     if config.TUNING_PARAMS.use_prior:
+        log('Applying prior', level='VERBOSE') 
         prior.PRIOR_PARAMS=prior.PriorParams(
             50, 0.998,
-            args.prior_input_format, 
             args.motif_reg_file, 
             args.motif_reg_row_labels, args.motif_reg_col_labels,
             args.reg_reg_file, 
-            args.reg_reg_row_labels, args.reg_reg_col_labels)
+            args.reg_reg_labels)
         prior.prior_motifreg, prior.prior_regreg = prior.parse_prior(
             prior.PRIOR_PARAMS, x1, x2)
     else:
@@ -254,8 +250,9 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
     # Update loss with prior
     if config.TUNING_PARAMS.use_prior:
         log('update loss with prior', level=level)
+        best_split_regulator = util.get_best_split_regulator(tree, x2, best_split)
         loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS,
-         prior.prior_motifreg, prior.prior_regreg, iteration)
+         prior.prior_motifreg, prior.prior_regreg, iteration, best_split_regulator)
 
     log('find rule weights', level=level)
 
@@ -267,7 +264,6 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
     non_hier_testing_examples = tree.ind_pred_test[best_split]
     testing_examples = h.get_hierarchy_index(hierarchy_node, hierarchy, 
                                              non_hier_testing_examples, tree)
-
 
     # Get rule weights for the best split
     rule_weights = find_rule_weights(

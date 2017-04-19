@@ -189,6 +189,13 @@ def compress_regulators(x2_obj):
     x2_obj.num_col = x2_obj.data.shape[1]
     return(x2_obj)
 
+def get_best_split_regulator(tree, x2, best_split):
+    if tree.split_x2[best_split] == 'root':
+        best_split_regulator = 'root'
+    else:
+        best_split_regulator = x2.col_labels[tree.split_x2[best_split]]
+    return best_split_regulator
+
 # Re-cast x1 object with compressed regulator data and labels
 # def compress_motifs(x1_obj):
 #     data = x2_obj.data.toarray().T if x2_obj.sparse else x2_obj.data.T
