@@ -162,10 +162,13 @@ def parse_args():
 
     # Shuffle data
     if args.shuffle_y:
+        log('Shufflying target matrix', level='VERBOSE')
         y = util.shuffle_data_object(y)
     if args.shuffle_x1:
+        log('Shufflying motif matrix', level='VERBOSE')
         x1 = util.shuffle_data_object(x1)
     if args.shuffle_x2:
+        log('Shufflying regulator matrix', level='VERBOSE')
         x2 = util.shuffle_data_object(x2)
 
     # Compress regulators
@@ -350,7 +353,8 @@ def main():
     ### Set up output files
     out_file_prefix = '{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
     logfile_name = '{0}/LOG_FILE.txt'.format(out_file_prefix)
-    pickle_file = '{0}/saved_complete_model__{1}.gz'.format(out_file_prefix, config.OUTPUT_PREFIX)
+    pickle_file = '{0}/saved_complete_model__{1}.gz'.format(out_file_prefix, 
+                                                            config.OUTPUT_PREFIX)
     pickle_script_file = '{0}/load_pickle_data_script.py'.format(out_file_prefix)
     load_complete_data_script_file = '{0}/load_complete_data_script.py'.format(out_file_prefix)
 
@@ -376,8 +380,6 @@ def main():
 
     ### Main Loop
     for i in xrange(1, config.TUNING_PARAMS.num_iter + 1):
-
-        # log('iteration {0}'.format(i))
         
         log('Find next node')
         (motif, regulator, best_split, hierarchy_node,
