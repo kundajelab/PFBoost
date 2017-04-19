@@ -238,7 +238,7 @@ python bin/run_boosting_2D.py \
 -r test/data/hema_data_hierarchy/reg_names.txt \
 --holdout-file test/data/hema_data_hierarchy/holdout.txt \
 --ncpu 1 --output-path test/test_results/ \
---hierarchy_name hema_16cell
+--hierarchy-name hema_16cell
     """%(args.mult_format).strip('\n')
 
     os.system(command)

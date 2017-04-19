@@ -146,7 +146,7 @@ def parse_args():
 
     log('Load x1 start')
     x1 = Motifs(args.motifs_file, 
-                args.m_row_labels,
+                args.motif_labels,
                 args.target_row_labels, 
                 args.input_format,
                 args.mult_format)
@@ -155,7 +155,7 @@ def parse_args():
     log('Load x2 start')
     x2 = Regulators(args.regulators_file, 
                     args.target_col_labels,
-                    args.r_col_labels, 
+                    args.regulator_labels, 
                     args.input_format,
                     args.mult_format)
     log('Load x2 stop')
@@ -187,8 +187,7 @@ def parse_args():
     # Configure tuning tarameters
     config.TUNING_PARAMS = config.TuningParams(
         args.num_iter, 
-        args.stumps, args.stable, args.corrected_loss,
-        args.use_prior,
+        args.stumps, args.stable, args.use_prior,
         args.eta1, args.eta2, args.max_bundle_size, 1./holdout.n_train)
     config.SAVING_PARAMS = config.SavingParams(
         args.save_tree_only,
