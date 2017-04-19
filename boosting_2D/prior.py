@@ -133,12 +133,10 @@ def update_loss_with_prior(loss_matrix, prior_params, prior_motifreg,
         # Get prior for adding on to that regulator another regulator that interacts with that
         if best_split_regulator == 'root':
             return new_loss
-        from IPython import embed; embed()
         reg_row = prior_regreg.data[prior_regreg.row_labels == best_split_regulator,]
-        reg_mat = np.vstack([reg_row for el in xrange(prior_regreg.num_row)])
+        reg_mat = np.vstack([reg_row for el in xrange(new_loss.shape[0])])
         regreg_multiplier = reg_mat * prior_params.prior_constant * \
                             np.power(prior_params.prior_decay_rate, iteration) + 1
-        # Get dimensions right
         new_loss = util.element_mult(new_loss, regreg_multiplier)
     return new_loss
 
