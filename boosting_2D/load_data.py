@@ -69,15 +69,14 @@ holdout = Holdout(y, 'sparse')
 # Load config
 TuningParams = namedtuple('TuningParams', [
     'num_iter',
-    'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
+    'use_stumps', 'use_stable', 'use_prior',
     'eta_1', 'eta_2', 'bundle_max', 'epsilon'
 ])
 config.OUTPUT_PATH = '/srv/persistent/pgreens/projects/boosting/results/'
 config.OUTPUT_PREFIX = 'hematopoeisis_23K_stable_bindingTFsonly'
 config.TUNING_PARAMS = TuningParams(
     100, 
-    False, True, False,
-    True,
+    False, True, True,
     0.05, 0.01, 20, 1./holdout.n_train)
 config.NCPU = 4
 

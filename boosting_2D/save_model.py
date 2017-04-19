@@ -116,24 +116,23 @@ holdout = Holdout(y,
     config_message="""
 TuningParams = namedtuple('TuningParams', [
     'num_iter',
-    'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
+    'use_stumps', 'use_stable', 'use_prior',
     'eta_1', 'eta_2', 'bundle_max', 'epsilon'
 ])
 config.OUTPUT_PATH = '{0}'
 config.OUTPUT_PREFIX = '{1}'
 config.TUNING_PARAMS = TuningParams(
     {2}, 
-    {3}, {4}, {5},
-    {6},
-    {7}, {8}, {9}, {10})
-config.NCPU = {11}
-config.PLOT = {12}
+    {3}, {4}, 
+    {5},
+    {6}, {7}, {8}, {9})
+config.NCPU = {10}
+config.PLOT = {11}
     """.format(config.OUTPUT_PATH,
                 config.OUTPUT_PREFIX,
                 config.TUNING_PARAMS.num_iter,
                 config.TUNING_PARAMS.use_stumps,
                 config.TUNING_PARAMS.use_stable,
-                config.TUNING_PARAMS.use_corrected_loss,
                 config.TUNING_PARAMS.use_prior,
                 config.TUNING_PARAMS.eta_1,
                 config.TUNING_PARAMS.eta_2,
@@ -261,7 +260,7 @@ log = util.log
 ### Set constant parameters
 # TuningParams = namedtuple('TuningParams', [
 #     'num_iter',
-#     'use_stumps', 'use_stable', 'use_corrected_loss', 'use_prior',
+#     'use_stumps', 'use_stable', 'use_prior',
 #     'eta_1', 'eta_2', 'bundle_max', 'epsilon'
 # ])
 # SavingParams = namedtuple('SavingParams', [

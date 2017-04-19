@@ -76,8 +76,6 @@ def parse_args():
                         action='store_true')
     parser.add_argument('--max-bundle-size', 
                         help='maximum allowed size for bundle', type=int, default=20)
-    parser.add_argument('--corrected-loss', 
-                        action='store_true', help='For corrected Loss')
 
     parser.add_argument('--plot', 
                         action='store_true', help='Plot imbalanced & balanced loss and margins')
