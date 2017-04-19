@@ -37,11 +37,12 @@ def parse_args():
     parser.add_argument('--output-prefix', 
                         help='Analysis name for output plots')
     parser.add_argument('--output-path', 
-                        help='path to write the results to', 
-                        default='/users/pgreens/projects/boosting/results/')
+                        help='path to write the results to')
 
-    parser.add_argument('--input-format', help='options are: matrix, triplet', default='matrix')
-    parser.add_argument('--mult-format', help='options are: dense, sparse', default='sparse')
+    parser.add_argument('--input-format', help='options are: matrix, triplet', 
+                        default='matrix')
+    parser.add_argument('--mult-format', help='options are: dense, sparse', 
+                        default='sparse')
 
     parser.add_argument('-y', '--target-file', 
                         help='target matrix - dimensionality GxE')
@@ -63,10 +64,13 @@ def parse_args():
     parser.add_argument('-n', '--num-iter', 
                         help='Number of iterations', default=500, type=int)
 
-    parser.add_argument('--eta1', help='stabilization threshold 1', type=float, default=0.05)
-    parser.add_argument('--eta2', help='stabilization threshold 2', type=float, default=0.01)
+    parser.add_argument('--eta1', help='stabilization threshold 1', 
+                        type=float, default=0.05)
+    parser.add_argument('--eta2', help='stabilization threshold 2', 
+                        type=float, default=0.01)
 
-    parser.add_argument('--verbose', help='print all logs', default=False, action="store_true")
+    parser.add_argument('--verbose', help='print all logs', default=False, 
+                        action="store_true")
 
     parser.add_argument('--stumps', 
                         help='specify to do stumps instead of adt', 
@@ -124,10 +128,12 @@ def parse_args():
                         help='Pickle every single matrix (x1, x2, y, holdout, prior, tree, etc.)',
                         default=False, action="store_true")
     parser.add_argument('--save-for-post-processing', 
-                        help='Generate script to load results', default=True, action="store_true")
+                        help='Generate script to load results', default=True, 
+                        action="store_true")
 
     parser.add_argument('--hierarchy-name', 
-                        help='Reference for hierarchy encoding in hierarchy.py', default=None)
+                        help='Reference for hierarchy encoding in hierarchy.py', 
+                        default=None)
 
     # Parse arguments
     args = parser.parse_args()

@@ -67,7 +67,6 @@ def get_method_label():
     method_label = '{0}_{1}'.format(method, stable_label)
     return method_label
 
-
 ### Save Tree State 
 ##########################################
 
@@ -208,9 +207,6 @@ def get_best_split_regulator(tree, x2, best_split):
 #     x2_obj.num_row = x2_obj.data.shape[0]
 #     x2_obj.num_col = x2_obj.data.shape[1]
 #     return(x2_obj)
-
-# x2_obj = copy.deepcopy(x2)
-# new_x2_obj = util.compress_regulators(x2_obj)
 
 
 

@@ -1,11 +1,8 @@
-# from grit.lib.multiprocessing_utils import fork_and_wait
 import os
-os.sys.path.insert(0, '/users/pgreens/git/grit')
-import grit
-from grit.lib.multiprocessing_utils import fork_and_wait
-
 import multiprocessing
 import ctypes
+
+from grit.lib.multiprocessing_utils import fork_and_wait
 
 from collections import namedtuple
 
@@ -59,8 +56,6 @@ def find_rule_process_worker(
         # if this isn't a valid leaf, then we are done
         if leaf_index >= tree.nsplit: 
             return
-
-        # No issue up to here
         
         # If no hierarchy use the index for the leaf
         if hierarchy == None:
@@ -74,7 +69,7 @@ def find_rule_process_worker(
             # hierarchy node is just root
             hierarchy_node = 0
 
-        # # If there is a hierarchy, iterate through possible children
+        # If there is a hierarchy, iterate through possible children
         else:
 
             # Keep best loss node of hierarchy
@@ -187,17 +182,12 @@ def find_rule_processes(tree, holdout, y, x1, x2, hierarchy):
 
     rule_processes = []
 
-    # this should be an attribute of tree. Also, during the tree init,
-    # accessing the global variables x1, x2, and y is really bad form. Since
-    # you only need the dimensions you sohuld pass those as arguments into the 
-    # init function. 
     nrow = x1.num_row
     ncol = x2.num_col
     
-    # Initialize a lock to control access to the best rule objects. We use
-    # rawvalues because all access is governed through the lock
+    # Initialize a lock to control access to the best rule objects.
     lock = multiprocessing.Lock()
-    # initialize this to a large number, so that the first loss is chosen
+    # Initialize loss to a large number, so that the first loss is chosen
     best_loss = multiprocessing.RawValue(ctypes.c_double, 1e100)
     best_leaf = multiprocessing.RawValue('i', -1)
     shared_best_loss_mat = multiprocessing.RawArray(
@@ -209,7 +199,7 @@ def find_rule_processes(tree, holdout, y, x1, x2, hierarchy):
     # the workers know what leaf to work on
     leaf_index_cntr = multiprocessing.Value('i', 0)
 
-    # pack arguments for the worker processes
+    # Pack arguments for the worker processes
     args = [tree, holdout, y, x1, x2, hierarchy, leaf_index_cntr, (
             lock, best_loss, best_leaf, best_loss_hier_node,
             shared_best_loss_mat, best_loss_reg)]
@@ -217,11 +207,11 @@ def find_rule_processes(tree, holdout, y, x1, x2, hierarchy):
     # Fork worker processes, and wait for them to return
     fork_and_wait(config.NCPU, find_rule_process_worker, args)
     
-    # Covert all of the shared types into standard python values
+    # Convert all of the shared types into standard python values
     best_leaf = int(best_leaf.value)
     best_loss_reg = int(best_loss_reg.value)
     best_loss_hier_node = int(best_loss_hier_node.value)
-    # we convert the raw array into a numpy array
+    # Convert the raw array into a numpy array
     best_loss_mat = np.reshape(np.array(shared_best_loss_mat), (nrow, ncol))
     
     # Return rule_processes
@@ -244,10 +234,10 @@ def calc_min_leaf_loss(leaf_training_examples, example_weights, ones_mat, holdou
     ## Get loss matrix and regulator status
     loss_best_s = np.min([loss_regup.min(), loss_regdown.min()])
     loss_arg_min = np.argmin([loss_regup.min(), loss_regdown.min()])
-    if loss_arg_min==0:
-        reg_s=1
+    if loss_arg_min == 0:
+        reg_s = 1
     else:
-        reg_s=-1
+        reg_s = -1
 
     loss = [loss_regup, loss_regdown][loss_arg_min]
     return (loss, reg_s)
@@ -310,7 +300,7 @@ def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout,
     if isinstance(regulator,int) == False:
         regulator = int(regulator)
 
-    ## Find indices of where motif and regulator appear
+    # Find indices of where motif and regulator appear
     if x2.sparse:
         valid_m = np.nonzero(x1.data[motif,:])[1]
         valid_r = np.where(x2.data.toarray()[:,regulator] == regulator_sign)[0]
@@ -318,7 +308,7 @@ def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout,
         valid_m = np.nonzero(x1.data[motif,:])[0]
         valid_r = np.where(x2.data[:,regulator] == regulator_sign)[0]
  
-    ### Get joint motif-regulator index - training and testing
+    # Get joint motif-regulator index - training and testing
     if y.sparse:
         valid_mat = csr_matrix((y.num_row,y.num_col), dtype=np.bool)
     else:

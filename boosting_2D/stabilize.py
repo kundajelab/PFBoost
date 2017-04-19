@@ -159,7 +159,7 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
         # Calculate the loss for this leaf  
         valid_mat_h[np.ix_(valid_m_h, valid_r_h)]=1
         rule_train_index_h = util.element_mult(valid_mat_h, best_split_train_index)
-        rule_test_index_h = util.element_mult(valid_mat_h, best_split_test_index) # before both were best_split_train_index
+        rule_test_index_h = util.element_mult(valid_mat_h, best_split_test_index)
         rule_score_h = 0.5*np.log((util.element_mult(
                                  w_pos, rule_train_index_h).sum()+
                                  config.TUNING_PARAMS.epsilon)/(
