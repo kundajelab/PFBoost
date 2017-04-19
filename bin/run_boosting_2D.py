@@ -136,29 +136,29 @@ def parse_args():
     config.VERBOSE = args.verbose
 
     # Load the three feature matrices
-    log('load y start')
+    log('Load y start')
     y = TargetMatrix(args.target_file, 
                      args.target_row_labels, 
                      args.target_col_labels,
                      args.input_format,
                      args.mult_format)
-    log('load y stop')
+    log('Load y stop')
 
-    log('load x1 start')
+    log('Load x1 start')
     x1 = Motifs(args.motifs_file, 
                 args.m_row_labels,
                 args.target_row_labels, 
                 args.input_format,
                 args.mult_format)
-    log('load x1 stop')
+    log('Load x1 stop')
     
-    log('load x2 start')
+    log('Load x2 start')
     x2 = Regulators(args.regulators_file, 
                     args.target_col_labels,
                     args.r_col_labels, 
                     args.input_format,
                     args.mult_format)
-    log('load x2 stop')
+    log('Load x2 stop')
 
     # Shuffle data
     if args.shuffle_y:
@@ -173,11 +173,11 @@ def parse_args():
         x2 = util.compress_regulators(x2)
 
     # Load holdout
-    log('load holdout start')
+    log('Load holdout start')
     holdout = Holdout(y, args.mult_format,
                       args.holdout_file, args.holdout_format,
                       args.train_fraction)
-    log('load holdout stop')
+    log('Load holdout stop')
 
     # Configure hierarchy
     hierarchy = h.get_hierarchy(name=args.hierarchy_name)
@@ -213,7 +213,7 @@ def parse_args():
     # Configure prior matrix
     if config.TUNING_PARAMS.use_prior:
         log('Applying prior', level='VERBOSE') 
-        prior.PRIOR_PARAMS=prior.PriorParams(
+        prior.PRIOR_PARAMS = prior.PriorParams(
             50, 0.998,
             args.motif_reg_file, 
             args.motif_reg_row_labels, args.motif_reg_col_labels,
@@ -237,18 +237,18 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
 
     ## Calculate loss at all search nodes 
     ## (will search across current hier node and direct children to find best hier node)
-    log('find rule process', level=level)
+    log('Find rule process', level=level)
     best_split, regulator_sign, hierarchy_node, loss_best = find_rule_processes(
         tree, holdout, y, x1, x2, hierarchy) 
 
     # Update loss with prior
     if config.TUNING_PARAMS.use_prior:
-        log('update loss with prior', level=level)
+        log('Update loss with prior', level=level)
         best_split_regulator = util.get_best_split_regulator(tree, x2, best_split)
         loss_best = prior.update_loss_with_prior(loss_best, prior.PRIOR_PARAMS,
          prior.prior_motifreg, prior.prior_regreg, iteration, best_split_regulator)
 
-    log('find rule weights', level=level)
+    log('Find rule weights', level=level)
 
     # Mask training/testing examples by using only hierarchy children
     non_hier_training_examples = tree.ind_pred_train[best_split]
@@ -266,28 +266,28 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
 
     # Get current rule, no stabilization
     # rule_train_index/rule_test_index restricted to hierarchy
-    log('get current rule', level=level)
+    log('Get current rule', level=level)
     (motif, regulator, regulator_sign, rule_train_index, rule_test_index 
      ) = get_current_rule(
          tree, best_split, regulator_sign, loss_best, 
          holdout, y, x1, x2, hierarchy, hierarchy_node)
 
     if config.TUNING_PARAMS.use_stable:
-        log('starting stabilization', level=level)
+        log('Starting stabilization', level=level)
         # Store current training weights
         weights_i = util.element_mult(tree.weights, training_examples)
 
         # Test if stabilization criterion is met
-        log('stabilization test', level=level)
+        log('Stabilization test', level=level)
         stable_test = stabilize.stable_boost_test(tree, rule_train_index, holdout)
         stable_thresh = stabilize.stable_boost_thresh(tree, y, weights_i)
 
         # If stabilization criterion met, then we want to find a bundle of 
         # correlated rules to use as a single node  
         if stable_test >= config.TUNING_PARAMS.eta_2 * stable_thresh:
-            log('stabilization criterion applies', level='VERBOSE')
+            log('Stabilization criterion applies', level='VERBOSE')
             # Get rules that are bundled together
-            log('getting rule bundle', level=level)
+            log('Getting rule bundle', level=level)
             bundle = stabilize.bundle_rules(tree, y, x1, x2, 
                                             motif, 
                                             regulator, regulator_sign, 
@@ -296,7 +296,7 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
 
             # rule score is the direction and magnitude of the prediciton update
             # for the rule given by rule_weights and rule_train_index
-            log('updating scores and indices with bundle', level=level)
+            log('Updating scores and indices with bundle', level=level)
             (rule_score, rule_train_index, rule_test_index 
             ) = stabilize.get_rule_score_and_indices(bundle, 
                           training_examples, testing_examples,
@@ -305,14 +305,14 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
                           rule_train_index, rule_test_index)
 
             # Add bundled rules to bundle
-            log('adding bundles to rule', level=level)
+            log('Adding bundles to rule', level=level)
             motif_bundle = bundle.rule_bundle_regup_motifs + bundle.rule_bundle_regdown_motifs
             regulator_bundle = bundle.rule_bundle_regup_regs + bundle.rule_bundle_regdown_regs
 
         else:
             # rule score is the direction and magnitude of the prediciton update
             # for the rule given by rule_weights and rule_train_index
-            log('updating rule without stabilization', level=level)
+            log('Updating rule without stabilization', level=level)
             rule_score = calc_score(tree, rule_weights, rule_train_index)
             motif_bundle = []
             regulator_bundle = []
@@ -321,13 +321,13 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
     else:
         # rule score is the direction and magnitude of the prediciton update
         # for the rule given by rule_weights and rule_train_index
-        log('updating rule without stabilization', level=level)
+        log('Updating rule without stabilization', level=level)
         rule_score = calc_score(tree, rule_weights, rule_train_index)
         motif_bundle = []
         regulator_bundle = []
 
         
-    log('adding above motifs/regs', level=level)
+    log('Adding above motifs/regs', level=level)
     above_motifs = tree.above_motifs[best_split] + np.unique(
         tree.bundle_x1[best_split] + [tree.split_x1[best_split]]).tolist()
     above_regs = tree.above_regs[best_split] + np.unique(
@@ -341,9 +341,9 @@ def find_next_decision_node(tree, holdout, y, x1, x2, hierarchy, iteration):
 
 def main():
     ### Parse arguments
-    log('parse args start', level='VERBOSE')
+    log('Parse args start', level='VERBOSE')
     (x1, x2, y, holdout, hierarchy) = parse_args() # Sets up output path and prefix
-    log('parse args end', level='VERBOSE')
+    log('Parse args end', level='VERBOSE')
 
     ### Set up output files
     out_file_prefix = '{0}{1}'.format(config.OUTPUT_PATH, config.OUTPUT_PREFIX)
@@ -362,22 +362,22 @@ def main():
 
     ### Print time to output
     t0 = time.time()
-    logfile('starting main loop: {0}'.format(t0), 
+    logfile('Starting main loop: {0}'.format(t0), 
             log_time=True, level='VERBOSE')
 
     ### Create tree object
-    log('make tree start')
+    log('Make tree start')
     tree = DecisionTree(holdout, y, x1, x2)
-    log('make tree stop')
+    log('Make tree stop')
 
-    log('starting main loop', level='VERBOSE') 
+    log('Starting main loop', level='VERBOSE') 
 
     ### Main Loop
     for i in xrange(1, config.TUNING_PARAMS.num_iter + 1):
 
         # log('iteration {0}'.format(i))
         
-        log('find next node')
+        log('Find next node')
         (motif, regulator, best_split, hierarchy_node,
          motif_bundle, regulator_bundle, 
          rule_train_index, rule_test_index, rule_score, 
@@ -385,7 +385,7 @@ def main():
              tree, holdout, y, x1, x2, hierarchy, i)
         
         ### Add the rule with best loss
-        log('adding next rule')
+        log('Adding next rule')
         tree.add_rule(motif, regulator, best_split, hierarchy_node,
                       motif_bundle, regulator_bundle, 
                       rule_train_index, rule_test_index, rule_score, 
@@ -396,8 +396,8 @@ def main():
 
     ### Print end time and close logfile pointer
     t1 = time.time()
-    logfile('ending main loop: {0}'.format(t1), log_time=True, level='VERBOSE')
-    logfile('total time: {0}'.format(t1 - t0), log_time=True, level='VERBOSE')
+    logfile('Ending main loop: {0}'.format(t1), log_time=True, level='VERBOSE')
+    logfile('Total time: {0}'.format(t1 - t0), log_time=True, level='VERBOSE')
 
 
     ### Write out rules
@@ -407,7 +407,7 @@ def main():
                          out_file=rule_file_name, logfile_pointer=f)
 
     # Save tree state
-    if config.SAVING_PARAMS.save_tree_only:
+    if config.SAVING_PARAMS.save_tree_only or config.SAVING_PARAMS.save_complete_data:
         tree_file_name = '{0}{1}/saved_tree_state__{1}.gz'.format(
             config.OUTPUT_PATH, config.OUTPUT_PREFIX)
         save_tree_state(tree, pickle_file=tree_file_name)
@@ -428,7 +428,7 @@ def main():
 
     ### Print pickling time and close logfile pointer
     t2 = time.time()
-    logfile('save model time: {0}'.format(t2 - t1), log_time=True, level='VERBOSE')
+    logfile('Save model time: {0}'.format(t2 - t1), log_time=True, level='VERBOSE')
     f.close()
 
     ### Make plots
