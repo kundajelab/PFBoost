@@ -32,14 +32,38 @@ class Logger():
             msg = time_stamp + msg
         self.ofp.write(msg.strip() + "\n")
 
-def log_progress(tree, i, x1, x2, hierarchy, ofp=None, verbose=True):
-    msg_contents = [
-        'iteration: {0}'.format(i),
-        'imbalanced train error: {0}'.format(tree.imbal_train_err[i]),
-        'imbalanced test error: {0}'.format(tree.imbal_test_err[i]),
-        'x1 split feat {0}'.format(x1.row_labels[tree.split_x1[i]]),
-        'x2 split feat {0}'.format(x2.col_labels[tree.split_x2[i]]),
-        'rule score {0}'.format(tree.scores[i])]
+def get_metric_from_tree(tree, metric, index, split='train'):
+    METRIC_DICT = {
+        'imbalanced_error,train': 'imbal_train_err',
+        'imbalanced_error,test': 'imbal_test_err',
+        'balanced_error,train': 'bal_train_err',
+        'balanced_error,test': 'bal_test_err',
+        'auPRC,train': 'train_auprc',
+        'auPRC,test': 'test_auprc',
+        'auROC,train': 'train_auroc',
+        'auROC,test': 'test_auroc',
+    }
+    metric_name = METRIC_DICT['%s,%s'%(metric, split)]
+    out_str = '{0} - {1}: {2}'.format(metric, split, getattr(tree, metric_name)[index])
+    return out_str
+
+def log_progress(tree, i, x1, x2, hierarchy, ofp=None, verbose=True, perf_metrics=['imbalanced_error']):
+    msg_contents = ['iteration: {0}'.format(i)]
+    x1_split = ','.join([x1.row_labels[el] for el in
+                         np.unique([tree.split_x1[i]] + tree.bundle_x1[i]).tolist()])
+    x2_split = ','.join([x2.col_labels[el] for el in 
+                         np.unique([tree.split_x2[i]] + tree.bundle_x2[i]).tolist()])
+    rule_message = ['x1 split feat: {0}'.format(x1_split),
+                    'x2 split feat: {0}'.format(x2_split),
+                    'rule score {0}'.format(tree.scores[i])]
+    msg_contents = msg_contents + rule_message
+    perf_message = []
+    for metric in perf_metrics:
+        metric_msg = [
+            get_metric_from_tree(tree, metric, i, 'train'),
+            get_metric_from_tree(tree, metric, i, 'test')
+        ]
+        msg_contents = msg_contents + metric_msg
     if hierarchy is not None:
         msg_contents = msg_contents + ['hierarchy node {0}'.format(tree.hierarchy_node[i])]
     msg = "\n".join(msg_contents)
@@ -47,6 +71,22 @@ def log_progress(tree, i, x1, x2, hierarchy, ofp=None, verbose=True):
         print msg
     if ofp is not None:
         ofp.write(msg.strip() + "\n")
+
+# def log_progress(tree, i, x1, x2, hierarchy, ofp=None, verbose=True):
+#     msg_contents = [
+#         'iteration: {0}'.format(i),
+#         'imbalanced train error: {0}'.format(tree.imbal_train_err[i]),
+#         'imbalanced test error: {0}'.format(tree.imbal_test_err[i]),
+#         'x1 split feat {0}'.format(x1.row_labels[tree.split_x1[i]]),
+#         'x2 split feat {0}'.format(x2.col_labels[tree.split_x2[i]]),
+#         'rule score {0}'.format(tree.scores[i])]
+#     if hierarchy is not None:
+#         msg_contents = msg_contents + ['hierarchy node {0}'.format(tree.hierarchy_node[i])]
+#     msg = "\n".join(msg_contents)
+#     if verbose:
+#         print msg
+#     if ofp is not None:
+#         ofp.write(msg.strip() + "\n")
 
 ### log prints to STDERR
 log = Logger()
