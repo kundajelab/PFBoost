@@ -47,7 +47,7 @@ def get_metric_from_tree(tree, metric, index, split='train'):
     out_str = '{0} - {1}: {2}'.format(metric, split, getattr(tree, metric_name)[index])
     return out_str
 
-def log_progress(tree, i, x1, x2, hierarchy, ofp=None, verbose=True, perf_metrics=['imbalanced_error']):
+def log_progress(tree, i, x1, x2, hierarchy, ofp=None, verbose=True):
     msg_contents = ['iteration: {0}'.format(i)]
     x1_split = ','.join([x1.row_labels[el] for el in
                          np.unique([tree.split_x1[i]] + tree.bundle_x1[i]).tolist()])
@@ -58,7 +58,7 @@ def log_progress(tree, i, x1, x2, hierarchy, ofp=None, verbose=True, perf_metric
                     'rule score {0}'.format(tree.scores[i])]
     msg_contents = msg_contents + rule_message
     perf_message = []
-    for metric in perf_metrics:
+    for metric in config.PERF_METRICS:
         metric_msg = [
             get_metric_from_tree(tree, metric, i, 'train'),
             get_metric_from_tree(tree, metric, i, 'test')

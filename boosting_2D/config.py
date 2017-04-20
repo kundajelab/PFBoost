@@ -12,6 +12,8 @@ LOG_TIME = True
 
 PLOT = True
 
+PERF_METRICS = ['imbalanced_error']
+
 TuningParams = namedtuple('TuningParams', [
     'num_iter',
     'use_stumps', 'use_stable', 'use_prior',

@@ -74,7 +74,7 @@ def parse_args():
 
     parser.add_argument('--stumps', 
                         help='specify to do stumps instead of adt', 
-                        action='store_true')
+                        action='store_true', default=False)
     parser.add_argument('--stable', 
                         help='bundle rules/implement stabilized boosting', 
                         action='store_true')
@@ -130,6 +130,10 @@ def parse_args():
     parser.add_argument('--save-for-post-processing', 
                         help='Generate script to load results', default=True, 
                         action="store_true")
+
+    parser.add_argument('--perf-metrics', 
+                        help='[imbalanced_error, balanced_error,auPRC,auROC]', 
+                        nargs="+", default=None)
 
     parser.add_argument('--hierarchy-name', 
                         help='Reference for hierarchy encoding in hierarchy.py', 
@@ -202,6 +206,9 @@ def parse_args():
         args.save_tree_only,
         args.save_complete_data,
         args.save_for_post_processing)
+    if args.perf_metrics is not None:
+        config.PERF_METRICS = args.perf_metrics
+        log("Using metrics: %s"%config.PERF_METRICS,level="VERBOSE")
 
     if config.TUNING_PARAMS.use_stumps:
         log('Using stumps', level='VERBOSE') 

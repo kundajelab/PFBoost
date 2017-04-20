@@ -167,7 +167,7 @@ def return_rule_index(y, x1, x2, rule_index_cntr, rule_bundle,
                                  rule_train_index_h).sum()
                                  +config.TUNING_PARAMS.epsilon))
 
-        print rule_index
+        # print rule_index
 
         # Update current predictions
         with lock_stable:
@@ -330,8 +330,8 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split,
         rule_bundle_regup_motifs+rule_bundle_regdown_motifs]
     rule_bundle_regs = x2.col_labels[ \
         rule_bundle_regup_regs+rule_bundle_regdown_regs]
-    print rule_bundle_motifs
-    print rule_bundle_regs
+    # print rule_bundle_motifs
+    # print rule_bundle_regs
     # Return list where first element is bundle where reg_up and second is where reg_down
     return BundleStore(rule_bundle_regup_motifs, rule_bundle_regup_regs,
                          rule_bundle_regdown_motifs, rule_bundle_regdown_regs)

@@ -288,6 +288,8 @@ class DecisionTree(object):
         self._update_weights(holdout,y)
         log('updating error')
         self._update_error(holdout, y)
+        if 'auROC' in config.PERF_METRICS or 'auPRC' in config.PERF_METRICS:
+            self._update_auroc_auprc(holdout, y)
         log('updating auROC/auPRC')
         self._update_auroc_auprc(holdout, y)
         log('updating margin')
