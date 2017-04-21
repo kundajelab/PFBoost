@@ -9,12 +9,12 @@ import pdb
 from collections import namedtuple
 import multiprocessing
 import ctypes
-from grit.lib.multiprocessing_utils import fork_and_wait
 
 from boosting_2D import util
 from boosting_2D import config
 from boosting_2D import find_rule
 from boosting_2D import hierarchy as h
+from boosting_2D.multiprocessing_utils import fork_and_wait
 
 import pyximport; pyximport.install()
 from boosting_2D import util_functions

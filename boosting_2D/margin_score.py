@@ -15,13 +15,13 @@ import gzip
 
 from boosting_2D import util
 from boosting_2D import config
+from boosting_2D.multiprocessing_utils import fork_and_wait
 
 import sklearn.utils
 import pickle
 
 import multiprocessing
 import multiprocessing.queues
-from grit.lib.multiprocessing_utils import fork_and_wait
 import ctypes
 
 log = util.log

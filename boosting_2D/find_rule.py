@@ -2,8 +2,6 @@ import os
 import multiprocessing
 import ctypes
 
-from grit.lib.multiprocessing_utils import fork_and_wait
-
 from collections import namedtuple
 
 import numpy as np 
@@ -15,6 +13,7 @@ import pdb
 from boosting_2D import config
 from boosting_2D import util
 from boosting_2D import hierarchy as h
+from boosting_2D.multiprocessing_utils import fork_and_wait
 
 log = util.log
 
