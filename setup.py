@@ -12,7 +12,7 @@ def main():
         author = "Peyton Greenside",
         author_email = "pgreens@stanford.edu",
 
-        install_requires = [ 'scipy', 'numpy', 'grit' ],
+        install_requires = [ 'scipy', 'numpy'],
 
         extra_requires=['matplotlib'],
 
@@ -25,7 +25,7 @@ def main():
         url = "https://github.com/kundajelab/boosting_2D",
 
         long_description="""
-        Peyton will fill in later
+        2 dimensional boosting with Alternating Decision Trees. Learn the regulatory programs - transcriptional regulators and their corresponding motifs - that govern dynamic patterns of chromatin accessibility or gene expression across conditions such as time courses, different cell types, or experimental perturbations.
         """,
         classifiers=[
             "Programming Language :: Python :: 2",
