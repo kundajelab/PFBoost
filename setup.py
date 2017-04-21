@@ -12,7 +12,7 @@ def main():
         author = "Peyton Greenside",
         author_email = "pgreens@stanford.edu",
 
-        install_requires = [ 'scipy', 'numpy'],
+        install_requires = [ 'scipy', 'numpy'>=1.11],
 
         extra_requires=['matplotlib'],
 

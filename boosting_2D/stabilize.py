@@ -16,10 +16,6 @@ from boosting_2D import find_rule
 from boosting_2D import hierarchy as h
 from boosting_2D.multiprocessing_utils import fork_and_wait
 
-import pyximport; pyximport.install()
-from boosting_2D import util_functions
-
-
 log = util.log
 
 ### Define bundle class - store  bundled motifs+regulators with min loss rule
