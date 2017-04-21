@@ -266,13 +266,10 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split,
 
     ## Calculate threshold for stabilization
     log('get threshold', level=level)
-    # bundle_thresh = np.sqrt(sum(np.square(
-    #     np.frombuffer(weights_i[weights_i.nonzero()]))
-    #     )/np.square(sum(np.frombuffer(weights_i[weights_i.nonzero()]))))
     if y.sparse:
-        bundle_thresh = util_functions.calc_sqrt_sum_sqr_sqr_sums(weights_i.data)
+        bundle_thresh = util.calc_sqrt_sum_sqr_sqr_sums(weights_i.data)
     else:
-        bundle_thresh = util_functions.calc_sqrt_sum_sqr_sqr_sums(weights_i.ravel()) # Previously weights_i.data
+        bundle_thresh = util.calc_sqrt_sum_sqr_sqr_sums(weights_i.ravel()) 
     
     ## If large bundle, but hard cap on number of rules in bundle:
     log('test bundle size', level=level)
@@ -286,15 +283,7 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split,
         log('cap bundle', level=level)
         print "="*80
         print 'large bundle - cap at {0}'.format(config.TUNING_PARAMS.bundle_max)
-        ### STARTED RE-DO Rank all of the entries and get the top number of allowed rules 
-        # min_val = np.sort(np.concatenate( \
-        #     (symm_diff_w_regup.toarray()[symm_diff_w_regup.nonzero()] \
-        #     ,symm_diff_w_regdown.toarray()[symm_diff_w_regdown.nonzero()])))[config.TUNING_PARAMS.bundle_max]
-        # if y.sparse: 
-        #     rule_bundle_regup = np.where(symm_diff_w_regup.toarray()<=min_val)
-        #     rule_bundle_regdown = np.where(symm_diff_w_regdown.toarray()<=min_val)
-        #     # Randomly sample top 20 if there is a tie
-        ### XXX BETTER WAY TO DO THIS?? (NEED TO BE SURE BOTH UP AND DOWN have at least MAX_BUNDLE/2 MOTIFS/REGS in them)
+        ### Get rule bundles
         if y.sparse: 
             rule_bundle_regup = np.where(symm_diff_w_regup.todense().ravel().argsort().argsort().reshape(symm_diff_w_regup.toarray().shape) < config.TUNING_PARAMS.bundle_max/2)
             rule_bundle_regdown = np.where(symm_diff_w_regdown.todense().ravel().argsort().argsort().reshape(symm_diff_w_regup.toarray().shape) < config.TUNING_PARAMS.bundle_max/2) 
@@ -330,48 +319,10 @@ def bundle_rules(tree, y, x1, x2, m, r, reg, best_split,
         rule_bundle_regup_motifs+rule_bundle_regdown_motifs]
     rule_bundle_regs = x2.col_labels[ \
         rule_bundle_regup_regs+rule_bundle_regdown_regs]
-    # print rule_bundle_motifs
-    # print rule_bundle_regs
+
     # Return list where first element is bundle where reg_up and second is where reg_down
     return BundleStore(rule_bundle_regup_motifs, rule_bundle_regup_regs,
                          rule_bundle_regdown_motifs, rule_bundle_regdown_regs)
-
-# # Get rule score
-# def get_bundle_rule(tree, rule_bundle, theta, best_split, theta_alphas, 
-#                     bundle_train_rule_indices, 
-#                     bundle_test_rule_indices, 
-#                     holdout, w_pos, w_neg):
-#     # Training - add score to all places where rule applies
-#     # initialize a prediction matrix with the correct dimensions to 0
-#     bundle_train_pred = numpy.zeros(
-#          bundle_train_rule_indices[0].shape, dtype=float)
-#     for ind in xrange(len(theta_alphas)):
-#         bundle_train_pred = bundle_train_pred + \
-#             theta_alphas[ind]*bundle_train_rule_indices[ind]  
-    
-#     # new index is where absolute value greater than theta
-#     new_train_rule_ind = (abs(bundle_train_pred)>theta)
-
-#     # Testing - add score to all places where rule applies
-#     bundle_test_pred = bundle_test_rule_indices[0]*0
-#     for ind in range(len(theta_alphas)):
-#         bundle_test_pred = bundle_test_pred + \
-#             theta_alphas[ind]*bundle_test_rule_indices[ind]
-
-#     # new index is where absolute value greater than theta
-#     new_test_rule_ind = (abs(bundle_test_pred)>theta)
-
-#     # calculate W+ and W- for new rule
-#     weights_i = util.element_mult(tree.weights, tree.ind_pred_train[best_split])
-#     w_pos = util.element_mult(weights_i, holdout.ind_train_up)
-#     w_neg = util.element_mult(weights_i, holdout.ind_train_down)
-#     w_bundle_pos = util.element_mult(w_pos, new_train_rule_ind)
-#     w_bundle_neg = util.element_mult(w_neg, new_train_rule_ind) 
-#      # get score of new rule
-#     rule_bundle_score = 0.5*np.log((w_bundle_pos.sum() + 
-#         config.TUNING_PARAMS.epsilon) /
-#         (w_bundle_neg.sum()+config.TUNING_PARAMS.epsilon))
-#     return (rule_bundle_score, new_train_rule_ind, new_test_rule_ind)
 
 # Statistic to see whether stabilization applies
 def stable_boost_test(tree, rule_train_index, holdout):

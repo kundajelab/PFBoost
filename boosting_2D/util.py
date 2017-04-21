@@ -72,22 +72,6 @@ def log_progress(tree, i, x1, x2, hierarchy, ofp=None, verbose=True):
     if ofp is not None:
         ofp.write(msg.strip() + "\n")
 
-# def log_progress(tree, i, x1, x2, hierarchy, ofp=None, verbose=True):
-#     msg_contents = [
-#         'iteration: {0}'.format(i),
-#         'imbalanced train error: {0}'.format(tree.imbal_train_err[i]),
-#         'imbalanced test error: {0}'.format(tree.imbal_test_err[i]),
-#         'x1 split feat {0}'.format(x1.row_labels[tree.split_x1[i]]),
-#         'x2 split feat {0}'.format(x2.col_labels[tree.split_x2[i]]),
-#         'rule score {0}'.format(tree.scores[i])]
-#     if hierarchy is not None:
-#         msg_contents = msg_contents + ['hierarchy node {0}'.format(tree.hierarchy_node[i])]
-#     msg = "\n".join(msg_contents)
-#     if verbose:
-#         print msg
-#     if ofp is not None:
-#         ofp.write(msg.strip() + "\n")
-
 ### log prints to STDERR
 log = Logger()
 
@@ -248,5 +232,38 @@ def get_best_split_regulator(tree, x2, best_split):
 #     x2_obj.num_col = x2_obj.data.shape[1]
 #     return(x2_obj)
 
+### Sum of sqr sqr sums for stabilization threshold
 
+# def calc_sqrt_sum_sqr_sqr_sums(data):
+#     # find all non-zero entries
+#     sum_squared_values = 0
+#     sum_values = 0
+#     for i in range(data.shape[0]):
+#         value = data[i] 
+#         sum_squared_values += value*value
+#         sum_values += value
+#     return np.sqrt(sum_squared_values/(sum_values**2))
+
+def calc_sqrt_sum_sqr_sqr_sums(data):
+    # find all non-zero entries
+    result = np.sqrt((data**2).sum()/(data.sum()**2))
+    return result
+
+# t0 = time.time()
+# for i in range(100):
+#     calc_sqrt_sum_sqr_sqr_sums(data)
+# print time.time() - t0
+
+
+# def calc_sqrt_sum_sqr_sqr_sums(np.ndarray[np.float64_t, ndim=1] x):
+#     # find all non-zero entries
+#     cdef float sum_squared_values = 0
+#     cdef float sum_values = 0
+#     cdef Py_ssize_t i
+#     cdef float value
+#     for i in range(x.shape[0]):
+#         value = x[i] 
+#         sum_squared_values += value*value
+#         sum_values += value
+#     return np.sqrt(sum_squared_values/(sum_values**2))
 
