@@ -16,16 +16,16 @@ from collections import namedtuple
 import pdb
 import pickle
 
-from boosting_2D import config
-from boosting_2D import util
-from boosting_2D import plot
-from boosting_2D import margin_score
-from boosting_2D.data_class import *
-from boosting_2D.find_rule import *
-from boosting_2D import stabilize
-from boosting_2D import prior
-from boosting_2D import save_model
-from boosting_2D import hierarchy as h
+from boosting2D import config
+from boosting2D import util
+from boosting2D import plot
+from boosting2D import margin_score
+from boosting2D.data_class import *
+from boosting2D.find_rule import *
+from boosting2D import stabilize
+from boosting2D import prior
+from boosting2D import save_model
+from boosting2D import hierarchy as h
 
 ### Open log files
 log = util.log

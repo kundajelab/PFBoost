@@ -11,7 +11,7 @@ import pandas as pd
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import average_precision_score
 
-from boosting_2D.util import *
+from boosting2D.util import *
 
 class Data(object):
     def _load_sparse_data(self):

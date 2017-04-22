@@ -12,7 +12,7 @@ import sklearn.utils
 from scipy.sparse import *
 import random
 
-from boosting_2D import config
+from boosting2D import config
 
 
 ### Log 

@@ -21,10 +21,10 @@ import random
 import multiprocessing
 import ctypes
 
-from boosting_2D import margin_score
-from boosting_2D import util
-from boosting_2D import config
-from boosting_2D.multiprocessing_utils import fork_and_wait
+from boosting2D import margin_score
+from boosting2D import util
+from boosting2D import config
+from boosting2D.multiprocessing_utils import fork_and_wait
 
 
 ### Load data

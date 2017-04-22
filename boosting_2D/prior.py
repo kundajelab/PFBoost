@@ -14,7 +14,7 @@ import pandas as pd
 from collections import namedtuple
 import pdb
 
-from boosting_2D import util
+from boosting2D import util
 
 
 ### Keeps track of constants

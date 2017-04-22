@@ -10,11 +10,11 @@ from collections import namedtuple
 import multiprocessing
 import ctypes
 
-from boosting_2D import util
-from boosting_2D import config
-from boosting_2D import find_rule
-from boosting_2D import hierarchy as h
-from boosting_2D.multiprocessing_utils import fork_and_wait
+from boosting2D import util
+from boosting2D import config
+from boosting2D import find_rule
+from boosting2D import hierarchy as h
+from boosting2D.multiprocessing_utils import fork_and_wait
 
 log = util.log
 
