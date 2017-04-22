@@ -126,7 +126,6 @@ def test_hema_hierarchy_results():
     (x1, x2, y, tree) = load_hema_hierarchy_results()
 
     # Tests
-    from IPython import embed; embed()
     assert x1.data.shape == (640, 91530)
     assert x2.data.shape == (16, 1319)
     assert y.data.shape == (91530, 16)
