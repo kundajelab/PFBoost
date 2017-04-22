@@ -381,16 +381,20 @@ class DecisionTree(object):
             test_auprc_i = average_precision_score(y_true=test_labels,
                                                    y_score=test_predictions)
         else:
-            # auROC - compute based on change (+1) v no change (0)
-            train_auroc_i = roc_auc_score(y_true=abs(train_labels),
-                                          y_score=abs(train_predictions))
-            test_auroc_i = roc_auc_score(y_true=abs(test_labels),
-                                         y_score=abs(test_predictions))
-            # auPRC - compute based on change (+1) v no change (0)
-            train_auprc_i = average_precision_score(y_true=abs(train_labels),
-                                                    y_score=abs(train_predictions))
-            test_auprc_i = average_precision_score(y_true=abs(test_labels),
-                                                   y_score=abs(test_predictions))
+            train_predictions_2class = train_predictions[train_predictions != 0]
+            train_labels_2class = train_labels[train_predictions != 0]
+            test_predictions_2class = test_predictions[test_predictions != 0]
+            test_labels_2class = test_labels[test_predictions != 0]
+            # auROC - compute comparing negatives and positives
+            train_auroc_i = roc_auc_score(y_true=train_labels_2class,
+                                          y_score=train_predictions_2class)
+            test_auroc_i = roc_auc_score(y_true=test_labels_2class,
+                                         y_score=test_predictions_2class)
+            # auPRC - compute comparing negatives and positives
+            train_auprc_i = average_precision_score(y_true=train_labels_2class,
+                                                    y_score=train_predictions_2class)
+            test_auprc_i = average_precision_score(y_true=test_labels_2class,
+                                                   y_score=test_predictions_2class)
 
         # Store error 
         self.train_auroc.append(train_auroc_i)

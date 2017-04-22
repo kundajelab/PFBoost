@@ -162,7 +162,7 @@ python /users/pgreens/git/boosting_2D/bin/run_boosting_2D.py \
 --stable
 
 ### BINARY - 240K peaks, new set of regulators new motifs using empirical NULL
-python /users/pgreens/git/boosting_2D/bin/run_boosting_2D.py \
+python /users/pgreens/git/boosting2D/bin/run_boosting2D.py \
 --num-iter 100 --output-prefix hema_nadine_240K_set_apr14 \
 --input-format matrix --mult-format dense  \
 -x /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/boosting_data_sets/nadine_binary_april14/motif_matrix.txt.gz \
@@ -244,6 +244,21 @@ python /users/pgreens/git/boosting_2D/bin/run_boosting_2D.py \
 # --motif-reg-row-labels /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/boosting_data_sets/nadine_subset_test/motif_names.txt \
 # --motif-reg-col-labels /mnt/lab_data/kundaje/users/pgreens/projects/modisco/data/combined_regulators_CISBP_and_GO:0003677_DNA_binding_unique_gene_names_n2790_4_12_17.txt \
 
+### BINARY - hematopoiesis nadine further SUBSET set (50K peaks)
+python /users/pgreens/git/boosting_2D/bin/run_boosting_2D.py \
+--num-iter 100 --output-prefix hema_nadine_test_set_apr21 \
+--input-format matrix --mult-format dense  \
+-x /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/boosting_data_sets/nadine_subset_test_50K/motif_matrix.txt \
+-z /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/boosting_data_sets/nadine_subset_test_50K/expression_matrix.txt \
+-y /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/boosting_data_sets/nadine_subset_test_50K/accessibility_matrix.txt \
+-g /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/boosting_data_sets/nadine_subset_test_50K/peak_names.txt \
+-e /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/boosting_data_sets/nadine_subset_test_50K/cell_types_ordered.txt \
+-m /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/boosting_data_sets/nadine_subset_test_50K/motif_names.txt \
+-r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/boosting_data_sets/nadine_subset_test_50K/reg_names.txt \
+--holdout-file /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/boosting_data_sets/nadine_subset_test_50K/holdout.txt \
+--eta1 0.05 --eta2 0.01 --ncpu 5 --output-path /srv/persistent/pgreens/projects/boosting/results/ \
+--hierarchy-name hema_16cell \
+--stable
 
 
 ### ANNAs data 
