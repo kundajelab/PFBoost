@@ -285,7 +285,8 @@ def find_rule_weights(leaf_training_examples, example_weights, ones_mat, holdout
 def get_current_rule(tree, best_split, regulator_sign, loss_best, holdout,
                      y, x1, x2, hierarchy, hierarchy_node):
 
-    motif, regulator = np.where(loss_best == loss_best.min())
+    motif, regulator = np.where(np.isclose(loss_best,loss_best.min()))
+    
     # If multiple rules have the same loss, randomly select one
     if len(motif) > 1:
         random.seed(1)

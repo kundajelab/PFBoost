@@ -126,12 +126,13 @@ def test_hema_hierarchy_results():
     (x1, x2, y, tree) = load_hema_hierarchy_results()
 
     # Tests
+    from IPython import embed; embed()
     assert x1.data.shape == (640, 91530)
     assert x2.data.shape == (16, 1319)
     assert y.data.shape == (91530, 16)
     assert tree.nsplit == 11
     assert tree.split_x1 == ['root', 557, 557, 483, 483, 483, 475, 483, 606, 483, 606]
-    assert tree.split_x2 == ['root', 886, 141, 597, 138, 1242, 2, 1216, 138, 38, 1242]
+    assert tree.split_x2 == ['root', 2, 141, 597, 138, 1242, 2, 1216, 138, 38, 1242]
     assert tree.split_node == ['root', 0, 0, 0, 0, 0, 0, 1, 0, 2, 0]
     assert tree.split_depth == [0, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1]
     assert tree.hierarchy_node == [0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1]
