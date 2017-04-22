@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 
 import numpy as np
 
-from boosting_2D import config
+from boosting2D import config
 
 ### Plotting functions
 #######################

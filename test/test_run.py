@@ -204,7 +204,7 @@ if os.path.isdir('test/test_results/'):
 
 if args.hierarchy == False:
 
-    command="""python bin/run_boosting_2D.py \
+    command="""python bin/run_boosting2D.py \
 --num-iter 10 --output-prefix hema_test \
 --input-format matrix --mult-format %s  \
 -x test/data/hema_data/motif_matrix.txt \
@@ -226,7 +226,7 @@ if args.hierarchy == False:
 else:
 
     command="""
-python bin/run_boosting_2D.py \
+python bin/run_boosting2D.py \
 --num-iter 10 --output-prefix hema_test_hierarchy \
 --input-format matrix --mult-format %s  \
 -x test/data/hema_data_hierarchy/motif_matrix.txt.gz \

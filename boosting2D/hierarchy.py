@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import *
 
-from boosting_2D import util
+from boosting2D import util
 
 ### Return specific hierarchy encoding
 
