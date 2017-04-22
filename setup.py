@@ -18,14 +18,14 @@ def main():
 
         packages= ['boosting2D'],
 
-        description = ("Boosting will solve all the problems -- Peyton"),
+        description = ("2-dimensional boosting for gene regulatory networks"),
 
         license = "GPL3",
         keywords = "boosting",
         url = "https://github.com/kundajelab/boosting2D",
 
         long_description="""
-        2 dimensional boosting with Alternating Decision Trees. Learn the regulatory programs - transcriptional regulators and their corresponding motifs - that govern dynamic patterns of chromatin accessibility or gene expression across conditions such as time courses, different cell types, or experimental perturbations.
+        2-dimensional boosting with Alternating Decision Trees. Learn the regulatory programs - transcriptional regulators and their corresponding motifs - that govern dynamic patterns of chromatin accessibility or gene expression across conditions such as time courses, different cell types, or experimental perturbations.
         """,
         classifiers=[
             "Programming Language :: Python :: 2",
@@ -34,8 +34,6 @@ def main():
             "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
         ],
 
-        ext_modules=cythonize("boosting2D/util_functions.pyx"),
-        include_dirs=[numpy.get_include()]
     )
 
 if __name__ == '__main__':
