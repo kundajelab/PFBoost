@@ -232,7 +232,16 @@ def get_best_split_regulator(tree, x2, best_split):
 #     x2_obj.num_col = x2_obj.data.shape[1]
 #     return(x2_obj)
 
-### Sum of sqr sqr sums for stabilization threshold
+### Stabilizatoin: sum of sqr sqr sums 
+##########################################
+
+
+def calc_sqrt_sum_sqr_sqr_sums(data):
+    """
+    data should be a raveled 1D array
+    """
+    result = np.sqrt((data**2).sum()/(data.sum()**2))
+    return result
 
 # def calc_sqrt_sum_sqr_sqr_sums(data):
 #     # find all non-zero entries
@@ -243,27 +252,3 @@ def get_best_split_regulator(tree, x2, best_split):
 #         sum_squared_values += value*value
 #         sum_values += value
 #     return np.sqrt(sum_squared_values/(sum_values**2))
-
-def calc_sqrt_sum_sqr_sqr_sums(data):
-    # find all non-zero entries
-    result = np.sqrt((data**2).sum()/(data.sum()**2))
-    return result
-
-# t0 = time.time()
-# for i in range(100):
-#     calc_sqrt_sum_sqr_sqr_sums(data)
-# print time.time() - t0
-
-
-# def calc_sqrt_sum_sqr_sqr_sums(np.ndarray[np.float64_t, ndim=1] x):
-#     # find all non-zero entries
-#     cdef float sum_squared_values = 0
-#     cdef float sum_values = 0
-#     cdef Py_ssize_t i
-#     cdef float value
-#     for i in range(x.shape[0]):
-#         value = x[i] 
-#         sum_squared_values += value*value
-#         sum_values += value
-#     return np.sqrt(sum_squared_values/(sum_values**2))
-

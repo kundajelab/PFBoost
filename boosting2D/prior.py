@@ -140,8 +140,3 @@ def update_loss_with_prior(loss_matrix, prior_params, prior_motifreg,
         new_loss = util.element_mult(new_loss, regreg_multiplier)
     return new_loss
 
-
-
-# prior = pd.read_table('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/prior_data/motifTFpriors.txt',header=None)
-# prior.index = np.genfromtxt('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/prior_data/motifTFpriors.rows.txt', delimiter="\n", dtype="str")
-# prior.columns= np.genfromtxt('/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/prior_data/motifTFpriors.columns.txt', delimiter="\n", dtype="str")

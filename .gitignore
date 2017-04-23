@@ -2,3 +2,4 @@
 **/*.pyc
 **/create_binary_matrices_run.sh
 **/create_differential_matrices_run.sh
+**/run_commands*
