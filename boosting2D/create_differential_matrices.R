@@ -17,12 +17,11 @@ library(foreach)
 
 ### Usage: 
 ################################################################################################
-# DATA_PATH=/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/
-# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
-# $SCRIPT_PATH"create_differential_matrices.R" -a $DATA_PATH"RNA_AML_Samples.txt" -f $DATA_PATH"cell_comparisons_w_leuk_all_hier.txt" \
-# -c cell_type \
-# -r $DATA_PATH"/rna_seq/merged_matrix/gene_level_counts.txt" -g /srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt \
-# -o $DATA_PATH"boosting_input/regulator_expression_deseq.txt" -m deseq
+# SCRIPT_PATH=/path/to/boosting_2D/boosting_2D/
+# $SCRIPT_PATH"create_differential_matrices.R" -a "sample_annotations.txt" \
+# -f "comparisons_to_make.txt" -c cell_type \
+# -r "gene_counts.txt" -g "regulator_names.txt" \
+# -o "output_differential_matrix_regulator_expression_deseq.txt" -m deseq
 
 ### Get arguments
 ################################################################################################
@@ -57,133 +56,6 @@ pval = opt$pval
 out_format = opt$out_format
 foldchange = opt$foldchange
 serial = opt$serial
-
-### Manual Inputs
-# DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
-# annot_file=paste(c(DATA_PATH,'RNA_AML_Samples.txt'), collapse="")
-# comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier.txt'), collapse="")
-# comparison_column='cell_type'
-# data_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrix/gene_level_tpm.txt'), collapse="")
-# data_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrix/ .txt'), collapse="")
-# regulator_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt'
-# # regulator_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/regulator_names_GOterms_transcript_reg.txt'
-# method='deseq_svaseq'
-# output_file=paste(c(DATA_PATH,sprintf('boosting_input/regulator_expression_%s.txt', method)), collapse="")
-
-### Manual Inputs 2
-# annot_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/atac_seq/merged_matrices/Leuk_35M_annots_for_pseudorep_counts.txt"
-# comparison_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier.txt"
-# comparison_column='cell_type'
-# data_matrix_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/atac_seq/merged_matrices/Leuk_35M_counts_per_peak_merged_macsqval5_pseudoreps_labelled.txt"
-# regulator_file='none'
-# # regulator_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/regulator_names_GOterms_transcript_reg.txt'
-# method='deseq'
-# output_file="/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/regulator_expression_deseq_pval.txt"
-# out_format = 'dense'
-# pval=TRUE
-
-### Manual Inputs (Nadine expression)
-# DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
-# annot_file=paste(c(DATA_PATH,'RNA_AML_Samples.txt'), collapse="")
-# comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt'), collapse="")
-# comparison_column='cell_type'
-# data_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrices/gene_level_counts.txt'), collapse="")
-# regulator_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt'
-# output_file=paste(c(DATA_PATH,'boosting_input/accessibility_wrt_HSC_nadine_dense.txt'), collapse="")
-# binary_thresh=5
-
-### Manual Inputs (Nadine accessibility)
-# DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
-# annot_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples.txt'
-# comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt'), collapse="")
-# comparison_column='cell_type'
-# data_matrix_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_jason_only_feb6_idr_for_nadine_binaryPeaks.txt'
-# output_file=paste(c(DATA_PATH,'boosting_input/accessibility_wrt_HSC_nadine_dense.txt'), collapse="")
-# binary_thresh=5
-
-### Manual Inputs (Nadine accessibility April 3)
-# DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
-# annot_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples_april3.txt'
-# comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt'), collapse="")
-# comparison_column='cell_type'
-# data_matrix_file='/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_jason_only_feb6_idr_for_nadine_binaryPeaks.txt'
-# output_file=paste(c(DATA_PATH,'boosting_input/accessibility_wrt_HSC_nadine_dense.txt'), collapse="")
-# binary_thresh=2
-
-# Command Inputs (Nadine accessibility April 3 100K)
-# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
-# $SCRIPT_PATH"create_differential_matrices.R" \
-# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples.txt \
-# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt \
-# -c cell_type \
-# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_for_nadine_boosting_april3_binaryPeaks.txt \
-# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_wrt_HSC_nadine_dense_april3.txt \
-# -m deseq -t dense
-
-# Command Inputs (Nadine accessibility April 4 240K wrt HSC)
-# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
-# $SCRIPT_PATH"create_differential_matrices.R" \
-# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples_april4_240K.txt \
-# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt \
-# -c cell_type \
-# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_for_nadine_boosting_april4_240K_binaryPeaks.txt \
-# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_wrt_HSC_nadine_dense_april3.txt \
-# -m deseq -t dense
-
-# Command Inputs (Nadine accessibility April 4 240K wrt previous cell type)
-# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
-# $SCRIPT_PATH"create_differential_matrices.R" \
-# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples_april4_240K.txt \
-# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_previous_cell_type.txt \
-# -c cell_type \
-# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_for_nadine_boosting_april4_240K_binaryPeaks.txt \
-# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_wrt_previous_cell_type_nadine_dense_april3.txt \
-# -m deseq -t dense
-
-# Command Inputs (Nadine expression April 12 new regulator set)
-# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
-# $SCRIPT_PATH"create_differential_matrices.R" \
-# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrices/gene_level_counts.txt \
-# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt \
-# -c cell_type \
-# -r /mnt/lab_data/kundaje/users/pgreens/projects/modisco/data/combined_regulators_CISBP_and_GO:0003677_DNA_binding_unique_gene_names_n2790_4_12_17.txt \
-# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/expression_diff_wrt_HSC_nadine_dense_april12_new_regulators.txt \
-# -m deseq -t dense
-
-# Command Inputs (Nadine expression April 16 new regulator set, wrt HSC)
-# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
-# $SCRIPT_PATH"create_differential_matrices.R" \
-# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/RNA_AML_Samples.txt \
-# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrices/gene_level_counts.txt \
-# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt \
-# -c cell_type \
-# -g /mnt/lab_data/kundaje/users/pgreens/projects/modisco/data/combined_regulators_CISBP_and_GO:0003677_DNA_binding_unique_gene_names_n2790_4_12_17.txt \
-# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/expression_diff_wrt_HSC_nadine_dense_april16_new_regulators.txt \
-# -m deseq -t dense
-
-
-# Command Inputs (Nadine expression April 16 new regulator set, wrt to previous time point)
-# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
-# $SCRIPT_PATH"create_differential_matrices.R" \
-# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/RNA_AML_Samples.txt \
-# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrices/gene_level_counts.txt \
-# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_previous_cell_type_hierarchy_order.txt \
-# -c cell_type \
-# -g /mnt/lab_data/kundaje/users/pgreens/projects/modisco/data/combined_regulators_CISBP_and_GO:0003677_DNA_binding_unique_gene_names_n2790_4_12_17.txt \
-# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/expression_diff_wrt_previous_cell_type_nadine_dense_april16_new_regulators.txt \
-# -m deseq -t dense
-
-# Command Inputs (Nadine accessibility April 16 new regulator set, wrt to previous time point)
-# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
-# $SCRIPT_PATH"create_differential_matrices.R" \
-# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/Hema_ATAC_psuedorep_samples_april4_240K.txt \
-# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_counts_hema_model_for_nadine_boosting_april4_240K_binaryPeaks.txt \
-# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_wrt_previous_cell_type_hierarchy_order.txt \
-# -c cell_type \
-# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/accessibility_diff_wrt_previous_cell_type_nadine_dense_april16.txt \
-# -m deseq -t dense
-
-
 
 
 sprintf('output file: %s', output_file)
@@ -347,8 +219,6 @@ if (serial){
 	}
 }
 
-
-
 # Check the number of genes that are differentially significant between conditions
 # apply(data_diff_mat0, 2, function(x) sum(x!=0))
 # apply(data_diff_mat, 2, function(x) sum(x!=0))
@@ -375,7 +245,7 @@ if (out_format=='dense'){
 }
 if (out_format=='sparse'){
 	# Convert to sparse format
-	system(sprintf('python /users/pgreens/git/boosting_2D/boosting_2D/convert_dense_to_sparse.py --input-file %s --output-file %s --with-labels', dense_output_file, sparse_output_file))
+	system(sprintf('python convert_dense_to_sparse.py --input-file %s --output-file %s --with-labels', dense_output_file, sparse_output_file))
 
 	# Remove dense version
 	system(sprintf('rm %s', dense_output_file))
@@ -388,108 +258,5 @@ if (label_output_file!='none'){
 	sprintf('Wrote labels to: %s', label_output_file)
 }
 
-
 # Print when finished
 sprintf('DONE: find the output matrix in: %s', sparse_output_file)
-
-### SERIAL VERSION
-################################################################################################
-
-# Iterate through comparisons and input differential 
-# for (comp in comparisons[,1]){
-
-# 	# Print entry
-# 	print(comp)
-
-# 	# Get matrix with samples for comparison
-# 	grp1_labels = strsplit(strsplit(comp, 'v')[[1]][1], "\\|")[[1]]
-# 	grp2_labels = strsplit(strsplit(comp, 'v')[[1]][2], "\\|")[[1]]
-# 	grp1_samples = annots$sample_name[annots[,comparison_column] %in% grp1_labels]
-# 	grp2_samples = annots$sample_name[annots[,comparison_column] %in% grp2_labels]
-# 	comp_matrix = data_matrix[,c(grp1_samples, grp2_samples)]
-# 	comp_matrix = comp_matrix[which(apply(comp_matrix, 1, max)>0),]
-
-# 	# Proceed with TPM data
-# 	if (method=='sva_limma'){
-# 		# Normalize samples
-# 		comp_matrix_asinh = asinh(comp_matrix)
-# 		comp_matrix_asinh_qn = normalize.quantiles(as.matrix(comp_matrix_asinh), copy=TRUE)
-# 		rownames(comp_matrix_asinh_qn) = rownames(comp_matrix_asinh)
-# 		colnames(comp_matrix_asinh_qn) = colnames(comp_matrix_asinh)
-
-# 		# Calculate differential expression between the samples 
-# 		comp_matrix_asinh_qn_log = log2(as.matrix(comp_matrix_asinh_qn)+1)
-# 		comp_annots = annots[match(colnames(comp_matrix_asinh_qn_log),annots$sample_name),]
-# 		comp_annots['comp']=sapply(comp_annots[,comparison_column], function(x) ifelse(x %in% grp1_labels, "grp1", "grp2"))
-# 		full.model <- model.matrix(~ as.factor(comp) , data = comp_annots)
-# 		null.model <- model.matrix(~  1, data = comp_annots)
-# 		svobj <- sva(dat=comp_matrix_asinh_qn_log, mod = full.model, mod0 = null.model)
-# 		full.model.sv <- cbind(full.model, svobj$sv)
-# 		fit <- lmFit(comp_matrix_asinh_qn_log, full.model.sv)
-# 		ebfit <- eBayes(fit)
-# 		tophits <- topTable(ebfit, coef = "as.factor(comp)grp2", number = Inf)
-
-# 		if (pval==TRUE){
-# 			data_diff_mat0[match(rownames(tophits), rownames(data_diff_mat0)),comp]=tophits$adj.P.Val
-# 		} else {
-# 			# Allocate results into complete matrix
-# 			diff_genes_up = rownames(tophits)[intersect(which(tophits$adj.P.Val<=0.05), which(tophits$logFC>0))]
-# 			diff_genes_down = rownames(tophits)[intersect(which(tophits$adj.P.Val<=0.05), which(tophits$logFC<0))]
-# 			data_diff_mat0[diff_genes_up,comp]=1
-# 			data_diff_mat0[diff_genes_down,comp]=-1
-# 		}
-# 	# Proceed with count data DESeq
-# 	} else if (method=='deseq'){
-# 		# Calculate differential expression with DESeq
-# 		comp_matrix_rounded = round(comp_matrix)
-# 		comp_annots = annots[match(colnames(comp_matrix_rounded),annots$sample_name),]
-# 		comp_annots['comp']=sapply(comp_annots[,comparison_column], function(x) ifelse(x %in% grp1_labels, "grp1", "grp2"))
-# 		conditions = factor(comp_annots[,'comp'])
-# 		dds = DESeqDataSetFromMatrix(countData=comp_matrix_rounded, colData=comp_annots, design = ~comp)
-# 		dds <- DESeq(dds)
-# 		res <- results(dds, independentFiltering=FALSE)
-# 		res = res[order(res$pval), ]
-
-# 		if (pval==TRUE){
-# 			data_diff_mat0[match(rownames(res), rownames(data_diff_mat0)),comp]=res$padj
-# 		} else {
-# 			# Allocate results into complete matrix
-# 			diff_genes_up = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange>0))]
-# 			diff_genes_down = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange<0))]
-# 			data_diff_mat0[diff_genes_up,comp]=1
-# 			data_diff_mat0[diff_genes_down,comp]=-1
-# 		}
-# 	# Proceed with count data DESeq with SVASeq
-# 	} else if (method=="deseq_svaseq"){
-# 		# Calculate differential expression with DESeq + SVA BATCH VARIABLES (http://genomicsclass.github.io/book/pages/rnaseq_gene_level.html)
-# 		comp_matrix_rounded = round(comp_matrix)
-# 		comp_matrix_rounded = as.matrix(comp_matrix_rounded[rowMeans(comp_matrix_rounded) > 1,])
-# 		comp_annots = annots[match(colnames(comp_matrix),annots$sample_name),]
-# 		comp_annots['comp']=sapply(comp_annots[,comparison_column], function(x) ifelse(x %in% grp1_labels, "grp1", "grp2"))
-# 		conditions = factor(comp_annots[,'comp'])
-# 		dds = DESeqDataSetFromMatrix(countData=comp_matrix_rounded, colData=comp_annots, design = ~comp)
-# 		mod <- model.matrix(~ comp, colData(dds))
-# 		mod0 <- model.matrix(~ 1, colData(dds))
-# 		svaseq <- svaseq(comp_matrix_rounded, mod, mod0)
-# 		dds.sva <- dds
-# 		for (sv in seq(1,svaseq$n.sv)){
-# 			eval(parse(text=sprintf('dds.sva$SV%s <- matrix(svaseq$sv, ncol=svaseq$n.sv)[,%s]', sv, sv)))
-# 		}
-# 		eval(parse(text=sprintf('design(dds.sva) <- ~ %s + comp', paste(sapply(seq(1,svaseq$n.sv), function(x) sprintf("SV%s", x)), collapse=" + "))))
-# 		dds.sva <- DESeq(dds.sva)
-# 		res <- results(dds.sva)
-# 		res = res[order(res$pval),]
-
-# 		if (pval==TRUE){
-# 			data_diff_mat0[match(rownames(res), rownames(data_diff_mat0)),comp]=res$padj
-# 		} else {
-# 			# Allocate binary results into complete matrix
-# 			diff_genes_up = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange>0))]
-# 			diff_genes_down = rownames(res)[intersect(which(res$padj<=0.05), which(res$log2FoldChange<0))]
-# 			data_diff_mat0[diff_genes_up,comp]=1
-# 			data_diff_mat0[diff_genes_down,comp]=-1
-# 		}
-# 	}
-# }
-
-

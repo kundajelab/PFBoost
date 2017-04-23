@@ -12,14 +12,13 @@ library(preprocessCore)
 library(doParallel)
 library(foreach)
 
-### Usage: 
+### Usage example: 
 ################################################################################################
-# DATA_PATH=/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/
-# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
-# $SCRIPT_PATH"create_differential_matrices.R" -a $DATA_PATH"RNA_AML_Samples.txt" -f $DATA_PATH"cell_comparisons_w_leuk_all_hier.txt" \
-# -c cell_type \
-# -r $DATA_PATH"/rna_seq/merged_matrix/gene_level_counts.txt" -g /srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt \
-# -o $DATA_PATH"boosting_input/regulator_expression_deseq.txt" -m deseq
+# SCRIPT_PATH=/path/to/boosting2D/boosting22D/
+# $SCRIPT_PATH"create_binary_matrices.R" -a "sample_annotations.txt" \
+# -f "comparisons_to_make.txt"  -c cell_type \
+# -r "gene_counts.txt" -g "regulator_names.txt" \
+# -o "output_binary_matrix_regulator_expression.txt" -m 5
 
 ### Get arguments
 ################################################################################################
@@ -53,38 +52,7 @@ out_format = opt$out_format
 foldchange = opt$foldchange
 serial = opt$serial
 
-### Manual Inputs (Nadine)
-# DATA_PATH = '/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/'
-# annot_file=paste(c(DATA_PATH,'RNA_AML_Samples.txt'), collapse="")
-# comparison_file=paste(c(DATA_PATH,'cell_comparisons_w_leuk_all_hier_nadine_wrt_HSC.txt'), collapse="")
-# comparison_column='cell_type'
-# data_matrix_file=paste(c(DATA_PATH,'rna_seq/merged_matrices/gene_level_counts.txt'), collapse="")
-# regulator_file='/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulator_names_bindingTFsonly.txt'
-# output_file=paste(c(DATA_PATH,'boosting_input/regulator_expression_binary_nadine_dense.txt'), collapse="")
-# binary_thresh=5
-
-# Command Inputs (Nadine expression April 12 new regulator set)
-# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
-# $SCRIPT_PATH"create_binary_matrices.R" \
-# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/RNA_AML_Samples.txt \
-# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrices/gene_level_counts.txt \
-# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_binary.txt \
-# -c cell_type \
-# -g /mnt/lab_data/kundaje/users/pgreens/projects/modisco/data/combined_regulators_CISBP_and_GO:0003677_DNA_binding_unique_gene_names_n2790_4_12_17.txt \
-# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/expression_binary_nadine_dense_april12_new_regulators.txt \
-# -m 5 -t dense
-
-# Command Inputs (Nadine expression April 13 ALL GENES)
-# SCRIPT_PATH=/users/pgreens/git/boosting_2D/boosting_2D/
-# $SCRIPT_PATH"create_binary_matrices.R" \
-# -a /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/RNA_AML_Samples.txt \
-# -r /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/rna_seq/merged_matrices/gene_level_counts.txt \
-# -f /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/cell_comparisons_w_leuk_all_hier_nadine_binary.txt \
-# -c cell_type \
-# -o /mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/data/boosting_input/expression_binary_nadine_dense_april12_new_regulators.txt \
-# -m 5 -t dense
-# See/mnt/lab_data/kundaje/users/pgreens/projects/hematopoiesis/boosting_data_sets/nadine_expression_binary_april14/prepare_data.py for more
-
+## Print files to confirm correct usage
 sprintf('output file: %s', output_file)
 sprintf('regulator file: %s', regulator_file)
 sprintf('out_format file: %s', out_format)
