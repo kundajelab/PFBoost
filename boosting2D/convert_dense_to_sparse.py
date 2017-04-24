@@ -11,10 +11,10 @@ import numpy as np
 from scipy.sparse import *
 import scipy.io 
 
-### Usage: python /users/pgreens/git/boosting_2D/boosting_2D/convert_dense_to_sparse.py --input-file /srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulatorExpression_dense_bindingTFsonly.txt --output-file /srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulatorExpression_bindingTFsonly.txt --with-labels
-# input_file="/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulatorExpression_dense_bindingTFsonly.txt"
-# output_file="/srv/persistent/pgreens/projects/boosting/data/hematopoeisis_data/regulatorExpression_bindingTFsonly.txt"
-# with_labels=True
+### Usage: python convert_dense_to_sparse.py \
+# --input-file input_dense_matrix.txt \
+# --output-file output_sparse_matrix.txt \
+# --with-labels
 
 ### Parse Arguments
 ####################################
