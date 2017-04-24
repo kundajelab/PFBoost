@@ -27,19 +27,13 @@ from boosting2D import config
 from boosting2D.multiprocessing_utils import fork_and_wait
 
 
-### Load data
-###############################################################
-
-# RESULT_PATH='/srv/persistent/pgreens/projects/boosting/results/'
-# execfile('{0}2015_08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/load_pickle_data_script.py'.format(RESULT_PATH))
-
 ### K-Means Clustering
 ###############################################################
 ###############################################################
 
 # Run k-means clustering using sofia_ml and then join similar clusters
 def cluster_examples_kmeans(y, x1, x2, tree, n_clusters_start=5000,
-    mat_features=['motif']):
+                            mat_features=['motif']):
 
     ### Set up output folder
     cluster_outdir = '{0}{1}/clustering/'.format(
@@ -72,17 +66,16 @@ def cluster_examples_kmeans(y, x1, x2, tree, n_clusters_start=5000,
 ###############################################################
 
 # Convert format 
-def convert_matrix_to_svmlight_for_sofiaml(ex_by_feat_mat, label, out_dir, mat_features):
+def convert_matrix_to_svmlight_for_sofiaml(ex_by_feat_mat, label, 
+                                           out_dir, mat_features):
     sofiaml_file='{0}sofiaml_input_{1}.txt'.format(out_dir,
         '_'.join(mat_features))
     dump_svmlight_file(X=ex_by_feat_mat, y=[0]*ex_by_feat_mat.shape[0],
      f=sofiaml_file)
     return sofiaml_file
 
-def cluster_matrix_w_sofiaml_kmeans(ex_by_feat_mat, sofiaml_file, out_dir, n_clusters_start):
-    ### !! how to put on path?
-    SCRIPT_PATH='/users/pgreens/svn/sofia-ml-read-only/'
-
+def cluster_matrix_w_sofiaml_kmeans(ex_by_feat_mat, sofiaml_file, out_dir, 
+                                    n_clusters_start, SOFIA_ML_PATH):
     ### Run SOFIA ML Kmeans
     cluster_file = '{0}/sofiaml_clusters_n{1}.txt'.format(
         out_dir, n_clusters_start)
@@ -96,7 +89,7 @@ def cluster_matrix_w_sofiaml_kmeans(ex_by_feat_mat, sofiaml_file, out_dir, n_clu
      --dimensionality {2}
       --iterations 500 --objective_after_init --objective_after_training
        --training_file {3} --model_out {4}
-    """.format(SCRIPT_PATH, n_clusters_start, ex_by_feat_mat.shape[1],
+    """.format(SOFIA_ML_PATH, n_clusters_start, ex_by_feat_mat.shape[1],
      sofiaml_file, cluster_file).replace('\n', '')
 
     os.system(sofia_train_command)
@@ -106,7 +99,7 @@ def cluster_matrix_w_sofiaml_kmeans(ex_by_feat_mat, sofiaml_file, out_dir, n_clu
     {0}/sofia-kmeans --model_in {1}
      --test_file {2} --objective_on_test
       --cluster_assignments_out {3}
-    """.format(SCRIPT_PATH, cluster_file, sofiaml_file,
+    """.format(SOFIA_ML_PATH, cluster_file, sofiaml_file,
      assignment_file).replace('\n', '')
 
     os.system(sofia_test_command)
@@ -132,8 +125,6 @@ def join_similar_kmeans_cluster(cluster_file, assignment_file, max_distance=0.5)
 
     return new_clusters
 
-# write_out_cluster(y, cluster_file, new_clusters, out_dir,
-#      clusters_to_write=[1,2,3,4], create_match_null=True)
 
 def write_out_cluster(y, cluster_file, new_clusters,
                       clusters_to_write='all', create_match_null=False):
@@ -201,11 +192,6 @@ def write_out_cluster(y, cluster_file, new_clusters,
     print 'DONE: Find clusters in: {0}'.format(cluster_bed_dir)
 
 
-# np.max([len([i for i in new_clusters if i==clust]) for clust in xrange(max(new_clusters))])
-
-
-
-
 ### Plot margin scores across conditions
 ###############################################################
 ###############################################################
@@ -232,90 +218,6 @@ def get_margin_score_across_conditions(list_of_margin_scores, margin_score_path,
     return margin_scores
 
 
-def plot_margin_score_across_conditions(cond_margin_scores, feat_name, label):
-    ### Then plot them
-    PLOT_PATH='/srv/persistent/pgreens/projects/boosting/plots/margin_score_by_feat/'
-    import matplotlib.pyplot as plt
-    # order = [el-1 for el in [8, 12, 13, 9, 5, 6, 1, 2, 3, 4, 7, 11, 14, 10]]
-    # order = [el-1 for el in [7, 10, 11, 5, 1, 13, 8, 9, 12, 14, 2, 4, 3, 6]] # Specific to HEMA
-    order = get_order_vec(cond_margin_scores, order_file)
-    labels0 = [el.split('hema_')[1].split('_x')[0] for el in cond_margin_scores.keys()]
-    labels = [labels0[el] for el in order]
-    plt.figure(figsize=(20,10))
-    plt.plot(range(len(cond_margin_scores.values())),
-     [cond_margin_scores.values()[el] for el in order],
-     color='green', lw=5)
-    plt.ylabel('Normalized Margin Score', fontsize=22)
-    plt.xticks(range(len(labels)), labels, rotation=70, fontsize=18, ha='center')
-    plt.title('Margin Scores for: {0}'.format(feat_name),
-        fontsize=24)
-    # plt.savefig('/users/pgreens/test_plot.pdf', bbox_inches='tight', format='pdf')
-    plot_name='{0}{1}_{2}_across_hema.pdf'.format(PLOT_PATH, feat_name, label)
-    plt.savefig(plot_name, bbox_inches='tight', format='pdf')
-    print 'DONE: plot here {0}'.format(plot_name)
-
-order_file='/srv/persistent/pgreens/projects/boosting/results/margin_score_files/hema_order_file.txt'
-def get_order_vec(cond_margin_scores, order_file):
-    with open(order_file) as f: order_labels = f.read().splitlines() 
-    f.close()
-    order_vec = [key for el in range(len(order_labels))
-     for key in range(len(cond_margin_scores))
-      if order_labels[el] in cond_margin_scores.keys()[key]]
-    return order_vec
-
-# feat_name='CEBPA-MA0102.3'
-# feat_name='Spi1-MA0080.3'
-# list_of_margin_scores=('/srv/persistent/pgreens/projects/boosting/results/'
-#     'margin_score_files/hema_margin_score_files_x1_all_down.txt')
-# # list_of_margin_scores=('/srv/persistent/pgreens/projects/boosting/results/'
-# #     'margin_score_files/hema_margin_score_files_x1_all_up.txt')
-# cond_margin_scores = get_margin_score_across_conditions(list_of_margin_scores,
-#  MARGIN_SCORE_PATH, feat_name, feat_col, margin_score_col)
-# feat_list=['CEBPA-MA0102.3', 'Gata1-MA0035.3', 'CEBPB-MA0466.1',
-#  'EBF1-MA0154.2', 'FOXP1-MA0481.1', 'Hoxc9-MA0485.1', 
-# 'Hoxa9-MA0594.1', 'Spi1-MA0080.3', 'TAL1-GATA1-MA0140.2']
-
-# feat_col=4
-# margin_score_col=2
-# MARGIN_SCORE_PATH=('/srv/persistent/pgreens/projects/boosting/results/2015_'
-#     '08_15_hematopoeisis_23K_bindingTFsonly_adt_stable_1000iter/margin_scores/')
-
-# ### Iterate over motif/reg/node up/down to make all trajectories
-# list_dict = {}
-# list_dict['motif_down']=('/srv/persistent/pgreens/projects/boosting/results/'
-#     'margin_score_files/hema_margin_score_files_x1_all_down.txt')
-# list_dict['motif_up']=('/srv/persistent/pgreens/projects/boosting/results/'
-#     'margin_score_files/hema_margin_score_files_x1_all_up.txt')
-# list_dict['reg_down']=('/srv/persistent/pgreens/projects/boosting/results/'
-#     'margin_score_files/hema_margin_score_files_x2_all_down.txt')
-# list_dict['reg_up']=('/srv/persistent/pgreens/projects/boosting/results/'
-#     'margin_score_files/hema_margin_score_files_x2_all_up.txt')
-# list_dict['node_down']=('/srv/persistent/pgreens/projects/boosting/results/'
-#     'margin_score_files/hema_margin_score_files_node_all_down.txt')
-# list_dict['node_up']=('/srv/persistent/pgreens/projects/boosting/results/'
-#     'margin_score_files/hema_margin_score_files_node_all_up.txt')
-# feat_dict = {}
-# feat_dict['motif_down']=x1.row_labels
-# feat_dict['motif_up']=x1.row_labels
-# feat_dict['reg_down']=x2.col_labels
-# feat_dict['reg_up']=x2.col_labels
-# feat_dict['node_down']=range(1,tree.nsplit)
-# feat_dict['node_up']=range(1,tree.nsplit)
-
-# for key in list_dict.keys():
-#     if 'node' in key:
-#         continue
-#     for feat in feat_dict[key]:
-#         cond_margin_scores = get_margin_score_across_conditions(
-#             list_of_margin_scores=list_dict[key], 
-#             margin_score_path=MARGIN_SCORE_PATH, feat_name=feat,
-#              feat_col=feat_col, margin_score_col=margin_score_col)
-#         if len(cond_margin_scores)==14:
-#             print feat
-#             plot_margin_score_across_conditions(
-#             cond_margin_scores=cond_margin_scores, feat_name=feat, label=key)
-
-
 
 ### K-NN Clustering to track examples
 ###############################################################
@@ -323,7 +225,6 @@ def get_order_vec(cond_margin_scores, order_file):
 
 ### K-nearest neighbors - take in set of examples, find indices
 ### and return a dictionary of elements 
-# ex_file='/srv/persistent/pgreens/projects/boosting/results/clustering_files/hema_examples_to_track.txt'
 def knn(ex_file, y, x1, x2, tree, num_neighbors):
     ### Read in examples and get indices
     ex_df = pd.read_table(ex_file, header=None)
@@ -598,8 +499,6 @@ def subset_ex_by_feature_matrix(ex_by_feat_mat, y, x1, x2, condition_feat_file, 
 def cluster_ex_by_feature_matrix(sub_ex_by_feat_mat, plot_file):
     if sub_ex_by_feat_mat.shape[0]>50000:
         print "Matrix too large to be efficient, pleased reduce number of examples"
-    from sklearn.cluster.bicluster import SpectralCoclustering
-    from matplotlib import pyplot as plt
 
     # Subset down to motifs that are used
     plot_df = sub_ex_by_feat_mat[:,np.apply_along_axis(np.max, 0, sub_ex_by_feat_mat.toarray())!=0]
@@ -620,7 +519,6 @@ def cluster_ex_by_feature_matrix(sub_ex_by_feat_mat, plot_file):
 
     plt.figure()
     plt.matshow(fit_data.ix[0:500,], cmap=plt.cm.YlGnBu, aspect='auto')
-    plt.savefig('/users/pgreens/cluster.png')
     plt.savefig(plot_file)
 
     print "DONE: biclustering plot here: {0}".format(plot_file)
@@ -635,150 +533,5 @@ def enumerate_paths(tree):
         path_dict[node]='|'.join([str(node)]+[
             str(el) for el in tree.above_nodes[node] if el!=0])
     return path_dict
-
-
-
-### Track ChIP-Seq peaks
-###############################################################
-###############################################################
-
-
-### TEMPORARILY IN HEMA_MAKE_GWAS_DF.py
-
-
-# ### Clustering methods - OLD
-# ###############################################################
-# ###############################################################
-# # NMF
-# # Biclustering
-# # PCA/SVD
-# # LDA
-
-# # from sklearn.decomposition import ProjectedGradientNMF
-# # model = ProjectedGradientNMF(n_components=50, init='random', random_state=0)
-# from sklearn.decomposition import FactorAnalysis
-# model = FactorAnalysis(n_components=50, random_state=0)
-# model.fit(ex_by_feat_mat.toarray())
-
-# from sklearn.decomposition import RandomizedPCA
-# pca = RandomizedPCA(n_components=50)
-# pca.fit(ex_by_feat_mat)                 
-# RandomizedPCA(copy=True, iterated_power=3, n_components=2,
-#        random_state=None, whiten=False)
-
-# ### PCA
-# from sklearn.decomposition import TruncatedSVD
-# pca = TruncatedSVD(n_components=150)
-# pca.fit(ex_by_feat_mat)       
-# # DATA = SCORES x LOADINGS
-# scores = pca.transform(ex_by_feat_mat)    
-# loadings = pca.components_
-
-# # Divide examples into components
-# # Just assign the component max score (very biased toward first component)
-# ex_cluster_assign = np.apply_along_axis(np.argmax, 0, loadings)
-# feat_cluster_assign = np.apply_along_axis(np.argmax, 1, scores)
-# # K-means clustering based on components
-
-# ### Biclustering (MEMORY ERROR)
-# from sklearn.cluster.bicluster import SpectralCoclustering
-# test_mat = ex_by_feat_mat[0:5000,:].toarray()
-# test_mat = ex_by_feat_mat[0:1000,:].toarray()
-# # model = SpectralCoclustering(n_clusters=50)
-# model = SpectralCoclustering(n_clusters=50)
-# model.fit(test_mat) # fits for 50K
-# fit_data = test_mat[np.argsort(model.row_labels_)]
-# fit_data = fit_data[:, np.argsort(model.column_labels_)]
-
-# plt.figure()
-# plt.matshow(fit_data, cmap=plt.cm.Blues)
-# plt.savefig('/users/pgreens/cluster.png')
-
-
-# ### LDA
-# test_mat = ex_by_feat_mat.toarray()[0:500,:]
-# test_mat = ex_by_feat_mat[0:10000,:].toarray()
-# import lda
-# model = lda.LDA(n_topics=20, n_iter=500, random_state=1)
-# model.fit(test_mat)
-
-# ### Hierarchical Clustering (MEMORY ERROR)
-# import scipy.cluster.hierarchy as hier
-# import scipy.spatial.distance as dist
-
-# # Convert to nujmpy array
-# data = ex_by_feat_mat.toarray()
-# # Get read of zero entries
-# data = data[np.apply_along_axis(sum, 1, data)!=0,]
-# # Get cluster assignments based on euclidean distance + complete linkage
-# d = dist.pdist(data[1:50000,], 'euclidean') 
-# l = hier.linkage(d, method='average')
-# ordered_data = data[hier.leaves_list(l),:]
-# flat_clusters = hier.fcluster(l, t=max_distance, criterion='distance')
-
-# ### K-means with sparse matrices (takes forever)
-# from sklearn.cluster import KMeans
-# from sklearn.metrics import silhouette_samples, silhouette_score
-
-# labeler = KMeans(n_clusters=200) 
-# labeler.fit(ex_by_feat_mat[1:50000,])  
-# for (row, label) in enumerate(labeler.labels_):   
-#   print "row %d has label %d"%(row, label)
-
-# data = ex_by_feat_mat[np.array(ex_by_feat_mat.sum(axis=1)!=0).reshape(-1,),:]
-# data = ex_by_feat_mat[1:20000,]
-# range_n_clusters=[50,100,150,200,250,300,350,400,450,500,600,700,800,900,1000]
-# sil_avgs={}
-# for n_clusters in range_n_clusters:
-
-#     # Initialize the clusterer with n_clusters value and a random generator
-#     # seed of 10 for reproducibility.
-#     clusterer = KMeans(n_clusters=n_clusters, random_state=10)
-#     cluster_labels = clusterer.fit_predict(data)
-
-#     # The silhouette_score gives the average value for all the samples.
-#     # This gives a perspective into the density and separation of the formed
-#     # clusters
-#     silhouette_avg = silhouette_score(data, cluster_labels)
-#     sil_avgs[n_clusters]=silhouette_avg
-#     print("For n_clusters =", n_clusters,
-#           "The average silhouette_score is :", silhouette_avg)
-
-#     # Compute the silhouette scores for each sample
-#     sample_silhouette_values = silhouette_samples(data, cluster_labels)
-
-
-
-# ### Fast cluster (MEMORY ERROR with full data set)
-# data = ex_by_feat_mat[0:20000,:].toarray()
-# import fastcluster
-# from scipy import spatial
-
-# distance = spatial.distance.pdist(data)
-# c = fastcluster.linkage(distance, method='single', metric='euclidean', preserve_input=False)
-# ordered_data = data[hier.leaves_list(c),:]
-# max_distance=0.3
-# flat_clusters = hier.fcluster(c, t=max_distance, criterion='distance')
-# max([len(np.where(flat_clusters==i)[0]) for i in xrange(len(np.unique(flat_clusters)))])
-
-# ### Try SOFIA ML
-
-# # ### Evaluate clusters through GO term enrichments
-# # gwas_path = '/srv/gsfs0/projects/kundaje/users/pgreens/projects/enh_gene_link_gwas/results/'
-# # out_path = '/srv/gsfs0/projects/kundaje/users/pgreens/projects/enh_gene_link_gwas/DAVID_output/'
-# # plot_path = '/srv/gsfs0/projects/kundaje/users/pgreens/projects/enh_gene_link_gwas/plots/'
-
-# # ### Run DAVID QUERY for every GWAS (takes a while)
-# # gwas=list.files(gwas_path)
-# # for (g in gwas){
-# #     # Run for links
-# #     input = sprintf('%s%s/%s_best_linked_genes.txt', gwas_path, g, strsplit(g, 'roadmap_')[[1]][2])
-# #     output = sprintf('%s%s_linked_GO_enrichment.txt', out_path, strsplit(g, 'roadmap_')[[1]][2])
-# #     system(sprintf('/srv/gs1/software/R/R-3.0.1/bin/Rscript /srv/gsfs0/projects/kundaje/users/pgreens/scripts/DAVID_R_access.R -f %s -c 5 -o %s', input, output), intern=TRUE)
-# #     # Run for nearest
-# #     input = sprintf('%s%s/%s_nearest_genes.txt', gwas_path, g, strsplit(g, 'roadmap_')[[1]][2])
-# #     output = sprintf('%s%s_nearest_GO_enrichment.txt', out_path, strsplit(g, 'roadmap_')[[1]][2])
-# #     system(sprintf('/srv/gs1/software/R/R-3.0.1/bin/Rscript /srv/gsfs0/projects/kundaje/users/pgreens/scripts/DAVID_R_access.R -f %s -c 6 -o %s', input, output), intern=TRUE)
-# # }
 
 

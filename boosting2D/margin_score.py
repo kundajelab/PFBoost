@@ -26,9 +26,6 @@ import ctypes
 
 log = util.log
 
-### XXX DEPENDENCIES
-### Currently uses TSS file on nandi, need to add as an argument
-
 ###  MARGIN SCORE FUNCTIONS
 ################################################################################
 ################################################################################
@@ -45,10 +42,6 @@ def calc_margin_score_x1(tree, y, x1, x2, index_mat,
                         if x1_feat_index 
                         in [tree.split_x1[el]] + tree.bundle_x1[el]]
 
-    # # Write out bundles separately
-    # x1_bundles = ['|'.join(x1.row_labels[[el for el in [tree.split_x1[node]]
-    #      +tree.bundle_x1[node] if el != x1_feat_index]]) for node in x1_feat_nodes]
-    # x1_bundle_string = '--'.join([el if len(el)>0 else "none" for el in x1_bundles])
     # Write all unique terms bundled (separated by pipe) or None of no motifs bundled
     unique_bundle_terms = np.unique([x1.row_labels[el] for node in x1_feat_nodes
                                      for el in [tree.split_x1[node]] + tree.bundle_x1[node]
@@ -147,10 +140,6 @@ def calc_margin_score_x2(tree, y, x1, x2, index_mat,
                      if x2_feat_index in [tree.split_x2[el]]
                      + tree.bundle_x2[el]]
 
-    # # Write out bundles separately
-    # x2_bundles = ['|'.join(x2.col_labels[[el for el in [tree.split_x2[node]]
-    #      +tree.bundle_x2[node] if el != x2_feat_index]]) for node in x2_feat_nodes]
-    # x2_bundle_string = '--'.join([el if len(el)>0 else "none" for el in x2_bundles])
     # Write all unique terms bundled (separated by pipe) or None of no motifs bundled
     unique_bundle_terms = np.unique([x2.col_labels[el] 
                                     for node in x2_feat_nodes 
@@ -510,17 +499,15 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
         # All x1 features used in a tree, not equal to root
         used_x1_feats = np.unique([el for el in tree.split_x1 if el != 'root']+ \
             [el for listy in tree.bundle_x1 for el in listy if el != 'root']).tolist()
-        ### SERIAL VERSION
+        # Run in serial
         if config.NCPU == 1:
             rule_processes = []    
             for feat in used_x1_feats:
                 result=calc_margin_score_x1(tree, y, x1, x2, index_mat, feat)
                 rule_processes.append(result)
-        ### PARALLEL version
+        # Run in parallel
         else:
             lock = multiprocessing.Lock()
-            # rule_processes_mp = multiprocessing.queues.Queue(x1.num_row)
-            # rule_processes_mp = multiprocessing.Queue(x1.num_row)
             # Starts a server/process that listens on port/can run across machines
             manager = multiprocessing.Manager()
             rule_processes_mp = manager.list() # get list object of manager
@@ -529,8 +516,6 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
                     (lock, index_cntr, rule_processes_mp)]
             fork_and_wait(config.NCPU, calc_margin_score_x1_worker, args)
             rule_processes = []
-            # while rule_processes_mp.empty() == False: 
-            #     rule_processes.append(rule_processes_mp.get())
             while len(rule_processes_mp) > 0:
                 rule_processes.append(rule_processes_mp.pop())
         # Report data frame with feature 
@@ -551,13 +536,13 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
                                    if el != 'root'] + \
                                   [el for listy in tree.bundle_x2 
                                    for el in listy if el != 'root']).tolist()
-        ### SERIAL VERSION
+        # Run in serial
         if config.NCPU == 1:
             rule_processes = []    
             for feat in used_x2_feats:
                 result=calc_margin_score_x2(tree, y, x1, x2, index_mat, feat)
                 rule_processes.append(result)
-        # PARALLEL VERSION
+        # Run in parallel
         else:
             lock = multiprocessing.Lock()
             # Starts a server/process that listens on port/can run across machines
@@ -587,7 +572,7 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
                 [el for listy in tree.bundle_x1 for el in listy if el != 'root']
         used_x2_feats = [el for el in tree.split_x2 if el != 'root']+ \
                 [el for listy in tree.bundle_x2 for el in listy if el != 'root']
-        # Serial version
+        # Run in serial
         uniq_x1_x2_pairs = {d[1:]:d for d in zip(used_x1_feats, used_x2_feats)}
         rule_processes_mp.close()
         rule_processes = []    
@@ -607,13 +592,13 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
             columns=['margin_score'], ascending=False)
     if method == 'node':
         print 'computing margin score for node'
-        # SERIAL VERSION
+        # Run in serial
         if config.NCPU == 1:
             rule_processes = []   ### Make dictionary with keys equal to dataframe
             for node in xrange(1,tree.nsplit):
                 result=calc_margin_score_node(tree, y, x1, x2, index_mat, node)
                 rule_processes.append(result)
-        # PARALLEL VERSION
+        # Run in parallel
         else:
             lock = multiprocessing.Lock()
             manager = multiprocessing.Manager() # starts a server/process that listens on port/can run across machines
@@ -639,13 +624,13 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
             columns=['margin_score'], ascending=False)
     if method == 'path':
         print 'computing margin score for path'
-        ### SERIAL VERSION
+        # Run in serial
         if config.NCPU == 1:
             rule_processes = []    
             for node in xrange(1,tree.nsplit):
                 result = calc_margin_score_path(tree, y, x1, x2, index_mat, node)
                 rule_processes.append(result)
-        ### PARALLEL VERSION
+        # Run in parallel
         else:
             lock = multiprocessing.Lock()
             manager = multiprocessing.Manager()
@@ -671,7 +656,6 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
     # Return matrix
     return ranked_score_df
 
-    # return [node, path_string, len(nodes_in_path), margin_score, margin_score_norm, rule_index_fraction, direction]
 
 
 ###  FUNCTIONS TO GET INDEX
@@ -977,7 +961,8 @@ def plot_norm_margin_score_across_conditions(conditions, method, plot_label,
     # Allocate plot matrix
     plot_df = pd.DataFrame(index=conditions, columns=top_reg)
     for condition in plot_df.index:
-        plot_df.ix[condition,:]=[result_dfs[condition].ix[result_dfs[condition].ix[:,method]==reg,'margin_score_norm'].tolist()[0] for reg in top_reg]
+        plot_df.ix[condition,:]=[result_dfs[condition].ix[result_dfs[condition].ix[
+                                 :,method] == reg,'margin_score_norm'].tolist()[0] for reg in top_reg]
     plt.figure(figsize=(12, 9))
     plt.pcolor(plot_df)
     plt.yticks(np.arange(0.5, len(plot_df.index), 1), plot_df.index)
@@ -990,7 +975,8 @@ def plot_norm_margin_score_across_conditions(conditions, method, plot_label,
     plt.title('Normalized Margin Scores Across Conditions {0} \n {1}'.format(element_direction, plot_label))
     plt.legend(loc=1)
     # plt.savefig('/users/pgreens/temp_heatmap.png', bbox_inches='tight')
-    plt.savefig('{0}/plots/margin_score_plots/{1}_top{2}_{3}_{4}.png'.format(config.OUTPUT_PATH, plot_label, num_feat, method, element_direction), bbox_inches='tight')
+    plt.savefig('{0}/plots/margin_score_plots/{1}_top{2}_{3}_{4}.png'.format(config.OUTPUT_PATH, 
+                plot_label, num_feat, method, element_direction), bbox_inches='tight')
 
 
 ### Find discriminative motifs and enhancers between conditions
@@ -1013,7 +999,6 @@ def plot_norm_margin_score_across_conditions(conditions, method, plot_label,
 #     discrim_df = discrim_df.sort(columns='sort', ascending=False).drop('sort', axis=1)
 #     discrim_df.to_csv(out_file, header=True, index=False, sep="\t")
 
-###
 
 ### Take two set of indices and calculate the factors that are most different 
 def call_discriminate_margin_score(index_mat_1, index_mat_2, key, method, 
@@ -1032,7 +1017,6 @@ def call_discriminate_margin_score(index_mat_1, index_mat_2, key, method,
                                            index_mat_2, method=method)
     ### find difference in normalized margin score between the two
     disc_rank_df = get_diff_in_rank_score_dfs(rank_score_df_1, rank_score_df_2, method)
-    # pdb.set_trace()
     # Write margin score to output_file 
     disc_rank_df.to_csv('{0}{1}_{2}_{3}_disc_margin_score.txt'.format(disc_margin_outdir,
         margin_score_prefix, method, key), 
@@ -1056,7 +1040,6 @@ def get_diff_in_rank_score_dfs(rank_score_df_1, rank_score_df_2, method):
         disc_rank_df = pd.merge(rank_score_df_1, rank_score_df_2, 
                                 on=['node', 'x1_feat', 'x1_feat_bundles',
                                     'x2_feat', 'x2_feat_bundles'])
-    # disc_rank_df['margin_score_diff']=disc_rank_df['margin_score_x']-disc_rank_df['margin_score_y']
     disc_rank_df['margin_score_norm_diff'] = disc_rank_df['margin_score_norm_x'] - disc_rank_df['margin_score_norm_y']
     disc_rank_df = disc_rank_df.sort(columns='margin_score_norm_diff', ascending=False)
     disc_rank_df.index = range(disc_rank_df.shape[0])
