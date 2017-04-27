@@ -19,7 +19,7 @@ import scipy.io
 ### Parse Arguments
 ####################################
 
-parser = argparse.ArgumentParser(description='Extract Chromatin States')
+parser = argparse.ArgumentParser(description='Matrix conversion')
 
 parser.add_argument('--input-file', 
                     help='Input dense matrix')

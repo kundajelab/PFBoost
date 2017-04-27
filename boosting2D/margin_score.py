@@ -36,6 +36,7 @@ def calc_margin_score_x1_wrapper(args):
 # calc margin_score for x1 features
 def calc_margin_score_x1(tree, y, x1, x2, index_mat, 
                          x1_feat_index, by_example=False):
+    from IPython import embed; embed()
     x1_feat_name = x1.row_labels[x1_feat_index]
     # All rules where x1 is in split or bundled
     x1_feat_nodes = [el for el in xrange(1, tree.nsplit) 
