@@ -364,7 +364,7 @@ def write_knn(y, ex_file, knn_dict, output_path):
 ###############################################################
 
 def gen_ex_by_feature_matrix(y, x1, x2, tree, feat=[
-    'motif', 'reg', 'node', 'path']):
+                             'motif', 'reg', 'node', 'path']):
 
     example_labels = ['|'.join([col_lab, row_lab]) for row_lab in y.row_labels
      for col_lab in y.col_labels]

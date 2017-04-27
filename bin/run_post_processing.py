@@ -50,7 +50,7 @@ PostProcess_Params = namedtuple('PostProcess_Params', [
     'run_unsupervised_clustering', 'n_clusters_start',
     'features_to_use', 'clusters_to_write',
     'run_knn_with_examples', 'examples_to_track',
-    'number_knneighbors'
+    'number_knneighbors', 'ncpu'
 ])
 
 def parse_args():
@@ -137,7 +137,7 @@ def parse_args():
         args.run_unsupervised_clustering, args.n_clusters_start,
         features_to_use, args.clusters_to_write,
         args.run_knn_with_examples,
-        examples_to_track, args.number_knneighbors 
+        examples_to_track, args.number_knneighbors, args.ncpu
         )
 
     return PARAMS
@@ -178,8 +178,9 @@ def main():
     
     # Load tree file and update globals with file state
     locals_dict = {}
-    execfile(PARAMS.model_path, {}, locals_dict)
+    execfile(PARAMS.model_path, {}, locals_dict) 
     globals().update(locals_dict)
+    config.NCPU = PARAMS.ncpu # execfile resets config.NCPU, so reset again
 
     ### Run margin score
     if PARAMS.run_margin_score:
@@ -209,11 +210,15 @@ def main():
         # Iterate through all methods and index matrices
         for method in PARAMS.margin_score_methods:
             for key in index_mat_dict.keys():
+                # If no entries in this index mat, skip 
+                if index_mat_dict[key].sum() == 0:
+                    print("No entries for index mat: %s"%key)
+                    continue
                 margin_score.call_rank_by_margin_score(index_mat_dict[key], 
-                    key, method, PARAMS.analysis_label,
-                    y, x1, x2, tree, 
-                    num_perm=PARAMS.num_perm, 
-                    null_tree_file=PARAMS.null_tree_model)
+                                        key, method, PARAMS.analysis_label,
+                                        y, x1, x2, tree, 
+                                        num_perm=PARAMS.num_perm, 
+                                        null_tree_file=PARAMS.null_tree_model)
 
         print 'DONE: margin scores in {0}{1}/margin_scores/'.format(
             config.OUTPUT_PATH, config.OUTPUT_PREFIX)
@@ -273,7 +278,6 @@ def main():
         (cluster_file, new_clusters) = post_process_unsupervised.cluster_examples_kmeans(
                                          y, x1, x2, tree, n_clusters_start=PARAMS.n_clusters_start,
                                           mat_features=PARAMS.features_to_use)
-        from IPython import embed; embed()
         # Write out bed files with each cluster
         if PARAMS.clusters_to_write!='none':
             write_out_cluster(y, cluster_file, new_clusters,

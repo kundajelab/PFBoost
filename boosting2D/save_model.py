@@ -213,7 +213,7 @@ def save_complete_model_state(pickle_file, x1, x2, y, hierarchy, tree):
 def store_module_in_dict(module_object):
     module_dict={}
     for key in module_object.__dict__.keys():
-        if key in ['SavingParams', 'TuningParams']:
+        if key in ['SavingParams', 'TuningParams', 'NCPU']:
             continue
         try: 
             tmp=pickle.dumps(module_object.__dict__[key])

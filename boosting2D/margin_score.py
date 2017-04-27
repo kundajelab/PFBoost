@@ -36,7 +36,6 @@ def calc_margin_score_x1_wrapper(args):
 # calc margin_score for x1 features
 def calc_margin_score_x1(tree, y, x1, x2, index_mat, 
                          x1_feat_index, by_example=False):
-    from IPython import embed; embed()
     x1_feat_name = x1.row_labels[x1_feat_index]
     # All rules where x1 is in split or bundled
     x1_feat_nodes = [el for el in xrange(1, tree.nsplit) 
@@ -666,31 +665,33 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
 ### Get the index with a text file or document of of interest
 ### Takes either index or the names of the features y.row_labels or y.col_labels
 def get_index(y, x1, x2, tree, condition_feat_file=None, region_feat_file=None):
-    if region_feat_file!=None:
+    if region_feat_file is not None:
         x1_file = pd.read_table(region_feat_file, header=None)
+        x1_file_list = x1_file.ix[:,0].tolist()
         # if providing index numbers
         if x1_file.applymap(lambda x: isinstance(x, (int, float))
                             ).sum().tolist()[0]==x1_file.shape[0]:
             # ASSUMING INPUT IS 1 BASED
-            x1_index = [el-1 for el in x1_file.ix[:,0].tolist()]
+            x1_index = [el-1 for el in x1_file_list]
         # if providing labels
         else:
             x1_index = [el for el in xrange(y.data.shape[0]) 
-                        if y.row_labels[el] in x1_file.ix[:,0].tolist()]
+                        if y.row_labels[el] in x1_file_list]
     # else allow all
     else:
         x1_index = range(x1.num_col)
-    if condition_feat_file!=None:
+    if condition_feat_file is not None:
         x2_file = pd.read_table(condition_feat_file, header=None)
+        x2_file_list = x2_file.ix[:,0].tolist()
         # if providing index numbers
         if x2_file.applymap(lambda x: isinstance(x, (int, float))
                             ).sum().tolist()[0]==x2_file.shape[0]: # this is terrible fix
             # ASSUMING INPUT IS 1 BASED
-            x2_index = [el-1 for el in x2_file.ix[:,0].tolist()]
+            x2_index = [el-1 for el in x2_file_list]
         # if providing labels
         else:
             x2_index = [el for el in xrange(y.data.shape[1]) 
-                        if y.col_labels[el] in x2_file.ix[:,0].tolist()]
+                        if y.col_labels[el] in x2_file_list]
     else:
         x2_index = range(x2.num_row)
     index_mat = np.zeros((y.num_row, y.num_col), dtype=bool)
