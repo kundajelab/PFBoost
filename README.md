@@ -19,10 +19,9 @@ In order to use this code you will need 3 matrices: one each for motifs/x1 matri
 
 I strongly recommend first installing anaconda for Python 2.7 for easy installation: https://www.continuum.io/downloads
 
-Clone the repository here: https://github.com/kundajelab/boosting_2D.git. For access, email pgreens@stanford.edu.
-
-Install the software with “python setup.py install” in the boosting_2D repository.
-For Stanford affiliates and for installation on scg3/4, see instructions here: https://web.stanford.edu/group/scgpm/cgi-bin/informatics/wiki/index.php/2D_boosting#testing_the_module
+Clone the repository here: https://github.com/kundajelab/boosting2D.git. For access, email pgreens@stanford.edu.
+ 
+Install the software with “python setup.py install” in the boosting2D repository.  
 
 # Main Model
 
@@ -189,8 +188,6 @@ Pickled, gzipped tree state only. May be deprecated.
 
 plots 
 Folder for all plots. Standard 3 to produce with --plot are: balanced training/testing error, imbalanced training/testing error, margin of training/testing 
-
-
 
 
 ## Hierarchical Boosting
