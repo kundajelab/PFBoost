@@ -7,13 +7,13 @@ Contact: Peyton Greenside (pgreens@stanford.edu), Kundaje Lab
 Github Repository: https://github.com/kundajelab/boosting2D 
 
 ### When to use:  
-Learn the regulatory programs - transcriptional regulators and their corresponding motifs - that govern dynamic patterns of chromatin accessibility or gene expression (or anything!) across conditions. Conditions can be across time courses, different cell types, or any perturbations.
+Learn the regulatory programs - transcriptional regulators and their corresponding motifs - that govern dynamic patterns of chromatin accessibility or gene expression (or other phenotypes) across conditions. Conditions can be time courses, different cell types, or other experimental perturbations.
 
 ### The method in one paragraph:  
-At every iteration, the method pairs a motif and regulator that best predict changes in your target expression/accessibility matrix. This motif-regulator pair with its corresponding index into the target matrix is known as one “rule.” For 1000 iterations we have 1000 such rules. After running the model to learn the rules that predict over the entire target matrix, we can use the learned model to look at any subset of the matrix (any set of conditions or peaks or combination thereof) to learn which regulatory programs govern the subset of interest. This occurs in the post-processing steps in a separate run from training the main model. One should train the model across all conditions together with all captured dynamics, and then look at each condition or set of peaks/genes individually in the post-processing steps.
+At every iteration, the method pairs a motif and regulator that best predict changes in your target expression/accessibility matrix. This motif-regulator pair with its corresponding index into the target matrix and prediction (up/down regulated) is known as one “rule.” For 1000 iterations we have 1000 such rules, and after each iteration the data is re-weighted to up-weight examples that are incorrectly predicted. After generating a model to learn the rules that predict over the entire target matrix, we can use the learned model to look at any subset of the matrix (any set of conditions or peaks or combination thereof) to learn which regulatory programs govern the data subset of interest. This occurs in the post-processing steps in a separate run from training the main model. One should train the model across all conditions together with all captured dynamics, and then look at each condition or set of peaks/genes individually in the post-processing steps.
 
 ### The how-to-use summary: 
-In order to use this code you will need 3 matrices: one each for motifs/x1 matrix (0/1 if a motif is absent/present), regulators/x2 matrix (-1/0/1 for decreased/no change/increased) and target expression or chromatin accessibility/y matrix (-1/0/1 for decreased/no change/increased) and 4 sets of labels for the four unique dimensions of the three matrices. Provide an output path and a relevant label for your analysis folder and you’re pretty much good to go.  Each time point with all preceding time points with +1 if it's increased in the later time step (i.e. +1 means Time 2 is increased in Time2_v_Time1)
+In order to use this code you will need 3 matrices: one each for the motifs/x1 matrix (0/1 if a motif is absent/present), regulators/x2 matrix (-1/0/1 for decreased/no change/increased or 1/0 for expressed/not expressed) and target expression or chromatin accessibility/y matrix (-1/0/1 for decreased/no change/increased) and 4 sets of labels for the four unique dimensions of the three matrices. Provide an output path and a relevant label for your analysis folder and you’re pretty much good to go. 
 
 # Installation
 
@@ -42,18 +42,18 @@ Output path for results folder (e.g. /path/to/results/)
 ### Matrices   
 
 --target-file 
-What you want to predict (typically chromatin accessibility or gene expression). Takes -1/0/1. Dimension (peaks x conditions).
+What you want to predict (typically chromatin accessibility or gene expression). Takes -1/0/1 or -1/1. Dimension (peaks x conditions).
 
 --motifs-file 
 The motifs associated with the genomic regions in the target matrix. Takes 0/1. Dimension (motifs x peaks).
 
 --regulator-file 
- The transcriptional regulators (TF binding proteins or genes with GO term “transcriptional regulation” or similar). Takes -1/0/1. Dimension (conditions x regulators).
+ The transcriptional regulators (TF binding proteins or genes with GO term “transcriptional regulation” or similar). Takes -1/0/1 or 0/1. Dimension (conditions x regulators).
 
 ### Labels:  
 
 --target-row-labels 
-Peak or gene names associated with rows of target matrix and columns of motif matrix. NOTE: For current implementation of unsupervised post processing peaks should be labeled as “chrX:START-END”. Any other annotations must be separated at a colon such as  “chrX:START-END;other_annotations”. Example peak label: “chr5:200-700;BRAF”.
+Peak or gene names associated with rows of target matrix and columns of motif matrix. NOTE: If you plan to use the current implementation of unsupervised post processing, peaks should be labeled as “chrX:START-END”. Any other annotations must be separated with a colon such as  “chrX:START-END;other_annotations”. Example peak label: “chr5:200-700;BRAF”. If you are just training a model, any format is fine.
 
 --target-col-labels 
 Condition labels associated with columns of target matrix and rows of regulator matrix
@@ -67,7 +67,7 @@ Regulator labels. Matches number of columns in regulator matrix.
 ### Input Parameters  
 
 --input-format 
-“matrix or triplet” - Triplet is 3 row, column, value. Matrix is typical dense matrix. Default is matrix.
+“matrix or triplet” - Triplet is 3 columns: row, column, value. Matrix is typical dense matrix. Default is matrix.
 
 --mult-format 
 “dense or sparse”  - Format of matrices for algorithm and for matrix multiplication. Currently sparse is faster. Default is sparse.
@@ -89,7 +89,7 @@ Number of CPUs to parallelize over. Default is 1.
 ### Optional Tuning parameters:  
 
 --stable 
-Stabilize by joining correlated features. Highly recommended. 
+Stabilize by joining correlated features. Recommended. 
 
 --max-bundle-size  
 Maximum bundle size for stabilized boosting. Default is 20.
