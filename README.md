@@ -92,7 +92,7 @@ Number of CPUs to parallelize over. Default is 1.
 
 ### Optional Tuning parameters:  
 
---stable 
+--stable  
 Stabilize by joining correlated features. Recommended. 
 
 --max-bundle-size  
