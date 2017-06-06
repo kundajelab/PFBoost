@@ -1,19 +1,23 @@
 # boosting2D
 
-### Learning Regulatory Programs: how to use 2D boosting code
+### boosting2D: a software package to learn gene regulatory programs
 
-Contact: Peyton Greenside (pgreens@stanford.edu), Kundaje Lab 
+Contact: Peyton Greenside (pgreens@stanford.edu), Kundaje Lab @ Stanford
 
 Github Repository: https://github.com/kundajelab/boosting2D 
 
 ### When to use:  
-Learn the regulatory programs - transcriptional regulators and their corresponding motifs - that govern dynamic patterns of chromatin accessibility or gene expression (or other phenotypes) across conditions. Conditions can be time courses, different cell types, or other experimental perturbations.
+Learn the regulatory programs - transcriptional regulators and their corresponding sequence motifs - that govern dynamic patterns of chromatin accessibility, gene expression, or other phenotypes across conditions. Conditions can be time courses, different cell types, or other experimental perturbations.
 
-### The method in one paragraph:  
-At every iteration, the method pairs a motif and regulator that best predict changes in your target expression/accessibility matrix. This motif-regulator pair with its corresponding index into the target matrix and prediction (up/down regulated) is known as one “rule.” For 1000 iterations we have 1000 such rules, and after each iteration the data is re-weighted to up-weight examples that are incorrectly predicted. After generating a model to learn the rules that predict over the entire target matrix, we can use the learned model to look at any subset of the matrix (any set of conditions or peaks or combination thereof) to learn which regulatory programs govern the data subset of interest. This occurs in the post-processing steps in a separate run from training the main model. One should train the model across all conditions together with all captured dynamics, and then look at each condition or set of peaks/genes individually in the post-processing steps.
+### A short description of the method:  
+The method consists of two parts: 1) Build an alternating decision tree model to predict output (accessibility/expression) based on sequence motifs and expressed regulators; 2) Interpret this tree to learn which motifs and regulatory proteins are controlling the regulation of which examples (genes/non-coding regions).  
+
+1) At every iteration, the method pairs a motif and regulator that best predict changes in the target expression/accessibility matrix. This motif-regulator pair with its corresponding index into the target matrix and corresponding prediction (up/down regulated) is known as one “rule.” For 1000 iterations we have 1000 such rules that form an alternating decision tree. After each iteration the data is re-weighted to up-weight examples that are incorrectly predicted and the next rule is chosen based on the current weighting of the training examples. 
+
+2) After generating a model to learn the rules that predict over the entire target matrix, we can use the learned alternating decision tree model to look at any subset of the matrix (any set of conditions or peaks or combination thereof) to learn which regulatory programs govern the data subset of interest. This occurs in the post-processing steps in a separate run from training the main model. It's usually best to train the model across all conditions together with all captured dynamics, and then look at each condition or set of peaks/genes individually in the post-processing steps. 
 
 ### The how-to-use summary: 
-In order to use this code you will need 3 matrices: one each for the motifs/x1 matrix (0/1 if a motif is absent/present), regulators/x2 matrix (-1/0/1 for decreased/no change/increased or 1/0 for expressed/not expressed) and target expression or chromatin accessibility/y matrix (-1/0/1 for decreased/no change/increased) and 4 sets of labels for the four unique dimensions of the three matrices. Provide an output path and a relevant label for your analysis folder and you’re pretty much good to go. 
+In order to use this code you will need 3 matrices: one each for the motifs/x1 matrix (0/1 if a motif is absent/present), regulators/x2 matrix (-1/0/1 for decreased/no change/increased or 0/1 for not expressed/expressed) and target expression or chromatin accessibility/y matrix (-1/0/1 for decreased/no change/increased or -1/1 for not expressed/expressed) and 4 sets of labels for the four unique dimensions of the three matrices. Provide an output path and a relevant label for your analysis folder and you’re pretty much good to go. 
 
 # Installation
 
@@ -27,7 +31,7 @@ Install the software with “python setup.py install” in the boosting2D reposi
 
 How to run vanilla main model:
 
-python run_boosting_2D.py --output-prefix name_of_analysis --input-format matrix --mult-format sparse --motifs-file MOTIF_matrix.txt --regulator-file RNA_matrix.txt --target-file ATAC_matrix.txt --target-row-labels LABEL_peaks.txt --target-col-labels LABEL_conditions.txt --m-row-labels LABEL_motifs.txt --r-col-labels LABEL_regulators.txt --ncpu 1 --output-path /path/to/result/folder/ --stable --plot --num-iter 1000 
+python run_boosting_2D.py --output-prefix name_of_analysis --motifs-file MOTIF_matrix.txt --regulator-file RNA_matrix.txt --target-file ATAC_matrix.txt --target-row-labels LABEL_peaks.txt --target-col-labels LABEL_conditions.txt --m-row-labels LABEL_motifs.txt --r-col-labels LABEL_regulators.txt --ncpu 1 --output-path /path/to/result/folder/ --stable --num-iter 1000 
 
 ## Arguments:
 
@@ -236,12 +240,12 @@ Name of hierarchy corresponding to your implemented hierarchy in hierarchy.py
 
 # Post-processing 
 
-Overview: Post-processing is performed separately with the saved and compressed main model. The post-processing module reloads the 3 matrices as well as the learned model to dive into whichever conditions, genes or regions of interest you want to learn about based on two index files you provide. One index file specifies conditions (columns of the target matrix) to look at, and the other index files specific genes/peaks (rows of the target matrix). You can use them separately or together. Using a margin-score based approach, you can learn which motifs (x1 option) and regulators (x2 option) control each part of your target matrix. You can also look at motifs and regulators together (node option) as well as groups of motifs and regulators that are dependent in the model (path option). 
+Overview: Post-processing is performed separately with the saved and compressed main model. The post-processing module reloads the 3 matrices as well as the learned model to explore the conditions, genes or regions of interest you want to learn about based on (0, 1 or ) 2 index files you provide. One index file specifies conditions (columns of the target matrix) to look at, and the other index files specific genes/peaks (rows of the target matrix). You can use them separately or together. If you supply none then the margin will be calculated over all the data. Using a margin-score based approach, you can learn which motifs (x1 option) and regulators (x2 option) control each part of your target matrix. You can also look at motifs and regulators together (node option) as well as groups of motifs and regulators that are dependent in the model (path option). 
 
 How to run vanilla post processing:
 
 python run_post_processing.py --model-path /result/path/output_prefix/load_pickle_data_script.py --analysis-label
-margin_score_output_name --run-margin-score --num-perm 100 --split-prom-enh-dist 0 --margin-score-methods x1,x2 --region-feat-file desired_peaks.txt --condition-feat-file desired_conditions.txt
+margin_score_output_name --run-margin-score --num-perm 100 --margin-score-methods x1,x2 --region-feat-file desired_peaks.txt --condition-feat-file desired_conditions.txt
 
 ## Margin Score
 
@@ -267,9 +271,6 @@ options are: [x1, x2, node, path]. Include multiple options separated by commas.
 
 --num-perm 
 Number of permutations of shuffling y matrix and re-calculating y matrix to calculate empirical p-values for each margin score in the real target matrix. Default 100, more recommended.
-
---split-prom-enh-dist 
-If you would like to analyze promoters and enhancers separately, enter an integer indicating the distance to a promoter. Typically use 0 (intersecting a promoter). NOTE: Default TSS file is hard coded on scg3, option to include your own or to use an alternative annotation to split peaks is in development.
 
 --null-tree-model 
 Instead of shuffling the target matrix to generate empirical p-values you can provide an alternate model in the form of “/path/to/model/model_prefix/saved_tree_state__model_prefix.gz”. For example a model generated with the --shuffle-y flag. 
@@ -317,7 +318,6 @@ User Homer (homer2 find) or Nathan Boley’s curated motifs
 
 Regulator Matrix:
 Subset genes to transcriptional regulators either by selecting genes with a DNA binding domain or genes with an associated GO term that suggests acting as a transcriptional regulator
-
 
 
 ## Additional Notes
