@@ -110,8 +110,7 @@ def fork_and_wait(n_proc, target, args=[]):
                     target(*args)
                     os._exit(os.EX_OK)
                 except Exception, inst:
-                    config.log_statement( "Uncaught exception in subprocess\n" 
-                                          + traceback.format_exc(), log=True)
+                    print("Uncaught exception in subprocess\n" + traceback.format_exc())
                     os._exit(os.EX_SOFTWARE)
             else:
                 pids.append(pid)

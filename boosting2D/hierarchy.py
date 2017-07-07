@@ -120,6 +120,37 @@ def get_hierarchy(name='hema_16cell'):
 
         hierarchy = Hierarchy(NUM_NODES, direct_children, subtree_nodes, name)
 
+    elif name == '7cell_simulation':
+
+        NUM_NODES = 7
+
+        ### Define the direct children of each internal node
+
+        direct_children = {}
+        direct_children['root'] = [0]
+        direct_children[0] = [0, 1, 2]
+        direct_children[1] = [1, 3, 4]
+        direct_children[2] = [2, 5, 6]
+        direct_children[3] = [3]
+        direct_children[4] = [4]
+        direct_children[5] = [5]
+        direct_children[6] = [6]
+
+        ### Define the participant nodes in each subtree
+
+        subtree_nodes = {}
+        subtree_nodes['root'] = range(NUM_NODES)
+        subtree_nodes[0] = range(NUM_NODES)
+        subtree_nodes[1] = [1, 3, 4]
+        subtree_nodes[2] = [2, 5, 6]
+        subtree_nodes[3] = [3]
+        subtree_nodes[4] = [4]
+        subtree_nodes[5] = [5]
+        subtree_nodes[6] = [6]
+
+        hierarchy = Hierarchy(NUM_NODES, direct_children, subtree_nodes, name)
+
+
     else:
         raise ValueError('No existing hierarchy for provided name: %s'%name)
 

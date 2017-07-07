@@ -169,7 +169,7 @@ def parse_args():
                     args.input_format,
                     args.mult_format)
     log('Load x2 stop')
-
+    
     # Shuffle data
     if args.shuffle_y:
         log('Shufflying target matrix', level='VERBOSE')
