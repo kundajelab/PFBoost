@@ -524,8 +524,8 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
             'x1_feat_bundles':[el[1] for el in rule_processes], \
             'margin_score':[el[2] for el in rule_processes], \
             'margin_score_norm':[el[3] for el in rule_processes], \
-            'rule_index_fraction':[el[4] for el in rule_processes]}).sort(
-            columns=['margin_score'], ascending=False)
+            'rule_index_fraction':[el[4] for el in rule_processes]}).sort_values(
+            'margin_score', ascending=False)
 
 
     # Rank x2 features only
@@ -561,8 +561,8 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
             'x2_feat_bundles':[el[1] for el in rule_processes], \
             'margin_score':[el[2] for el in rule_processes], \
             'margin_score_norm':[el[3] for el in rule_processes], \
-            'rule_index_fraction':[el[4] for el in rule_processes]}).sort(
-            columns=['margin_score'], ascending=False)
+            'rule_index_fraction':[el[4] for el in rule_processes]}).sort_values(
+            'margin_score', ascending=False)
 
     # Rank by rules 
     if method == 'x1_and_x2':
@@ -588,8 +588,8 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
             'x2_feat_bundles':[el[3] for el in rule_processes], \
             'margin_score':[el[4] for el in rule_processes], \
             'margin_score_norm':[el[5] for el in rule_processes], \
-            'rule_index_fraction':[el[6] for el in rule_processes]}).sort(
-            columns=['margin_score'], ascending=False)
+            'rule_index_fraction':[el[6] for el in rule_processes]}).sort_values(
+            'margin_score', ascending=False)
     if method == 'node':
         print 'computing margin score for node'
         # Run in serial
@@ -620,8 +620,8 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
             'margin_score':[el[5] for el in rule_processes], \
             'margin_score_norm':[el[6] for el in rule_processes], \
             'rule_index_fraction':[el[7] for el in rule_processes], \
-            'direction':[el[8] for el in rule_processes]}).sort(
-            columns=['margin_score'], ascending=False)
+            'direction':[el[8] for el in rule_processes]}).sort_values(
+            'margin_score', ascending=False)
     if method == 'path':
         print 'computing margin score for path'
         # Run in serial
@@ -650,8 +650,8 @@ def rank_by_margin_score(tree, y, x1, x2, index_mat, method):
             'margin_score':[el[3] for el in rule_processes], \
             'margin_score_norm':[el[4] for el in rule_processes], \
             'rule_index_fraction':[el[5] for el in rule_processes], \
-            'direction':[el[6] for el in rule_processes]}).sort(
-            columns=['margin_score'], ascending=False)
+            'direction':[el[6] for el in rule_processes]}).sort_values(
+            'margin_score', ascending=False)
     ranked_score_df.drop_duplicates()
     # Return matrix
     return ranked_score_df
@@ -950,7 +950,7 @@ def plot_norm_margin_score_across_conditions(conditions, method, plot_label,
         result_dfs[condition] = pd.read_table('{0}{1}/{1}_{2}_top_{3}.txt'.format(
                         result_path, condition, element_direction, method))
         result_dfs[condition]['condition']=[condition]*result_dfs[condition].shape[0]
-    result_df = pd.concat(result_dfs.values()).sort(columns=['margin_score_norm'], ascending=False)
+    result_df = pd.concat(result_dfs.values()).sort_values('margin_score_norm', ascending=False)
     result_df.index=range(result_df.shape[0])
     # Get top 10 regulators
     top_reg = []
@@ -1043,7 +1043,7 @@ def get_diff_in_rank_score_dfs(rank_score_df_1, rank_score_df_2, method):
                                 on=['node', 'x1_feat', 'x1_feat_bundles',
                                     'x2_feat', 'x2_feat_bundles'])
     disc_rank_df['margin_score_norm_diff'] = disc_rank_df['margin_score_norm_x'] - disc_rank_df['margin_score_norm_y']
-    disc_rank_df = disc_rank_df.sort(columns='margin_score_norm_diff', ascending=False)
+    disc_rank_df = disc_rank_df.sort_values('margin_score_norm_diff', ascending=False)
     disc_rank_df.index = range(disc_rank_df.shape[0])
     return disc_rank_df
 
