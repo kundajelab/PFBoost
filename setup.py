@@ -2,8 +2,6 @@ import os, sys
 import numpy
 from setuptools import setup, Extension, find_packages
 
-from Cython.Build import cythonize
-
 def main():
     setup(
         name = "boosting2D",
@@ -12,7 +10,7 @@ def main():
         author = "Peyton Greenside",
         author_email = "pgreens@stanford.edu",
 
-        install_requires = [ 'scipy', 'numpy>=1.11'],
+        install_requires = [ 'scipy', 'numpy>=1.11', 'pandas', 'sklearn'],
 
         extra_requires=['matplotlib'],
 
