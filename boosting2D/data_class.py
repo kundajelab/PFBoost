@@ -289,9 +289,8 @@ class DecisionTree(object):
         log('updating error')
         self._update_error(holdout, y)
         if 'auROC' in config.PERF_METRICS or 'auPRC' in config.PERF_METRICS:
+            log('updating auROC/auPRC')
             self._update_auroc_auprc(holdout, y)
-        log('updating auROC/auPRC')
-        self._update_auroc_auprc(holdout, y)
         log('updating margin')
         self._update_margin(y)
 
@@ -357,7 +356,6 @@ class DecisionTree(object):
         self.imbal_test_err.append(imbal_test_err_i)
 
     def _update_auroc_auprc(self, holdout, y):
-        # from IPython import embed; embed()
 
         # Identify train/test predictions and labels
         holdout_data = holdout.holdout.toarray() if holdout.sparse else holdout.holdout
