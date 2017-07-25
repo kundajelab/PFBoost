@@ -256,6 +256,9 @@ class DecisionTree(object):
         # Initialize training error
         self._update_error(holdout, y)
         self._update_margin(y)
+        if 'auROC' in config.PERF_METRICS or 'auPRC' in config.PERF_METRICS:
+            log('updating auROC/auPRC')
+            self._update_auroc_auprc(holdout, y)
 
     # Store new rule
     def add_rule(self, motif, regulator, best_split, hierarchy_node,
