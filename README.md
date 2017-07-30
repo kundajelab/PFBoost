@@ -1,6 +1,6 @@
 # boosting2D
 
-### boosting2D: a software package to learn gene regulatory programs
+### pyBoost: a software package to learn gene regulatory programs
 
 Contact: Peyton Greenside (pgreens@stanford.edu), Kundaje Lab @ Stanford
 
