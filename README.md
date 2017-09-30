@@ -1,6 +1,6 @@
 # boosting2D
 
-### pyBoost: a software package to learn gene regulatory programs
+### PFBoost (Paired Feature Boosting): a software package to learn gene regulatory programs
 
 Contact: Peyton Greenside (pgreens@stanford.edu), Kundaje Lab @ Stanford
 
